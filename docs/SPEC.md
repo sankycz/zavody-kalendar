@@ -29,7 +29,7 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 - **Extrakce:** Claude API. Stažený HTML text nebo text z PDF pošli modelu s pevným JSON schématem a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní. Model si vezmi z proměnné prostředí `CLAUDE_MODEL`.
 - **Geokódování:** Nominatim z OpenStreetMap, maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
-- **Hosting frontendu:** Cloudflare Pages (auto-deploy z GitHubu, větev `main`).
+- **Hosting frontendu:** Cloudflare Workers static assets — stejný Worker jako API a stahování (Cloudflare pro nové projekty doporučuje místo Pages). Auto-deploy z GitHubu přes Workers Builds.
 
 Klíče patří do Cloudflare Worker secrets (`wrangler secret put`). `ANTHROPIC_API_KEY` nikdy nesmí skončit ve frontendu.
 
@@ -121,7 +121,7 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 3. Minimální frontend se seznamem nad reálnými daty.
 4. Autokaleidoskop a Edda Cup, deduplikace napříč zdroji.
 5. Filtry, mapa, detail.
-6. Cron Trigger a nasazení na Cloudflare Pages.
+6. Cron Trigger a nasazení na Cloudflare (Workers + static assets).
 
 Po každém kroku se zastav a ukaž, co funguje. Dál pokračuj až po odsouhlasení.
 

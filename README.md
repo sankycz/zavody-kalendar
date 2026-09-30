@@ -5,15 +5,21 @@ Kalendář amatérských i mistrovských automobilových závodů v Česku (rall
 - Zadání: [`docs/SPEC.md`](docs/SPEC.md)
 - Pravidla pro AI asistenta: [`CLAUDE.md`](CLAUDE.md)
 
-Stack: Cloudflare D1 + Workers (Cron Triggers) + Pages · Claude API pro extrakci dat · Nominatim · Vite + React + TypeScript + Tailwind + Leaflet.
+Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Claude API pro extrakci dat · Nominatim · Vite + React + TypeScript + Tailwind + Leaflet.
 
 ## Vývoj
 
 ```bash
 npm i
-npm test            # normalizace, deduplikace, upsert do D1 schématu (bez sítě a bez API)
+npm test            # normalizace, deduplikace, upsert, API (bez sítě a bez Claude API)
 npm run typecheck
+
+npx wrangler d1 migrations apply zavody-kalendar --local   # lokální kopie D1
+npm run dev:api     # Worker + API na :8787
+npm run dev         # frontend na :5173 (proxy /api na :8787)
 ```
+
+Web (`web/`) je Vite + React + Tailwind a nasazuje se spolu s Workerem jako jeho statické soubory: `/api/*` a `/admin/*` obslouží Worker, všechno ostatní je aplikace.
 
 ## Nasazení stahovacího Workeru
 
@@ -21,7 +27,7 @@ npm run typecheck
 npx wrangler login
 npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put ADMIN_TOKEN          # libovolný dlouhý náhodný řetězec
-npm run deploy                               # Worker + týdenní Cron Trigger (po 03:17 UTC)
+npm run deploy                               # build webu + Worker + týdenní Cron Trigger (po 03:17 UTC)
 
 # ruční spuštění (jen Autoklub, i když se obsah nezměnil):
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \

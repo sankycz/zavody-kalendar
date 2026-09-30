@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { handleApi } from "./api.ts";
 import { PoliteClient } from "./pipeline/http.ts";
 import { runAll, type RunDeps } from "./pipeline/run.ts";
 
@@ -55,6 +56,9 @@ export default {
       return Response.json(reports);
     }
 
+    if (url.pathname.startsWith("/api/")) return handleApi(request, env.DB);
+
+    // Everything else is served from static assets (the web app) before reaching the Worker.
     return new Response("Not Found", { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
