@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { handleApi, todayInPrague } from "./api.ts";
+import { backfillCoordinates } from "./pipeline/geocode.ts";
 import { PoliteClient } from "./pipeline/http.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
 import { checkOrganizers, DEFAULT_CHECK_LIMIT } from "./pipeline/organizer.ts";
@@ -75,6 +76,7 @@ export default {
     // Admin endpoints, POST with "Authorization: Bearer <ADMIN_TOKEN>":
     //   /admin/run[?source=<id>][&force=1]   calendar ingest
     //   /admin/check-organizers[?limit=<n>]  organizer website check
+    //   /admin/geocode[?limit=<n>]           coordinates for stored events without them
     if (url.pathname.startsWith("/admin/")) {
       if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
       const auth = request.headers.get("Authorization") ?? "";
@@ -84,6 +86,13 @@ export default {
 
     if (url.pathname === "/admin/check-organizers") {
       return Response.json(await checkOrganizers(deps(env), todayInPrague(), checkLimit(env, url.searchParams.get("limit"))));
+    }
+
+    if (url.pathname === "/admin/geocode") {
+      // Workers Free allows 50 subrequests per request; each uncached place is one.
+      const n = Number(url.searchParams.get("limit") ?? 40);
+      const limit = Number.isInteger(n) && n > 0 && n <= 40 ? n : 40;
+      return Response.json(await backfillCoordinates(env.DB, deps(env).geoHttp, limit));
     }
 
     if (url.pathname === "/admin/run") {

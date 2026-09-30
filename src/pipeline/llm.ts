@@ -87,6 +87,20 @@ export function claudeModel(client: MessagesClient, model: string): JsonModel {
   };
 }
 
+/** Output format for models without guided decoding. */
+export function jsonInstruction(schema: z.ZodType): string {
+  return (
+    "Odpověz jen jedním JSON objektem podle tohoto JSON Schema, bez dalšího textu a bez markdownu:\n" +
+    JSON.stringify(z.toJSONSchema(schema))
+  );
+}
+
+/** "```json\n{...}\n```" -> "{...}" */
+export function stripFences(s: string): string {
+  const m = /^\s*```(?:json)?\s*\n([\s\S]*?)\n?```\s*$/.exec(s);
+  return m ? m[1]! : s;
+}
+
 /** The part of the Workers AI binding (env.AI) we use. */
 export interface AiBinding {
   run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
@@ -110,8 +124,8 @@ export function workersAiModel(ai: AiBinding, model: string): JsonModel {
     return md.data;
   };
   return {
-    // Long lists time out (3046) or get cut short in one call; ~15 table rows per call is safe.
-    blockChars: 1200,
+    // Long lists time out (3046) or get cut short in one call; ~40 table rows per call is safe.
+    blockChars: 3000,
     pdfToText,
     async json(req) {
       const parts: string[] = [];
@@ -121,11 +135,12 @@ export function workersAiModel(ai: AiBinding, model: string): JsonModel {
       let out: WorkersAiOutput;
       try {
         out = (await ai.run(model, {
+          // Schema in the prompt, not response_format: guided JSON decoding on
+          // Workers AI is several times slower and long lists then time out (3046).
           messages: [
-            { role: "system", content: req.system },
+            { role: "system", content: `${req.system}\n\n${jsonInstruction(req.schema)}` },
             { role: "user", content: parts.join("\n\n") },
           ],
-          response_format: { type: "json_schema", json_schema: z.toJSONSchema(req.schema) },
           // Workers AI models have far smaller context windows than Claude.
           max_tokens: Math.min(req.maxTokens, 16_000),
           temperature: 0,
@@ -136,7 +151,7 @@ export function workersAiModel(ai: AiBinding, model: string): JsonModel {
       let value = out.response;
       if (typeof value === "string") {
         try {
-          value = JSON.parse(value);
+          value = JSON.parse(stripFences(value));
         } catch {
           throw new ModelError("model output is not JSON");
         }

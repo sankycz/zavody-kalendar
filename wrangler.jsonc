@@ -16,7 +16,7 @@
   "vars": {
     // Extraction model: "workers-ai" (free 10k neurons/day) or "claude" (Claude API, needs ANTHROPIC_API_KEY).
     "EXTRACTOR": "workers-ai",
-    "WORKERS_AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "WORKERS_AI_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
     "CLAUDE_MODEL": "claude-opus-5-5",
     "CONTACT_EMAIL": "j.sankot@gmail.com"
   },

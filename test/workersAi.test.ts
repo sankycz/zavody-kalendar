@@ -29,10 +29,17 @@ describe("workersAiModel", () => {
     expect(out).toEqual({ items: [item], usage: { input_tokens: 10, output_tokens: 5 } });
     const { model, inputs } = runs[0]!;
     expect(model).toBe("@cf/test/model");
-    expect((inputs.response_format as { type: string }).type).toBe("json_schema");
+    expect(inputs.response_format).toBeUndefined();
     const [system, user] = inputs.messages as { role: string; content: string }[];
     expect(system!.content).toContain("automobilových závodů");
+    expect(system!.content).toContain('"date_from"');
     expect(user!.content).toContain("<source>\nradek\n</source>");
+  });
+
+  it("accepts JSON wrapped in a markdown code fence", async () => {
+    const { ai } = fakeAi("```json\n" + JSON.stringify({ events: [item] }) + "\n```");
+    const out = await extractEvents(workersAiModel(ai, "m"), { sourceName: "X", season: 2026, kind: "html", text: "t" });
+    expect(out.items).toEqual([item]);
   });
 
   it("accepts the answer as a JSON string and keeps items that break the schema (normalizeEvent skips them later)", async () => {
@@ -92,7 +99,7 @@ describe("workersAiModel", () => {
       toMarkdown: async () => ({ format: "markdown", data: "" }),
     };
     const out = await extractEvents(workersAiModel(ai, "m"), { sourceName: "X", season: 2026, kind: "html", text });
-    const blocks = lineBlocks(text.split("\n"), 1200).length;
+    const blocks = lineBlocks(text.split("\n"), 3000).length;
     expect(calls).toBe(blocks + 1);
     expect(out.items).toHaveLength(blocks - 1);
     expect(out.failedBlocks).toEqual([expect.stringMatching(/^1–\d+: Workers AI: 3046: Request timeout$/)]);

@@ -56,3 +56,41 @@ export async function geocode(
     .run();
   return result;
 }
+
+export interface BackfillReport {
+  checked: number;
+  geocoded: number;
+  /** First few failures (distinct messages). */
+  errors: string[];
+}
+
+/**
+ * Geocode stored events that have a place but no coordinates yet (e.g. after
+ * Nominatim was unreachable during ingest). Cached places cost no request.
+ */
+export async function backfillCoordinates(db: D1Database, http: PoliteClient, limit: number): Promise<BackfillReport> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, location_name, country FROM events
+       WHERE lat IS NULL AND location_name IS NOT NULL
+       ORDER BY date_from DESC LIMIT ?`,
+    )
+    .bind(limit)
+    .all<{ id: string; location_name: string; country: string }>();
+  const report: BackfillReport = { checked: results.length, geocoded: 0, errors: [] };
+  for (const e of results) {
+    try {
+      const g = await geocode(db, http, e.location_name, e.country);
+      if (!g) continue;
+      await db
+        .prepare("UPDATE events SET lat = ?, lng = ?, region = COALESCE(region, ?) WHERE id = ?")
+        .bind(g.lat, g.lng, g.region, e.id)
+        .run();
+      report.geocoded++;
+    } catch (err) {
+      const msg = String(err);
+      if (report.errors.length < 3 && !report.errors.includes(msg)) report.errors.push(msg);
+    }
+  }
+  return report;
+}
