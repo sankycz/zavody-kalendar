@@ -8,6 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { extractEvents } from "../src/pipeline/extract.ts";
+import { claudeModel } from "../src/pipeline/llm.ts";
 import { processExtraction } from "../src/pipeline/run.ts";
 
 const SEASON = 2026;
@@ -42,7 +43,7 @@ for (const s of selected) {
     continue;
   }
   try {
-    const out = await extractEvents(client, model, {
+    const out = await extractEvents(claudeModel(client, model), {
       sourceName: s.name,
       season: SEASON,
       kind: s.kind,

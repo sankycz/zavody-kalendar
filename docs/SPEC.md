@@ -26,7 +26,7 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
 - **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou denně a ručně přes admin endpoint chráněný tokenem.
-- **Extrakce:** Claude API. Stažený HTML text nebo text z PDF pošli modelu s pevným JSON schématem a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní. Model si vezmi z proměnné prostředí `CLAUDE_MODEL`.
+- **Extrakce:** LLM s pevným JSON schématem – Cloudflare Workers AI (výchozí, zdarma v denním limitu, `EXTRACTOR=workers-ai`, model z `WORKERS_AI_MODEL`) nebo Claude API (`EXTRACTOR=claude`, model z `CLAUDE_MODEL`). Stažený HTML text nebo text z PDF pošli modelu a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní.
 - **Geokódování:** Nominatim z OpenStreetMap, maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
 - **Hosting frontendu:** Cloudflare Workers static assets — stejný Worker jako API a stahování (Cloudflare pro nové projekty doporučuje místo Pages). Auto-deploy z GitHubu přes Workers Builds.
@@ -90,7 +90,7 @@ create table locations (
 
 1. Stáhni zdroj. Pokud se hash obsahu nezměnil od minula, skonči.
 2. Z PDF vytáhni text, z HTML odstraň navigaci a patičku. *(Implementace: PDF se posílá modelu přímo jako dokument — zachová tabulkové rozložení s úrovněmi MČR/RSS a ve Workeru nestojí CPU čas.)*
-3. Pošli text do Claude API a dostaň pole závodů podle schématu. Výstup validuj přes zod. Nevalidní položky zaloguj a přeskoč, celou dávku kvůli nim neshazuj.
+3. Pošli text modelu (Workers AI / Claude API) a dostaň pole závodů podle schématu. Výstup validuj přes zod. Nevalidní položky zaloguj a přeskoč, celou dávku kvůli nim neshazuj.
 4. Normalizuj: datum na ISO, disciplínu a úroveň na hodnoty z výčtu, místo na název obce.
 5. Geokóduj přes cache.
 6. Deduplikuj. `dedupe_key` = normalizované místo + datum začátku + disciplína. Stejný závod z více zdrojů je jeden řádek v `events` a víc řádků v `event_sources`. Při konfliktu má přednost Autoklub ČR.

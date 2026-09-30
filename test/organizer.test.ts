@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getEvent, listEvents, todayInPrague } from "../src/api.ts";
 import type { MessagesClient } from "../src/pipeline/extract.ts";
+import { claudeModel } from "../src/pipeline/llm.ts";
 import { PoliteClient } from "../src/pipeline/http.ts";
 import { checkOrganizers, interpret, type OrganizerCheck } from "../src/pipeline/organizer.ts";
 import { processExtraction } from "../src/pipeline/run.ts";
@@ -76,7 +77,7 @@ function setup() {
   return {
     d1, raw, pages, fetched, prompts,
     answer: (a: OrganizerCheck) => { answer = a; },
-    run: (today = TODAY) => checkOrganizers({ db: d1, http, claude, model: "m" }, today),
+    run: (today = TODAY) => checkOrganizers({ db: d1, http, llm: claudeModel(claude, "m") }, today),
     seed: async (items: ReturnType<typeof item>[]) =>
       upsertEvents(d1, AUTOKLUB, processExtraction(items, Number(TODAY.slice(0, 4))).events, new Map()),
   };
@@ -162,7 +163,7 @@ describe("checkOrganizers", () => {
       fetcher: async (url) =>
         url.endsWith("/robots.txt") ? new Response("", { status: 404 }) : new Response("%PDF", { headers: { "Content-Type": "application/pdf" } }),
     });
-    const r = await checkOrganizers({ db: d1, http, claude: {} as MessagesClient, model: "m" }, TODAY);
+    const r = await checkOrganizers({ db: d1, http, llm: claudeModel({} as MessagesClient, "m") }, TODAY);
     expect(r[0]).toMatchObject({ result: "error", error: "unsupported content type application/pdf" });
   });
 });

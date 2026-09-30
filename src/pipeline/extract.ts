@@ -1,6 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { z } from "zod";
+import { ModelError, type ContentPart, type JsonModel } from "./llm.ts";
 import { ExtractionSchema } from "./schema.ts";
+
+export { ModelError as ExtractionError, type MessagesClient } from "./llm.ts";
 
 export const SYSTEM_PROMPT = `Jsi extraktor dat pro kalendář automobilových závodů v České republice.
 Dostaneš obsah jednoho zdroje (HTML text nebo PDF s kalendářem). Vrať VŠECHNY automobilové závody, které v něm jsou, jako pole "events".
@@ -34,7 +36,7 @@ export interface ExtractInput {
   kind: "html" | "pdf";
   /** Plain text for html sources. */
   text?: string;
-  /** Raw PDF bytes for pdf sources (sent to the model as a document block). */
+  /** Raw PDF bytes for pdf sources. */
   pdf?: Uint8Array;
 }
 
@@ -43,60 +45,31 @@ export interface ExtractOutput {
   usage: { input_tokens: number; output_tokens: number };
 }
 
-export type MessagesClient = Pick<Anthropic, "messages">;
-
-function toBase64(bytes: Uint8Array): string {
-  let bin = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(bin);
-}
-
-export function buildUserContent(input: ExtractInput): Anthropic.ContentBlockParam[] {
-  const instruction: Anthropic.TextBlockParam = {
+export function buildUserContent(input: ExtractInput): ContentPart[] {
+  const instruction: ContentPart = {
     type: "text",
     text: `Zdroj: ${input.sourceName}\nSezóna: ${input.season}\nVytáhni všechny automobilové závody podle pravidel.`,
   };
   if (input.kind === "pdf") {
-    if (!input.pdf) throw new Error("pdf source without pdf bytes");
-    return [
-      {
-        type: "document",
-        source: { type: "base64", media_type: "application/pdf", data: toBase64(input.pdf) },
-      },
-      instruction,
-    ];
+    if (!input.pdf) throw new ModelError("pdf source without pdf bytes");
+    return [{ type: "pdf", data: input.pdf }, instruction];
   }
-  if (!input.text) throw new Error("html source without text");
+  if (!input.text) throw new ModelError("html source without text");
   return [{ type: "text", text: `<source>\n${input.text}\n</source>` }, instruction];
 }
 
-export class ExtractionError extends Error {}
+/** Items are validated one by one later (normalizeEvent), so only the envelope must hold. */
+const ExtractionEnvelope = z.object({ events: z.array(z.unknown()) });
 
-/** Send one source to Claude and get back the raw (not yet validated) items. */
-export async function extractEvents(client: MessagesClient, model: string, input: ExtractInput): Promise<ExtractOutput> {
-  const stream = client.messages.stream({
-    model,
-    max_tokens: 64000,
+/** Send one source to the model and get back the raw (not yet validated) items. */
+export async function extractEvents(llm: JsonModel, input: ExtractInput): Promise<ExtractOutput> {
+  const out = await llm.json({
     system: SYSTEM_PROMPT,
-    output_config: { effort: "medium", format: zodOutputFormat(ExtractionSchema) },
-    messages: [{ role: "user", content: buildUserContent(input) }],
+    content: buildUserContent(input),
+    schema: ExtractionSchema,
+    accept: ExtractionEnvelope,
+    maxTokens: 64000,
+    effort: "medium",
   });
-  const message = await stream.finalMessage();
-
-  if (message.stop_reason === "refusal") {
-    throw new ExtractionError(`model refused (${message.stop_details?.category ?? "unknown"})`);
-  }
-  if (message.stop_reason === "max_tokens") {
-    throw new ExtractionError("output hit max_tokens; source is too large for one request");
-  }
-  const parsed = message.parsed_output;
-  if (!parsed) throw new ExtractionError("model output did not match the extraction schema");
-
-  return {
-    items: parsed.events,
-    usage: { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
-  };
+  return { items: out.data.events, usage: out.usage };
 }

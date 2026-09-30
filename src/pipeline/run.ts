@@ -1,8 +1,9 @@
 import { dedupeBatch } from "./dedupe.ts";
-import { extractEvents, type MessagesClient } from "./extract.ts";
+import { extractEvents } from "./extract.ts";
 import { geocode, type GeoResult } from "./geocode.ts";
 import { decodeHtml } from "./decode.ts";
 import { htmlToText } from "./htmlToText.ts";
+import type { JsonModel } from "./llm.ts";
 import { sha256Hex, type PoliteClient } from "./http.ts";
 import { normalizeEvent } from "./normalize.ts";
 import type { NormalizedEvent, SourceRow } from "./schema.ts";
@@ -36,8 +37,8 @@ export interface RunDeps {
   http: PoliteClient;
   /** For Nominatim: >= 1 s between requests. */
   geoHttp: PoliteClient;
-  claude: MessagesClient;
-  model: string;
+  /** Claude API or Workers AI, see llm.ts. */
+  llm: JsonModel;
   log?: (msg: string, data?: unknown) => void;
 }
 
@@ -77,7 +78,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       return { source: source.id, status: "unchanged", hash };
     }
 
-    const extracted = await extractEvents(deps.claude, deps.model, {
+    const extracted = await extractEvents(deps.llm, {
       sourceName: source.name,
       season: source.season,
       kind: source.kind,

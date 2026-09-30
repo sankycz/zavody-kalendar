@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MessagesClient } from "../src/pipeline/extract.ts";
+import { claudeModel } from "../src/pipeline/llm.ts";
 import { PoliteClient } from "../src/pipeline/http.ts";
 import { markFinished, runAll } from "../src/pipeline/run.ts";
 import { createTestDb } from "./d1shim.ts";
@@ -39,7 +40,7 @@ function setup(pages: string[]) {
       },
     },
   } as unknown as MessagesClient;
-  const deps = { db: d1, http, geoHttp: http, claude, model: "m" };
+  const deps = { db: d1, http, geoHttp: http, llm: claudeModel(claude, "m") };
   return {
     raw,
     d1,

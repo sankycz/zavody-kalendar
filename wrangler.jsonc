@@ -14,10 +14,14 @@
   // Daily ingest 03:17 UTC; unchanged sources are skipped by content hash.
   "triggers": { "crons": ["17 3 * * *"] },
   "vars": {
+    // Extraction model: "workers-ai" (free 10k neurons/day) or "claude" (Claude API, needs ANTHROPIC_API_KEY).
+    "EXTRACTOR": "workers-ai",
+    "WORKERS_AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     "CLAUDE_MODEL": "claude-opus-5-5",
     "CONTACT_EMAIL": "j.sankot@gmail.com"
   },
-  // Secrets (wrangler secret put): ANTHROPIC_API_KEY, ADMIN_TOKEN
+  // Secrets (wrangler secret put): ADMIN_TOKEN, and ANTHROPIC_API_KEY when EXTRACTOR = "claude"
+  "ai": { "binding": "AI" },
   "d1_databases": [
     {
       "binding": "DB",

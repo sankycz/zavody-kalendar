@@ -1,12 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { handleApi, todayInPrague } from "./api.ts";
 import { PoliteClient } from "./pipeline/http.ts";
+import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
 import { checkOrganizers, DEFAULT_CHECK_LIMIT } from "./pipeline/organizer.ts";
 import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
 
 export interface Env {
   DB: D1Database;
-  ANTHROPIC_API_KEY: string;
+  /** Workers AI binding (used when EXTRACTOR = "workers-ai"). */
+  AI: Ai;
+  /** "workers-ai" (free daily allocation) or "claude" (Claude API, needs ANTHROPIC_API_KEY). */
+  EXTRACTOR: string;
+  WORKERS_AI_MODEL: string;
+  ANTHROPIC_API_KEY?: string;
   ADMIN_TOKEN: string;
   CLAUDE_MODEL: string;
   CONTACT_EMAIL: string;
@@ -19,15 +25,26 @@ function checkLimit(env: Env, override?: string | null): number {
   return Number.isInteger(n) && n >= 0 && n <= 50 ? n : DEFAULT_CHECK_LIMIT;
 }
 
+function llm(env: Env): JsonModel {
+  if (env.EXTRACTOR === "claude") {
+    if (!env.CLAUDE_MODEL) throw new Error("CLAUDE_MODEL is not set");
+    if (!env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not set");
+    return claudeModel(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }), env.CLAUDE_MODEL);
+  }
+  if (env.EXTRACTOR === "workers-ai") {
+    if (!env.WORKERS_AI_MODEL) throw new Error("WORKERS_AI_MODEL is not set");
+    return workersAiModel(env.AI as unknown as AiBinding, env.WORKERS_AI_MODEL);
+  }
+  throw new Error(`unknown EXTRACTOR '${env.EXTRACTOR}' (use "workers-ai" or "claude")`);
+}
+
 function deps(env: Env): RunDeps {
-  if (!env.CLAUDE_MODEL) throw new Error("CLAUDE_MODEL is not set");
   const userAgent = `zavody-kalendar/0.1 (+https://github.com/sankycz/zavody-kalendar; ${env.CONTACT_EMAIL})`;
   return {
     db: env.DB,
     http: new PoliteClient({ userAgent, minIntervalMs: 5000 }),
     geoHttp: new PoliteClient({ userAgent, minIntervalMs: 1100 }),
-    claude: new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }),
-    model: env.CLAUDE_MODEL,
+    llm: llm(env),
     log: (msg, data) => console.log(msg, data ?? ""),
   };
 }

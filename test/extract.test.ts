@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildUserContent, extractEvents, ExtractionError, type MessagesClient } from "../src/pipeline/extract.ts";
+import { claudeModel } from "../src/pipeline/llm.ts";
 
 function fakeClient(message: Record<string, unknown>) {
   const calls: Record<string, unknown>[] = [];
@@ -23,7 +24,7 @@ const okMessage = {
 describe("extractEvents", () => {
   it("uses the configured model, structured output and a document block for PDFs", async () => {
     const { client, calls } = fakeClient(okMessage);
-    const out = await extractEvents(client, "model-from-env", {
+    const out = await extractEvents(claudeModel(client, "model-from-env"), {
       sourceName: "Autoklub",
       season: 2026,
       kind: "pdf",
@@ -48,9 +49,9 @@ describe("extractEvents", () => {
     [{ ...okMessage, parsed_output: null }, /schema/],
   ])("throws on %#", async (message, re) => {
     const { client } = fakeClient(message);
-    await expect(extractEvents(client, "m", { sourceName: "X", season: 2026, kind: "html", text: "t" })).rejects.toThrow(
+    await expect(extractEvents(claudeModel(client, "m"), { sourceName: "X", season: 2026, kind: "html", text: "t" })).rejects.toThrow(
       ExtractionError,
     );
-    await expect(extractEvents(client, "m", { sourceName: "X", season: 2026, kind: "html", text: "t" })).rejects.toThrow(re);
+    await expect(extractEvents(claudeModel(client, "m"), { sourceName: "X", season: 2026, kind: "html", text: "t" })).rejects.toThrow(re);
   });
 });

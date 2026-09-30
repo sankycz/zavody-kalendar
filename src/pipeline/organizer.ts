@@ -1,9 +1,8 @@
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { decodeHtml } from "./decode.ts";
-import type { MessagesClient } from "./extract.ts";
 import { htmlToText } from "./htmlToText.ts";
 import { sha256Hex, type PoliteClient } from "./http.ts";
+import type { JsonModel } from "./llm.ts";
 import { parseDate } from "./normalize.ts";
 
 /** How far ahead organizer websites are checked, and how many per run. */
@@ -36,8 +35,7 @@ Pravidla:
 export interface OrganizerDeps {
   db: D1Database;
   http: PoliteClient;
-  claude: MessagesClient;
-  model: string;
+  llm: JsonModel;
   log?: (msg: string) => void;
 }
 
@@ -90,28 +88,20 @@ export async function dueEvents(db: D1Database, today: string, limit: number): P
 }
 
 async function askModel(deps: OrganizerDeps, e: DueEvent, text: string): Promise<OrganizerCheck> {
-  const stream = deps.claude.messages.stream({
-    model: deps.model,
-    max_tokens: 2000,
+  const out = await deps.llm.json({
     system: ORGANIZER_PROMPT,
-    output_config: { effort: "low", format: zodOutputFormat(OrganizerCheckSchema) },
-    messages: [
+    content: [
+      { type: "text", text: `<page url="${e.website_url}">\n${text.slice(0, MAX_TEXT_CHARS)}\n</page>` },
       {
-        role: "user",
-        content: [
-          { type: "text", text: `<page url="${e.website_url}">\n${text.slice(0, MAX_TEXT_CHARS)}\n</page>` },
-          {
-            type: "text",
-            text: `Závod z kalendáře: ${e.name}\nTermín: ${e.date_from}${e.date_to ? ` až ${e.date_to}` : ""}\nMísto: ${e.location_name ?? "neuvedeno"}`,
-          },
-        ],
+        type: "text",
+        text: `Závod z kalendáře: ${e.name}\nTermín: ${e.date_from}${e.date_to ? ` až ${e.date_to}` : ""}\nMísto: ${e.location_name ?? "neuvedeno"}`,
       },
     ],
+    schema: OrganizerCheckSchema,
+    maxTokens: 2000,
+    effort: "low",
   });
-  const msg = await stream.finalMessage();
-  if (msg.stop_reason === "refusal") throw new Error("model refused");
-  if (!msg.parsed_output) throw new Error("model output did not match the schema");
-  return msg.parsed_output;
+  return out.data;
 }
 
 /** Turn the model's answer into what we store; dates must be real and near the event's season. */
