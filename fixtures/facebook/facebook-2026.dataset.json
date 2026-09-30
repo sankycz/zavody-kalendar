@@ -1,0 +1,61 @@
+[
+  {
+    "url": "https://www.facebook.com/events/967347392828445/",
+    "name": "Závod do vrchu! ",
+    "utcStartDate": "2026-09-13T11:00:00.000Z",
+    "duration": null,
+    "isCanceled": false,
+    "isOnline": false,
+    "description": "Spolek Freekulin letos navazuje na dřívější tradici a vrací na scénu legendární Závod do vrchu! Vezměte kola, koloběžky, brusle nebo klidně dětské kočárky a přijďte si užít odpoledne plné sportu, zábavy a skvělé atmosféry. Závod je určený pro děti.",
+    "location": { "name": "Pustiměř, 683 21 Pustiměř, Česko", "city": null, "countryCode": "CZ", "latitude": 49.322440891667, "longitude": 17.030194158509 }
+  },
+  {
+    "url": "https://www.facebook.com/events/1625009492024785/",
+    "name": "100 let závodu do vrchu Záskalí",
+    "utcStartDate": "2026-08-08T09:00:00.000Z",
+    "duration": null,
+    "isCanceled": false,
+    "isOnline": false,
+    "description": "V letošním roce, tedy přesněji 8. srpna 2026 si v Hodkovicích nad Mohelkou připomeneme 100 let od prvního závodu do vrchu Záskalí u Liberce. Automobily zde začaly závodit až v roce 1974 a tak při té příležitosti hledáme fotografie a filmy z těchto závodů, zveme na setkání závodníky, kteří zde jezdili a uvítáme vystavení i závodních automobilů, pro které plánujeme i ukázkové jízdy."
+  },
+  {
+    "url": "https://www.facebook.com/events/1079337924581415/",
+    "name": "ZÁVOD DO VRCHU",
+    "utcStartDate": "2026-09-12T07:30:00.000Z",
+    "duration": null,
+    "isCanceled": false,
+    "isOnline": false,
+    "description": "Nezapomeňte se předregistrovat na: www.zavoddovrchu.skauting.cz Těšíme se na vás!",
+    "location": { "name": "Klecany, Náměstí Třebízského", "city": "Klecany, Czech Republic", "countryCode": "CZ", "latitude": 50.183825615625, "longitude": 14.4214742125 }
+  },
+  {
+    "url": "https://www.facebook.com/events/1617291233447981/",
+    "name": "Cykloman - Závod do vrchu",
+    "utcStartDate": "2026-10-17T09:00:00.000Z",
+    "duration": null,
+    "isCanceled": false,
+    "isOnline": false,
+    "description": "ZÁVOD DO VRCHU | CYKLOMAN 2026. 10. závod seriálu CYKLOMAN 2026! Netradiční časovka na dvě kola do strmého vrchu pro horská kola. 17. 10. 2026 od 12:00, Moravská Třebová – sjezdovka, ul. Dvorní.",
+    "location": { "name": "Moravska Trebova", "city": "Moravska Trebova, Czech Republic", "countryCode": "CZ", "latitude": 49.75, "longitude": 16.6667 }
+  },
+  {
+    "url": "https://www.facebook.com/events/1412279057438710/",
+    "name": "Autoslalom ",
+    "utcStartDate": "2026-08-23T10:00:00.000Z",
+    "duration": null,
+    "isCanceled": false,
+    "isOnline": false,
+    "description": "Gass på – det er klart for Autoslalom igjen! Sted: Kvadrat, Gamle Stokkavei 1, 4313 Sandnes. Dato: 23, August 2026. Påmelding: send en e-post til: klubb@example.no",
+    "location": { "name": "Kvadrat ved parkeringshuset plan 2", "city": null, "countryCode": "NO", "latitude": 58.876875251519, "longitude": 5.72176772232 }
+  },
+  {
+    "url": "https://www.facebook.com/events/2101306047396237/",
+    "name": "Mid Year Rallysprint",
+    "utcStartDate": "2026-08-09T01:45:00.000Z",
+    "duration": null,
+    "isCanceled": false,
+    "isOnline": false,
+    "description": "",
+    "location": { "name": "Perth Motorplex", "city": "Kwinana Beach, WA, Australia", "countryCode": "AU", "latitude": -32.215467592787, "longitude": 115.7883913747 }
+  }
+]

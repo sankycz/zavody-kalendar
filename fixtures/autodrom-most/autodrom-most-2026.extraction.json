@@ -1,0 +1,58 @@
+{
+  "_note": "Extrakce provedená Claude v Claude Code session podle SYSTEM_PROMPT a ExtractionSchema nad autodrom-most-2026.txt (bez API klíče, ne přes extractEvents()). Po nastavení ANTHROPIC_API_KEY ji přepíše `npm run fixtures:extract`.",
+  "source_id": "autodrom-most-2026",
+  "season": 2026,
+  "model": "claude-code-session",
+  "extracted_at": "2026-09-30",
+  "usage": null,
+  "events": [
+    {
+      "name": "Trackmasters (Time Attack Cup)",
+      "date_from": "2026-10-09",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Time Attack Cup",
+      "level": "pohar",
+      "location_name": "Most",
+      "region": null,
+      "country": "CZ",
+      "organizer": null,
+      "website_url": "https://www.autodrom-most.cz/trackmasters-time-attack-cup-p20183/",
+      "description": null,
+      "status": "planned",
+      "raw_excerpt": "Trackmasters (Time Attack Cup) (https://www.autodrom-most.cz/trackmasters-time-attack-cup-p20183/)"
+    },
+    {
+      "name": "The Most Classic 2026",
+      "date_from": "2026-10-10",
+      "date_to": null,
+      "discipline": "historic",
+      "series": null,
+      "level": "volny",
+      "location_name": "Most",
+      "region": null,
+      "country": "CZ",
+      "organizer": null,
+      "website_url": "https://www.autodrom-most.cz/the-most-classic-2026-zruseno-p20184/",
+      "description": null,
+      "status": "cancelled",
+      "raw_excerpt": "THE MOST CLASSIC 2026 - ZRUŠENO!!! (https://www.autodrom-most.cz/the-most-classic-2026-zruseno-p20184/)"
+    },
+    {
+      "name": "Carbonia Cup",
+      "date_from": "2026-10-11",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Carbonia Cup",
+      "level": "pohar",
+      "location_name": "Most",
+      "region": null,
+      "country": "CZ",
+      "organizer": null,
+      "website_url": "https://www.autodrom-most.cz/carbonia-cup-p20378/",
+      "description": null,
+      "status": "planned",
+      "raw_excerpt": "Carbonia Cup (https://www.autodrom-most.cz/carbonia-cup-p20378/)"
+    }
+  ]
+}

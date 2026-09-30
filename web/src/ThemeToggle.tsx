@@ -40,7 +40,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(NEXT[theme])}
-      className="flex h-10 w-10 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
+      className="flex h-10 w-10 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-fg"
       aria-label={`Motiv: ${LABEL[theme]}. Přepnout.`}
       title={LABEL[theme]}
     >

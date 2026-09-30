@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { preferredLocation, samePlace } from "../src/pipeline/dedupe.ts";
 import { normalizeEvent, normalizeLocation, parseDate } from "../src/pipeline/normalize.ts";
 
 const base = {
@@ -90,13 +91,28 @@ describe("normalizeEvent", () => {
     expect(normalizeEvent({ ...base, country: "Rakousko" }, 2026)).toMatchObject({ event: { country: "CZ" } });
   });
 
-  it("uses the name for the dedupe key when location is missing", () => {
-    const r = normalizeEvent({ ...base, location_name: null }, 2026);
-    expect(r.ok && r.event.dedupe_key).toBe("rallye-x|2026-05-22|rally");
+  it("skips an event without a location (can't be deduplicated or shown on the map)", () => {
+    expect(normalizeEvent({ ...base, location_name: null }, 2026)).toMatchObject({ ok: false, error: "missing location_name" });
+    expect(normalizeEvent({ ...base, location_name: "  " }, 2026)).toMatchObject({ ok: false, error: "missing location_name" });
   });
 
   it("never throws on garbage", () => {
     expect(normalizeEvent(null, 2026).ok).toBe(false);
     expect(normalizeEvent({ foo: 1 }, 2026).ok).toBe(false);
+  });
+});
+
+describe("samePlace / preferredLocation", () => {
+  it("treats a shorter form of the same municipality as one place, whole words only", () => {
+    expect(samePlace("becov", "becov-nad-teplou")).toBe(true);
+    expect(samePlace("namest-nad-oslavou", "namest")).toBe(true);
+    expect(samePlace("most", "mostek")).toBe(false);
+    expect(samePlace("usti-nad-orlici", "usti-nad-labem")).toBe(false);
+  });
+
+  it("keeps the more specific name", () => {
+    expect(preferredLocation("Bečov", "Bečov nad Teplou")).toBe("Bečov nad Teplou");
+    expect(preferredLocation("Náměšť nad Oslavou", "Náměšť")).toBe("Náměšť nad Oslavou");
+    expect(preferredLocation("Most", "Mostek")).toBeNull();
   });
 });

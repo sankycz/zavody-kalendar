@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventsQuery, handleApi, listEvents, todayInPrague } from "../src/api.ts";
+import { EventsQuery, getEvent, handleApi, listEvents, listRegions, pragueHour, todayInPrague } from "../src/api.ts";
 import { processExtraction } from "../src/pipeline/run.ts";
 import { upsertEvents } from "../src/pipeline/upsert.ts";
 import { createTestDb } from "./d1shim.ts";
@@ -20,7 +20,7 @@ async function seeded() {
     ],
     2026,
   );
-  await upsertEvents(d1, { id: "autoklub-cal-pdf-2026", url: "https://x.example/", priority: 10 }, events, new Map());
+  await upsertEvents(d1, { id: "autoklub-cal-pdf-2026", provider: "autoklub-cal", url: "https://x.example/", priority: 10 }, events, new Map());
   return { d1, raw };
 }
 
@@ -30,6 +30,13 @@ describe("listEvents", () => {
     const r = await listEvents(d1, {}, "2026-05-02");
     expect(r.events.map((e) => e.name)).toEqual(["Running now", "Hill", "Cross"]);
     expect(r.events[0]!.source_count).toBe(1);
+  });
+
+  it("lists only races in the Czech Republic", async () => {
+    const { d1, raw } = await seeded();
+    raw.exec("UPDATE events SET country = 'DE' WHERE name = 'Hill'");
+    const r = await listEvents(d1, {}, "2026-05-02");
+    expect(r.events.map((e) => e.name)).toEqual(["Running now", "Cross"]);
   });
 
   it("filters by discipline, level and date range", async () => {
@@ -59,8 +66,50 @@ describe("handleApi", () => {
   });
 });
 
+describe("event detail", () => {
+  it("returns all fields and named source links", async () => {
+    const { d1, raw } = await seeded();
+    const { id } = raw.prepare("SELECT id FROM events WHERE name = 'Hill'").get() as { id: string };
+    const e = await getEvent(d1, id);
+    expect(e).toMatchObject({ name: "Hill", discipline: "vrch", organizer: null, source_count: 1 });
+    expect(e!.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(e!.sources).toEqual([
+      { name: "Autoklub ČR – kalendář (PDF)", url: "https://x.example/", last_seen_at: expect.any(String) },
+    ]);
+
+    const res = await handleApi(new Request(`https://x/api/events/${id}`), d1);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { name: string }).name).toBe("Hill");
+  });
+
+  it("404 for unknown or malformed id", async () => {
+    const { d1 } = await seeded();
+    expect((await handleApi(new Request(`https://x/api/events/${"0".repeat(32)}`), d1)).status).toBe(404);
+    expect((await handleApi(new Request("https://x/api/events/x'--"), d1)).status).toBe(404);
+  });
+});
+
+describe("listRegions", () => {
+  it("lists regions of upcoming events only", async () => {
+    const { d1, raw } = await seeded();
+    raw.exec("UPDATE events SET region = 'Jihomoravský kraj' WHERE name = 'Past'");
+    raw.exec("UPDATE events SET region = 'Olomoucký kraj' WHERE name = 'Hill'");
+    raw.exec("UPDATE events SET region = 'Olomoucký kraj' WHERE name = 'Cross'");
+    expect(await listRegions(d1, "2026-05-02")).toEqual({ regions: ["Olomoucký kraj"] });
+  });
+});
+
 describe("todayInPrague", () => {
   it("uses Czech time, not UTC", () => {
     expect(todayInPrague(new Date("2026-05-01T22:30:00Z"))).toBe("2026-05-02");
+  });
+});
+
+describe("pragueHour", () => {
+  it("follows Czech summer and winter time", () => {
+    expect(pragueHour(new Date("2026-10-05T03:00:00Z"))).toBe(5); // Monday, CEST
+    expect(pragueHour(new Date("2026-10-05T04:00:00Z"))).toBe(6);
+    expect(pragueHour(new Date("2026-11-02T04:00:00Z"))).toBe(5); // Monday, CET
+    expect(pragueHour(new Date("2026-11-02T03:00:00Z"))).toBe(4);
   });
 });

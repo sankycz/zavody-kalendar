@@ -1,4 +1,4 @@
-import type { Discipline, Level } from "../../src/shared/types.ts";
+import type { Discipline, Level, OrganizerFlag } from "../../src/shared/types.ts";
 
 export const DISCIPLINE_LABEL: Record<Discipline, string> = {
   rally: "Rally",
@@ -34,3 +34,10 @@ const COUNTRY_LABEL: Record<string, string> = {
 export function countryLabel(code: string): string {
   return COUNTRY_LABEL[code] ?? code;
 }
+
+/** Short badge for what the organizer's website reports. */
+export const ORGANIZER_FLAG_LABEL: Record<OrganizerFlag, string> = {
+  cancelled: "Zrušeno pořadatelem",
+  postponed: "Odloženo",
+  date_changed: "Změna termínu?",
+};

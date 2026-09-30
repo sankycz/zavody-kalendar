@@ -11,8 +11,8 @@ const fixture = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "fixtures", "autoklub-cal", "extraction.sample.json"), "utf8"),
 ) as { season: number; events: unknown[] };
 
-const AUTOKLUB = { id: "autoklub-cal-pdf-2026", url: "https://autoklub.example/cal.pdf", priority: 10 };
-const KALEIDO = { id: "autokaleidoskop-2026", url: "https://kaleido.example/", priority: 50 };
+const AUTOKLUB = { id: "autoklub-cal-pdf-2026", provider: "autoklub-cal", url: "https://autoklub.example/cal.pdf", priority: 10 };
+const KALEIDO = { id: "autokaleidoskop-2026", provider: "autokaleidoskop", url: "https://kaleido.example/", priority: 50 };
 
 describe("dedupe", () => {
   it("key ignores case and diacritics", () => {
@@ -64,7 +64,7 @@ describe("upsert into D1 schema", () => {
 
   it("inserts events and source links, idempotent on re-run", async () => {
     const { d1, raw } = createTestDb();
-    const geo = new Map([["klatovy|2026-05-22|rally", { lat: 49.39, lng: 13.29, region: "Plzeňský kraj" }]]);
+    const geo = new Map([["klatovy|2026-05-22|rally", { lat: 49.39, lng: 13.29, region: "Plzeňský kraj", country: "CZ" }]]);
 
     expect(await upsertEvents(d1, AUTOKLUB, events, geo)).toEqual({ inserted: 5, updated: 0 });
     expect(await upsertEvents(d1, AUTOKLUB, events, geo)).toEqual({ inserted: 0, updated: 5 });

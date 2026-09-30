@@ -123,7 +123,7 @@ export function normalizeLocation(v: string | null | undefined): string | null {
   return out || null;
 }
 
-function normalizeUrl(v: string | null | undefined): string | null {
+export function normalizeUrl(v: string | null | undefined): string | null {
   const t = cleanText(v, 500);
   if (!t) return null;
   const withScheme = /^https?:\/\//i.test(t) ? t : /^www\./i.test(t) ? `https://${t}` : null;
@@ -191,6 +191,7 @@ export function normalizeEvent(raw: unknown, season: number): NormalizeResult {
   const country = /^[A-Z]{2}$/.test(countryRaw) ? countryRaw : "CZ";
 
   const location_name = normalizeLocation(r.location_name);
+  if (!location_name) return { ok: false, error: "missing location_name", raw };
 
   return {
     ok: true,
@@ -209,7 +210,7 @@ export function normalizeEvent(raw: unknown, season: number): NormalizeResult {
       description: cleanText(r.description),
       status,
       raw_excerpt: cleanText(r.raw_excerpt, MAX_EXCERPT),
-      dedupe_key: dedupeKey(location_name ?? name, date_from, discipline),
+      dedupe_key: dedupeKey(location_name, date_from, discipline),
     },
   };
 }
