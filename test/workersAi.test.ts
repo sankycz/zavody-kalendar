@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractEvents } from "../src/pipeline/extract.ts";
+import { extractEvents, lineBlocks } from "../src/pipeline/extract.ts";
 import { ModelError, workersAiModel, type AiBinding } from "../src/pipeline/llm.ts";
 import { OrganizerCheckSchema } from "../src/pipeline/organizer.ts";
 
@@ -63,5 +63,57 @@ describe("workersAiModel", () => {
     await expect(
       workersAiModel(ai, "m").json({ system: "s", content: [{ type: "text", text: "t" }], schema: OrganizerCheckSchema, maxTokens: 100, effort: "low" }),
     ).rejects.toThrow(/schema/);
+  });
+
+  it("sends a long source in line blocks with the whole numbered text as context", async () => {
+    const lines = Array.from({ length: 300 }, (_, i) => `${i + 1}.5. | Závod ${i + 1} | ●`);
+    const { ai, runs } = fakeAi({ events: [item] });
+    const out = await extractEvents(workersAiModel(ai, "m"), { sourceName: "X", season: 2026, kind: "html", text: lines.join("\n") });
+    expect(runs.length).toBeGreaterThan(1);
+    expect(out.items).toHaveLength(runs.length);
+    expect(out.usage).toEqual({ input_tokens: 10 * runs.length, output_tokens: 5 * runs.length });
+    expect(out.failedBlocks).toBeUndefined();
+    const user = (r: (typeof runs)[number]) => (r.inputs.messages as { content: string }[])[1]!.content;
+    expect(user(runs[0]!)).toContain("300: 300.5. | Závod 300 | ●");
+    expect(user(runs[0]!)).toMatch(/na řádcích 1–\d+\./);
+    expect(user(runs.at(-1)!)).toMatch(/na řádcích \d+–300\./);
+  });
+
+  it("retries a failed block once and reports blocks that still fail", async () => {
+    const text = Array.from({ length: 200 }, (_, i) => `řádek ${i} ${"x".repeat(20)}`).join("\n");
+    let calls = 0;
+    const ai: AiBinding = {
+      run: async (_m, inputs) => {
+        calls++;
+        const user = (inputs.messages as { content: string }[])[1]!.content;
+        if (/na řádcích 1–/.test(user)) throw new Error("3046: Request timeout");
+        return { response: { events: [item] } };
+      },
+      toMarkdown: async () => ({ format: "markdown", data: "" }),
+    };
+    const out = await extractEvents(workersAiModel(ai, "m"), { sourceName: "X", season: 2026, kind: "html", text });
+    const blocks = lineBlocks(text.split("\n"), 1200).length;
+    expect(calls).toBe(blocks + 1);
+    expect(out.items).toHaveLength(blocks - 1);
+    expect(out.failedBlocks).toEqual([expect.stringMatching(/^1–\d+: Workers AI: 3046: Request timeout$/)]);
+  });
+
+  it("fails when every block fails", async () => {
+    const text = Array.from({ length: 200 }, (_, i) => `řádek ${i} ${"x".repeat(20)}`).join("\n");
+    const { ai } = fakeAi(null, { fail: "3046: Request timeout" });
+    await expect(extractEvents(workersAiModel(ai, "m"), { sourceName: "X", season: 2026, kind: "html", text })).rejects.toThrow(/all \d+ blocks failed/);
+  });
+});
+
+describe("lineBlocks", () => {
+  it("covers every line once, in order, within the size limit", () => {
+    const lines = ["a".repeat(50), "b".repeat(50), "c".repeat(50), "d".repeat(200), "e"];
+    expect(lineBlocks(lines, 110)).toEqual([
+      { from: 1, to: 2 },
+      { from: 3, to: 3 },
+      { from: 4, to: 4 },
+      { from: 5, to: 5 },
+    ]);
+    expect(lineBlocks([], 100)).toEqual([]);
   });
 });

@@ -30,6 +30,13 @@ export interface JsonResult<T> {
 
 export interface JsonModel {
   json<S extends z.ZodType>(req: JsonRequest<S>): Promise<JsonResult<z.infer<S>>>;
+  /**
+   * Set for models with a small, slow output (Workers AI): extraction then
+   * sends the source in blocks of about this many characters (see extract.ts).
+   */
+  readonly blockChars?: number;
+  /** Text of a PDF, for models without PDF input. */
+  pdfToText?(pdf: Uint8Array): Promise<string>;
 }
 
 export class ModelError extends Error {}
@@ -97,17 +104,19 @@ interface WorkersAiOutput {
  * follow the schema, so the answer is validated here like any other.
  */
 export function workersAiModel(ai: AiBinding, model: string): JsonModel {
+  const pdfToText = async (pdf: Uint8Array): Promise<string> => {
+    const md = await ai.toMarkdown({ name: "source.pdf", blob: new Blob([pdf], { type: "application/pdf" }) });
+    if (md.format === "error" || md.data == null) throw new ModelError(`PDF conversion failed: ${md.error ?? "no text"}`);
+    return md.data;
+  };
   return {
+    // Long lists time out (3046) or get cut short in one call; ~15 table rows per call is safe.
+    blockChars: 1200,
+    pdfToText,
     async json(req) {
       const parts: string[] = [];
       for (const c of req.content) {
-        if (c.type === "text") {
-          parts.push(c.text);
-          continue;
-        }
-        const md = await ai.toMarkdown({ name: "source.pdf", blob: new Blob([c.data], { type: "application/pdf" }) });
-        if (md.format === "error" || md.data == null) throw new ModelError(`PDF conversion failed: ${md.error ?? "no text"}`);
-        parts.push(`<source>\n${md.data}\n</source>`);
+        parts.push(c.type === "text" ? c.text : `<source>\n${await pdfToText(c.data)}\n</source>`);
       }
       let out: WorkersAiOutput;
       try {

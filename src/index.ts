@@ -91,6 +91,7 @@ export default {
         ...(url.searchParams.get("source") ? { sourceId: url.searchParams.get("source")! } : {}),
         force: url.searchParams.get("force") === "1",
       });
+      await markFinished(env.DB, todayInPrague());
       return Response.json(reports);
     }
 

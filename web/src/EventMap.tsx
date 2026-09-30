@@ -79,7 +79,9 @@ export default function EventMap({ events, single = false, className = "" }: { e
         radius: single ? 10 : group.length > 1 ? 9 : 7,
         weight: 2,
         fillOpacity: 0.85,
-        className: `marker-${first.level}${group.every((e) => e.status === "cancelled") ? " marker-cancelled" : ""}`,
+        className: `marker-${first.level}${
+          group.every((e) => e.status === "cancelled") ? " marker-cancelled" : group.every((e) => e.status === "finished") ? " marker-finished" : ""
+        }`,
       })
         .bindPopup(popupHtml(group, !single), { maxWidth: 280 })
         .addTo(g);
@@ -89,5 +91,5 @@ export default function EventMap({ events, single = false, className = "" }: { e
     else if (points.length > 1) m.fitBounds(points, { padding: [24, 24], maxZoom: 11 });
   }, [events, single]);
 
-  return <div ref={el} className={`z-0 overflow-hidden rounded-xl border border-border ${className}`} />;
+  return <div ref={el} className={`glass z-0 overflow-hidden rounded-2xl ${className}`} />;
 }

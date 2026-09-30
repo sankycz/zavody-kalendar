@@ -43,6 +43,8 @@ export interface ExtractInput {
 export interface ExtractOutput {
   items: unknown[];
   usage: { input_tokens: number; output_tokens: number };
+  /** Blocks whose call failed (block mode only); their rows are missing from `items`. */
+  failedBlocks?: string[];
 }
 
 export function buildUserContent(input: ExtractInput): ContentPart[] {
@@ -61,15 +63,112 @@ export function buildUserContent(input: ExtractInput): ContentPart[] {
 /** Items are validated one by one later (normalizeEvent), so only the envelope must hold. */
 const ExtractionEnvelope = z.object({ events: z.array(z.unknown()) });
 
-/** Send one source to the model and get back the raw (not yet validated) items. */
-export async function extractEvents(llm: JsonModel, input: ExtractInput): Promise<ExtractOutput> {
-  const out = await llm.json({
-    system: SYSTEM_PROMPT,
-    content: buildUserContent(input),
-    schema: ExtractionSchema,
-    accept: ExtractionEnvelope,
-    maxTokens: 64000,
-    effort: "medium",
+export interface LineBlock {
+  /** 1-based, inclusive. */
+  from: number;
+  to: number;
+}
+
+/** Split lines into consecutive blocks of at most `maxChars` (a longer single line is its own block). */
+export function lineBlocks(lines: string[], maxChars: number): LineBlock[] {
+  const blocks: LineBlock[] = [];
+  let from = 1;
+  let size = 0;
+  lines.forEach((line, i) => {
+    const n = i + 1;
+    if (size > 0 && size + line.length + 1 > maxChars) {
+      blocks.push({ from, to: n - 1 });
+      from = n;
+      size = 0;
+    }
+    size += line.length + 1;
   });
-  return { items: out.data.events, usage: out.usage };
+  if (lines.length > 0) blocks.push({ from, to: lines.length });
+  return blocks;
+}
+
+/** Content for one block: the whole numbered source as context, rows to extract given by line range. */
+export function buildBlockContent(input: ExtractInput, numbered: string, block: LineBlock): ContentPart[] {
+  return [
+    { type: "text", text: `<source>\n${numbered}\n</source>` },
+    {
+      type: "text",
+      text:
+        `Zdroj: ${input.sourceName}\nSezóna: ${input.season}\n` +
+        `Zdroj má očíslované řádky. Vytáhni podle pravidel jen závody, které jsou na řádcích ${block.from}–${block.to}. ` +
+        `Ostatní řádky ber jen jako kontext (nadpisy sekcí, hlavičky tabulek, vysvětlivky); závody z nich nevracej. ` +
+        `Do raw_excerpt zkopíruj řádek bez čísla řádku.`,
+    },
+  ];
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+const request = (content: ContentPart[]) => ({
+  system: SYSTEM_PROMPT,
+  content,
+  schema: ExtractionSchema,
+  accept: ExtractionEnvelope,
+  maxTokens: 64000,
+  effort: "medium" as const,
+});
+
+/** Parallel calls in block mode. */
+const BLOCK_CONCURRENCY = 3;
+
+/**
+ * Send one source to the model and get back the raw (not yet validated) items.
+ * Models with `blockChars` get a longer source in line blocks, one call each
+ * (retried once); the items of all blocks are concatenated.
+ */
+export async function extractEvents(llm: JsonModel, input: ExtractInput): Promise<ExtractOutput> {
+  let text = input.text;
+  if (llm.blockChars && input.kind === "pdf" && llm.pdfToText) {
+    if (!input.pdf) throw new ModelError("pdf source without pdf bytes");
+    text = await llm.pdfToText(input.pdf);
+  }
+  if (!llm.blockChars || text == null || text.length <= llm.blockChars) {
+    const content = text != null ? buildUserContent({ ...input, kind: "html", text }) : buildUserContent(input);
+    const out = await llm.json(request(content));
+    return { items: out.data.events, usage: out.usage };
+  }
+
+  const lines = text.split("\n");
+  const numbered = lines.map((l, i) => `${i + 1}: ${l}`).join("\n");
+  const blocks = lineBlocks(lines, llm.blockChars);
+  const results = await mapLimit(blocks, BLOCK_CONCURRENCY, async (block) => {
+    const call = () => llm.json(request(buildBlockContent(input, numbered, block)));
+    try {
+      return { block, out: await call().catch(call) };
+    } catch (err) {
+      return { block, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  const failed = results.filter((r) => "error" in r);
+  if (failed.length === results.length) throw new ModelError(`all ${results.length} blocks failed: ${failed[0]!.error}`);
+  const items: unknown[] = [];
+  const usage = { input_tokens: 0, output_tokens: 0 };
+  for (const r of results) {
+    if (!r.out) continue;
+    items.push(...r.out.data.events);
+    usage.input_tokens += r.out.usage.input_tokens;
+    usage.output_tokens += r.out.usage.output_tokens;
+  }
+  return {
+    items,
+    usage,
+    ...(failed.length ? { failedBlocks: failed.map((r) => `${r.block.from}–${r.block.to}: ${r.error}`) } : {}),
+  };
 }

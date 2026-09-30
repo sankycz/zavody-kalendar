@@ -30,7 +30,7 @@ function OrganizerBox({ e }: { e: Detail }) {
   return (
     <section
       aria-label="Web pořadatele"
-      className={`mt-5 rounded-xl border p-4 ${changed ? "border-accent bg-accent/8" : "border-border bg-surface"}`}
+      className={`mt-5 rounded-2xl p-4 ${changed ? "border border-accent/60 bg-accent/10 backdrop-blur" : "glass"}`}
     >
       <p className={`font-semibold ${changed ? "text-accent" : ""}`}>
         {!changed && c.outcome === "confirmed" && <span aria-hidden>✓ </span>}
@@ -57,9 +57,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-const btnBase = "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium";
-const btnClass = `${btnBase} border-border bg-surface hover:bg-surface-2`;
-const btnPrimary = `${btnBase} border-fg bg-fg text-bg hover:opacity-90`;
+const btnBase = "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-3.5 text-sm font-medium transition-all";
+const btnClass = `${btnBase} glass hover:bg-surface-2`;
+const btnPrimary = `${btnBase} bg-racing text-white shadow-lg shadow-accent/30 hover:brightness-110`;
 
 function downloadIcs(e: Detail) {
   const blob = new Blob([eventToIcs(e, window.location.href)], { type: "text/calendar;charset=utf-8" });
@@ -119,7 +119,7 @@ export function EventDetailPage({ id }: { id: string }) {
     return (
       <div className="pt-2">
         {back}
-        <div role="alert" className="mt-4 rounded-xl border border-border bg-surface p-4">
+        <div role="alert" className="glass mt-4 rounded-2xl p-4">
           <p className="font-semibold">{state.status === 404 ? "Závod nebyl nalezen." : "Závod se nepodařilo načíst."}</p>
           {state.status !== 404 && <p className="mt-1 text-sm text-muted">{state.message}</p>}
           <button type="button" className={`${btnClass} mt-3`} onClick={() => navigate("/")}>
@@ -137,20 +137,20 @@ export function EventDetailPage({ id }: { id: string }) {
   const place = placeLabel(e);
 
   return (
-    <article className="pt-2">
+    <article className="pt-4">
       {back}
 
-      <header className="mt-2">
+      <header className="glass mt-2 rounded-3xl p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="rounded-md bg-surface-2 px-2 py-0.5 font-medium">{DISCIPLINE_LABEL[e.discipline]}</span>
-          <span className={`rounded-md px-2 py-0.5 font-medium ring-1 ring-inset ${LEVEL_CLASS[e.level]}`}>{LEVEL_LABEL[e.level]}</span>
+          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 font-medium">{DISCIPLINE_LABEL[e.discipline]}</span>
+          <span className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ring-inset ${LEVEL_CLASS[e.level]}`}>{LEVEL_LABEL[e.level]}</span>
           {status && (
-            <span className={`rounded-md px-2 py-0.5 font-semibold ${e.status === "cancelled" ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted"}`}>
+            <span className={`rounded-full px-2.5 py-0.5 font-semibold ${e.status === "cancelled" ? "bg-racing text-white" : "bg-surface-2 text-muted"}`}>
               {status}
             </span>
           )}
         </div>
-        <h1 className={`mt-2 text-2xl leading-tight font-bold ${e.status === "cancelled" ? "text-muted line-through" : ""}`}>{e.name}</h1>
+        <h1 className={`mt-3 text-2xl leading-tight font-extrabold tracking-tight sm:text-3xl ${e.status === "cancelled" ? "text-muted line-through" : ""}`}>{e.name}</h1>
         <p className="mt-1 text-base first-letter:uppercase">
           {longDateRange(e.date_from, e.date_to)}
           {soon && <span className="font-semibold text-accent"> · {soon}</span>}
@@ -186,7 +186,7 @@ export function EventDetailPage({ id }: { id: string }) {
 
       <OrganizerBox e={e} />
 
-      <dl className="mt-5 divide-y divide-border rounded-xl border border-border bg-surface px-4">
+      <dl className="glass mt-5 divide-y divide-border rounded-2xl px-4">
         <Row label="Termín">
           {formatDate(e.date_from)}
           {e.date_to && <> – {formatDate(e.date_to)}</>}
@@ -210,7 +210,7 @@ export function EventDetailPage({ id }: { id: string }) {
 
       {hasPoint ? (
         <section className="mt-5" aria-label="Mapa">
-          <Suspense fallback={<div className="h-56 rounded-xl border border-border bg-surface-2" />}>
+          <Suspense fallback={<div className="glass h-56 rounded-2xl" />}>
             <EventMap events={[e]} single className="h-56 sm:h-72" />
           </Suspense>
           <p className="mt-1.5 text-xs text-muted">Poloha podle obce, ne přesné místo trati.</p>
@@ -219,7 +219,7 @@ export function EventDetailPage({ id }: { id: string }) {
         <p className="mt-5 text-sm text-muted">Poloha závodu zatím není známá.</p>
       )}
 
-      <section className="mt-6">
+      <section className="glass mt-6 rounded-2xl p-4">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Zdroje</h2>
         <ul className="mt-2 space-y-2">
           {e.sources.map((s) => (

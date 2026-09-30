@@ -60,6 +60,11 @@ export function eventsApiUrl(f: Filters): string {
   return q ? `/api/events?${q}` : "/api/events";
 }
 
+/** First day of the current season (calendar year); `from` = this means "whole season". */
+export function seasonStart(today = new Date()): string {
+  return `${today.getFullYear()}-01-01`;
+}
+
 export function activeFilterCount(f: Filters): number {
   return f.discipline.length + f.level.length + (f.region ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0);
 }

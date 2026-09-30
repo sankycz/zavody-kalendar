@@ -53,6 +53,10 @@ export type RunReport =
       valid: number;
       invalid: InvalidItem[];
       geocoded: number;
+      /** First few geocoding failures (distinct messages). */
+      geocode_errors?: string[];
+      /** Blocks the model failed on; the source is retried on the next run. */
+      failed_blocks?: string[];
       stats: UpsertStats;
       usage: { input_tokens: number; output_tokens: number };
     };
@@ -90,6 +94,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
 
     const geo = new Map<string, GeoResult | null>();
     let geocoded = 0;
+    const geocodeErrors = new Set<string>();
     for (const e of batch.events) {
       if (!e.location_name) continue;
       try {
@@ -98,17 +103,18 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
         if (g) geocoded++;
       } catch (err) {
         log(`${source.id}: geocoding failed for '${e.location_name}': ${String(err)}`);
+        if (geocodeErrors.size < 3) geocodeErrors.add(String(err));
       }
     }
 
     const stats = await upsertEvents(deps.db, source, batch.events, geo);
 
-    // Store the hash only after a successful upsert, so a failed run is retried next time.
+    // Store the hash only after a complete, successful upsert, so a failed run is retried next time.
     await deps.db
       .prepare(
         "UPDATE sources SET last_content_hash = ?, last_fetched_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
       )
-      .bind(hash, source.id)
+      .bind(extracted.failedBlocks ? null : hash, source.id)
       .run();
 
     log(`${source.id}: ${batch.events.length} events (${stats.inserted} new, ${stats.updated} updated), ${batch.invalid.length} invalid`);
@@ -120,6 +126,8 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       valid: batch.events.length,
       invalid: batch.invalid,
       geocoded,
+      ...(geocodeErrors.size ? { geocode_errors: [...geocodeErrors] } : {}),
+      ...(extracted.failedBlocks ? { failed_blocks: extracted.failedBlocks } : {}),
       stats,
       usage: extracted.usage,
     };
