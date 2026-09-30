@@ -96,6 +96,11 @@ describe("htmlToText", () => {
       ].join("\n"),
     );
   });
+
+  it("keeps a row on one line when each cell is on its own source line, empty cells included", () => {
+    const wp = `<table>\n<tbody>\n<tr>\n<td>Datum:</td>\n<td>Podnik:</td>\n<td>MČR</td>\n<td>volný</td>\n</tr>\n<tr>\n<td>29.3.2026</td>\n<td>Rallye Test</td>\n<td><strong>&nbsp;</strong></td>\n<td>●</td>\n</tr>\n</tbody>\n</table>`;
+    expect(htmlToText(wp)).toBe(["Datum: | Podnik: | MČR | volný", "29.3.2026 | Rallye Test | | ●"].join("\n"));
+  });
 });
 
 describe("sha256Hex", () => {

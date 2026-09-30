@@ -19,6 +19,7 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
   - `autoklub-cal/autoklub-cal-html-2026.html` – HTML **očištěné Apify** (jen hlavička + článek s tabulkami, bez WordPress menu/patičky); surové HTML má ~120 kB. Obsah kalendáře je stejný.
   - `.txt` k nim vygenerované přes `--offline`.
 - `autoklub-cal/autoklub-cal-pdf-2026.pdf` zatím chybí (binární 185 kB soubor nejde přenést přes Apify connector) – stáhni lokálně `npm run fixtures:fetch autoklub-cal-pdf-2026`.
+- `*.extraction.json` (Autoklub HTML, Autokaleidoskop, Edda) teď vytvořil Claude v Claude Code session podle `SYSTEM_PROMPT` a schématu (bez API klíče, `model: "claude-code-session"`), ne `extractEvents()`. Karting a minikáry vynechány podle promptu, nejasná data (`1ý.`, `???`) zkopírována beze změny – normalizace je zahodí.
 - Ostrá extrakce: `ANTHROPIC_API_KEY=… npm run fixtures:extract [provider|source-id]` (model z `CLAUDE_MODEL`, jinak z `wrangler.jsonc`). Syntetické `extraction.sample.json` zůstávají kvůli testům chybových případů.
 
 ```bash

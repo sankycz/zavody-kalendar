@@ -45,6 +45,9 @@ export function htmlToText(html: string, baseUrl?: string): string {
     return inner ? `${inner} (${url})` : url;
   });
 
+  // Line breaks in the source are just formatting; only tags below make lines.
+  // Otherwise a table written one <td> per line falls apart into one cell per line.
+  s = s.replace(/\s+/g, " ");
   s = s.replace(/<\/(td|th)\s*>/gi, " | ");
   s = s.replace(/<(br|hr)\b[^>]*>/gi, "\n");
   s = s.replace(/<\/?(p|div|tr|li|ul|ol|table|thead|tbody|h[1-6]|section|dl|dt|dd)\b[^>]*>/gi, "\n");

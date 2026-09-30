@@ -59,6 +59,33 @@ describe.skipIf(real.length === 0)("real extraction fixtures", () => {
     if (real.length > 1) expect(events).toBeLessThan(total);
   });
 
+  it("skips the typos Autokaleidoskop really has, keeps the rest", () => {
+    const k = real.find((r) => r.data.source_id === "autokaleidoskop-2026");
+    if (!k) return;
+    expect(processExtraction(k.data.events, 2026).invalid.map((i) => i.error)).toEqual([
+      "invalid date_from '1ý.'",
+      "invalid date_from '???'",
+    ]);
+  });
+
+  it("links Edda Cup rounds listed a day apart by Edda and Autokaleidoskop", async () => {
+    const pick = real.filter((r) => r.data.source_id === "autokaleidoskop-2026" || r.data.source_id === "edda-2026");
+    if (pick.length < 2) return;
+    const { d1, raw } = createTestDb();
+    for (const r of pick) {
+      const src = { id: r.data.source_id, provider: r.provider, url: `https://${r.provider}.example/`, priority: PRIORITY[r.data.source_id]! };
+      await upsertEvents(d1, src, processExtraction(r.data.events, r.data.season).events, new Map());
+    }
+    const linked = raw
+      .prepare("SELECT e.dedupe_key k FROM events e WHERE (SELECT count(*) FROM event_sources s WHERE s.event_id = e.id) = 2 ORDER BY 1")
+      .all()
+      .map((r) => (r as { k: string }).k);
+    // Edda 27.–28.3. vs Autokaleidoskop 28.3., Edda 01.–03.05. vs 2.–3.5. etc.
+    expect(linked).toEqual(
+      expect.arrayContaining(["most|2026-03-28|vrch", "makarov|2026-05-02|vrch", "kdyne|2026-05-23|vrch", "milovice|2026-10-10|vrch"]),
+    );
+  });
+
   it("stores no rider lists from Edda Cup", () => {
     const edda = join(fixturesDir, "edda", "edda-2026.extraction.json");
     if (!existsSync(edda)) return;

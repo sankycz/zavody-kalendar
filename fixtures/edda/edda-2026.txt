@@ -35,40 +35,13 @@ http://www.zavodniauta.cz/
 http://www.protlum.eu/web/cs/1-uvod.html
 Tratě
 Kalendář závodů pro ročník 2026 2025 2024 2023 2022 2021 2020 2019 2018 2017 2016 2015 2014 2013 2012 2011 2010 2009 2008
-1.
-Autodrom Most (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=228)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=228
-27.03. - 28.03.2026
-2.
-Makarov (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=229)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=229
-01.05. - 03.05.2026
-3.
-Kdyně - Koráb (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=231)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=231
-22.05. - 24.05.2026
-4.
-Mladá Vožice (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=232)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=232
-26.06. - 28.06.2026
-5.
-Bozkov - Cimbál (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=233)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=233
-24.07. - 26.07.2026
-6.
-Bečov nad Teplou (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=235)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=235
-04.09. - 06.09.2026
-7.
-Ostrá Lúka SK (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=234)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=234
-18.09. - 20.09.2026
-8.
-Hlásná Třebáň - Mořina (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=236)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=236
-25.09. - 26.09.2026
-9.
-Milovice (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=237)
-http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=237
-09.10. - 10.10.2026
+1. | Autodrom Most (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=228) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=228 | 27.03. - 28.03.2026
+2. | Makarov (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=229) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=229 | 01.05. - 03.05.2026
+3. | Kdyně - Koráb (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=231) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=231 | 22.05. - 24.05.2026
+4. | Mladá Vožice (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=232) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=232 | 26.06. - 28.06.2026
+5. | Bozkov - Cimbál (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=233) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=233 | 24.07. - 26.07.2026
+6. | Bečov nad Teplou (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=235) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=235 | 04.09. - 06.09.2026
+7. | Ostrá Lúka SK (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=234) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=234 | 18.09. - 20.09.2026
+8. | Hlásná Třebáň - Mořina (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=236) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=236 | 25.09. - 26.09.2026
+9. | Milovice (http://www.edda.cz/mscrdovrchu/index.php?m=trate/detail&id=237) | http://www.edda.cz/mscrdovrchu/index.php?m=trate/jezdci&t=237 | 09.10. - 10.10.2026
 Webmaster Edda Patera. Designed & Powered by Jan Frank &copy; 2007
