@@ -27,7 +27,7 @@ Web (`web/`) je Vite + React + Tailwind a nasazuje se spolu s Workerem jako jeho
 npx wrangler login
 npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put ADMIN_TOKEN          # libovolný dlouhý náhodný řetězec
-npm run deploy                               # build webu + Worker + týdenní Cron Trigger (po 03:17 UTC)
+npm run deploy                               # build webu + Worker + denní Cron Trigger (03:17 UTC)
 
 # ruční spuštění (jen Autoklub, i když se obsah nezměnil):
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \

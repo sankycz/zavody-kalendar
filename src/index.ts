@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { handleApi } from "./api.ts";
+import { handleApi, todayInPrague } from "./api.ts";
 import { PoliteClient } from "./pipeline/http.ts";
-import { runAll, type RunDeps } from "./pipeline/run.ts";
+import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
 
 export interface Env {
   DB: D1Database;
@@ -36,7 +36,9 @@ async function tokenMatches(given: string, expected: string): Promise<boolean> {
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    // Daily: sources whose content didn't change are skipped by hash (no model call).
     console.log(JSON.stringify(await runAll(deps(env))));
+    console.log(`marked finished: ${await markFinished(env.DB, todayInPrague())}`);
   },
 
   async fetch(request: Request, env: Env): Promise<Response> {

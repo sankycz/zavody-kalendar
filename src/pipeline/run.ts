@@ -62,7 +62,11 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     const res = await deps.http.get(source.url);
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${source.url}`);
     const bytes = new Uint8Array(await res.arrayBuffer());
-    const hash = await sha256Hex(bytes);
+    // HTML is hashed after text extraction, so a daily run doesn't re-extract
+    // (and pay for) a page whose only change is an ad, counter or nonce.
+    const text =
+      source.kind === "html" ? htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url) : null;
+    const hash = await sha256Hex(text != null ? new TextEncoder().encode(text) : bytes);
 
     if (!opts.force && hash === source.last_content_hash) {
       await deps.db
@@ -77,9 +81,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       sourceName: source.name,
       season: source.season,
       kind: source.kind,
-      ...(source.kind === "pdf"
-        ? { pdf: bytes }
-        : { text: htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url) }),
+      ...(text != null ? { text } : { pdf: bytes }),
     });
 
     const batch = processExtraction(extracted.items, source.season);
@@ -136,4 +138,16 @@ export async function runAll(deps: RunDeps, opts: { sourceId?: string; force?: b
   const reports: RunReport[] = [];
   for (const s of results) reports.push(await runSource(deps, s, opts));
   return reports;
+}
+
+/**
+ * Mark events that are over as finished (daily). Cancelled ones stay cancelled.
+ * `today` is the Czech date 'YYYY-MM-DD'.
+ */
+export async function markFinished(db: D1Database, today: string): Promise<number> {
+  const r = await db
+    .prepare("UPDATE events SET status = 'finished' WHERE status = 'planned' AND COALESCE(date_to, date_from) < ?")
+    .bind(today)
+    .run();
+  return r.meta.changes ?? 0;
 }

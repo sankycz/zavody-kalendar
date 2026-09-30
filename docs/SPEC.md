@@ -25,7 +25,7 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 ## Architektura
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
-- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně a ručně přes admin endpoint chráněný tokenem.
+- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou denně a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** Claude API. Stažený HTML text nebo text z PDF pošli modelu s pevným JSON schématem a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní. Model si vezmi z proměnné prostředí `CLAUDE_MODEL`.
 - **Geokódování:** Nominatim z OpenStreetMap, maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
@@ -101,7 +101,7 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
-- Maximálně jeden požadavek za pár sekund na doménu, stahuj jednou týdně.
+- Maximálně jeden požadavek za pár sekund na doménu, stahuj jednou denně. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se denně označí jako `finished`.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 
