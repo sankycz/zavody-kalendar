@@ -16,6 +16,11 @@ const SOURCES = [
   { id: "autoklub-cal-html-2026", provider: "autoklub-cal", name: "Autoklub ČR – kalendář", kind: "html" },
   { id: "autokaleidoskop-2026", provider: "autokaleidoskop", name: "Autokaleidoskop – kalendář závodů", kind: "html" },
   { id: "edda-2026", provider: "edda", name: "Edda Cup – tratě", kind: "html" },
+  { id: "cmpr-2026", provider: "cmpr", name: "Českomoravský pohár rallye – kalendář", kind: "html" },
+  { id: "triola-2026", provider: "triola", name: "Triola Cup – kalendář", kind: "html" },
+  { id: "krusnohorsky-pohar-2026", provider: "krusnohorsky-pohar", name: "Krušnohorský pohár – kalendář", kind: "html" },
+  { id: "autodrom-most-2026", provider: "autodrom-most", name: "Autodrom Most – kalendář závodů", kind: "html" },
+  { id: "automotodrom-brno-2026", provider: "automotodrom-brno", name: "Autodrom Brno – kalendář akcí", kind: "html" },
 ] as const;
 
 const root = join(import.meta.dirname, "..");

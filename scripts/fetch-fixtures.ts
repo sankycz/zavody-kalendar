@@ -15,6 +15,11 @@ const SOURCES = [
   { id: "autoklub-cal-html-2026", provider: "autoklub-cal", kind: "html", url: "https://www.autoklub.cz/205368-kalendar-automobiloveho-sportu-acr-2026/" },
   { id: "autokaleidoskop-2026", provider: "autokaleidoskop", kind: "html", url: "https://www.autokaleidoskop.cz/Kalendar/AKTUALIZACE:-Kalendar-automobilovych-zavodu-v-CR-2026/" },
   { id: "edda-2026", provider: "edda", kind: "html", url: "http://www.edda.cz/mscrdovrchu/index.php?m=trate" },
+  { id: "cmpr-2026", provider: "cmpr", kind: "html", url: "https://cmpr.cz/souteze-poharu/" },
+  { id: "triola-2026", provider: "triola", kind: "html", url: "http://www.triola-cup.cz/kalendar/" },
+  { id: "krusnohorsky-pohar-2026", provider: "krusnohorsky-pohar", kind: "html", url: "https://www.krusnohorskypohar.cz/index.php/2025/12/01/kalendar-2026/" },
+  { id: "autodrom-most-2026", provider: "autodrom-most", kind: "html", url: "https://www.autodrom-most.cz/kalendar-zavodu-c1423/" },
+  { id: "automotodrom-brno-2026", provider: "automotodrom-brno", kind: "html", url: "https://www.automotodrombrno.cz/kalendar-akci/" },
 ] as const;
 
 const args = process.argv.slice(2);

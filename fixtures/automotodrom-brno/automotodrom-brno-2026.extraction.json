@@ -1,0 +1,42 @@
+{
+  "_note": "Extrakce provedená Claude v Claude Code session podle SYSTEM_PROMPT a ExtractionSchema nad automotodrom-brno-2026.txt (bez API klíče, ne přes extractEvents()). Po nastavení ANTHROPIC_API_KEY ji přepíše `npm run fixtures:extract`.",
+  "source_id": "automotodrom-brno-2026",
+  "season": 2026,
+  "model": "claude-code-session",
+  "extracted_at": "2026-09-30",
+  "usage": null,
+  "events": [
+    {
+      "name": "Race Car Show – Mezinárodní mistrovství závodů automobilů do vrchu 2026",
+      "date_from": "2026-10-10",
+      "date_to": "2026-10-11",
+      "discipline": "vrch",
+      "series": "Mezinárodní mistrovství závodů automobilů do vrchu",
+      "level": "pohar",
+      "location_name": "Brno",
+      "region": null,
+      "country": "CZ",
+      "organizer": null,
+      "website_url": "https://www.automotodrombrno.cz/mezinarodni-mistrovstvi-zavodu-automobilu-do-vrchu-2026-2/",
+      "description": null,
+      "status": "planned",
+      "raw_excerpt": "10. 10. - 11. 10. 2026 9:00 - 17:00 Creditas Autodrom Brno"
+    },
+    {
+      "name": "8h Le Brno 2026",
+      "date_from": "2026-10-18",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": null,
+      "level": "volny",
+      "location_name": "Brno",
+      "region": null,
+      "country": "CZ",
+      "organizer": null,
+      "website_url": "https://www.automotodrombrno.cz/le-brno-8h-2026/",
+      "description": "vytrvalostní závod",
+      "status": "planned",
+      "raw_excerpt": "18. 10. - 18. 10. 2026 9:00 - 17:00 Creditas Autodrom Brno"
+    }
+  ]
+}

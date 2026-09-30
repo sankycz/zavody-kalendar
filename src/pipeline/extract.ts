@@ -7,6 +7,8 @@ Dostaneš obsah jednoho zdroje (HTML text nebo PDF s kalendářem). Vrať VŠECH
 
 Pravidla:
 - Jen automobilové disciplíny. Motocykly, motokáry, čtyřkolky, truck trial a nemotoristické akce vynech.
+- Jen závody uvedené sezóny; starší ročníky na stejné stránce vynech.
+- Akce, které nejsou závod (volné jízdy, testování, pronájem okruhu, kurzy, výstavy, vyhlášení výsledků), vynech.
 - Každý termín závodu je jedna položka. Vícedenní závod = jedna položka s date_from a date_to.
 - date_from / date_to: převeď na YYYY-MM-DD. Když zdroj uvádí jen den a měsíc, doplň rok sezóny. Když datum nejde jednoznačně určit (překlep, chybějící měsíc), zkopíruj text ze zdroje beze změny — nevymýšlej ho.
 - discipline: rally, rallysprint, vrch (závody do vrchu), autocross (i rallycross), slalom (autoslalom), okruh, drift, regularity, historic (závody historických vozidel, když nejde o jinou disciplínu), jiny.

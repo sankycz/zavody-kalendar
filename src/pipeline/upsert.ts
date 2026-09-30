@@ -9,15 +9,16 @@ export interface UpsertStats {
 
 type EventRow = MergeFields & { id: string; lat: number | null; lng: number | null };
 
-const EXISTING_COLUMNS = `e.id, e.dedupe_key, e.name, e.date_from, e.date_to, e.series, e.level, e.location_name, e.region, e.country,
+const EXISTING_COLUMNS = `e.id, e.dedupe_key, e.discipline, e.name, e.date_from, e.date_to, e.series, e.level, e.location_name, e.region, e.country,
   e.organizer, e.website_url, e.description, e.status, e.lat, e.lng,
   (SELECT MIN(s.priority) FROM event_sources es JOIN sources s ON s.id = es.source_id
     WHERE es.event_id = e.id AND es.source_id <> ?) AS best_other_priority`;
 
-type ExistingRow = EventRow & { dedupe_key: string; date_from: string; best_other_priority: number | null };
+type ExistingRow = EventRow & { dedupe_key: string; discipline: string; date_from: string; best_other_priority: number | null };
 
 /**
- * Cross-source match when the exact dedupe_key misses: same discipline, same
+ * Cross-source match when the exact dedupe_key misses: same discipline ('jiny'
+ * = unknown matches any), same
  * normalized place, dates overlapping within ±1 day, and not already reported
  * by the same provider (one provider listing two races on consecutive days at
  * one place means two races). Catches off-by-one days and date typos between
@@ -34,7 +35,7 @@ async function findNearMatch(
     .prepare(
       `SELECT ${EXISTING_COLUMNS}
          FROM events e
-        WHERE e.discipline = ?
+        WHERE (e.discipline = ? OR e.discipline = 'jiny' OR ? = 'jiny')
           AND (substr(e.dedupe_key, 1, instr(e.dedupe_key, '|') - 1) = ?
                OR e.dedupe_key LIKE ? || '-%|%'
                OR ? LIKE substr(e.dedupe_key, 1, instr(e.dedupe_key, '|') - 1) || '-%')
@@ -45,7 +46,7 @@ async function findNearMatch(
         ORDER BY abs(julianday(e.date_from) - julianday(?))
         LIMIT 1`,
     )
-    .bind(source.id, e.discipline, place, place, place, e.date_to ?? e.date_from, e.date_from, source.provider, e.date_from)
+    .bind(source.id, e.discipline, e.discipline, place, place, place, e.date_to ?? e.date_from, e.date_from, source.provider, e.date_from)
     .first<ExistingRow>();
 }
 
@@ -106,20 +107,22 @@ export async function upsertEvents(
       const dateTo = moveDates ? e.date_to : merged.date_to && merged.date_to > dateFrom ? merged.date_to : null;
       // 'Bečov' + 'Bečov nad Teplou' -> one event under the more specific name, whichever source wins.
       const location = preferredLocation(existing.location_name, e.location_name) ?? merged.location_name;
-      let key = location ? dedupeKey(location, dateFrom, e.discipline) : moveDates ? e.dedupe_key : existing.dedupe_key;
+      // A source that knows the discipline replaces 'jiny' (unknown) from another one.
+      const discipline = existing.discipline === "jiny" ? e.discipline : existing.discipline;
+      let key = location ? dedupeKey(location, dateFrom, discipline) : moveDates ? e.dedupe_key : existing.dedupe_key;
       if (key !== existing.dedupe_key) {
         const taken = await db.prepare("SELECT 1 FROM events WHERE dedupe_key = ? AND id <> ?").bind(key, existing.id).first();
         if (taken) key = existing.dedupe_key;
       }
       await db
         .prepare(
-          `UPDATE events SET name = ?, date_from = ?, date_to = ?, series = ?, level = ?, location_name = ?, region = ?,
+          `UPDATE events SET name = ?, discipline = ?, date_from = ?, date_to = ?, series = ?, level = ?, location_name = ?, region = ?,
                   lat = ?, lng = ?, country = ?, organizer = ?, website_url = ?, description = ?, status = ?,
                   dedupe_key = ?
             WHERE id = ?`,
         )
         .bind(
-          merged.name, dateFrom, dateTo, merged.series, merged.level, location, region,
+          merged.name, discipline, dateFrom, dateTo, merged.series, merged.level, location, region,
           existing.lat ?? g?.lat ?? null, existing.lng ?? g?.lng ?? null, merged.country, merged.organizer,
           merged.website_url, merged.description, merged.status, key,
           existing.id,

@@ -101,6 +101,30 @@ describe.skipIf(real.length === 0)("real extraction fixtures", () => {
     );
   });
 
+  it("across all sources: organizer's cancellation wins, a known discipline replaces 'jiny', one race from three sources", async () => {
+    if (real.length < 8) return;
+    const { d1, raw } = createTestDb();
+    for (const r of real) {
+      const src = { id: r.data.source_id, provider: r.provider, url: `https://${r.provider}.example/`, priority: PRIORITY[r.data.source_id]! };
+      await upsertEvents(d1, src, processExtraction(r.data.events, r.data.season).events, new Map());
+    }
+    const one = (key: string) =>
+      raw
+        .prepare(
+          `SELECT e.status, e.discipline, (SELECT group_concat(source_id) FROM (SELECT source_id FROM event_sources
+             WHERE event_id = e.id ORDER BY source_id)) AS sources FROM events e WHERE dedupe_key = ?`,
+        )
+        .get(key);
+    // ČMPR says ZRUŠENO, Autokaleidoskop still lists it as planned.
+    expect(one("rokycany|2026-09-25|rally")).toMatchObject({ status: "cancelled", sources: "autokaleidoskop-2026,cmpr-2026" });
+    // Autokaleidoskop doesn't say what Krušnohorský pohár is ('jiny'); its own site says ZAV (hill climb).
+    expect(one("kdyne|2026-09-19|vrch")).toMatchObject({ discipline: "vrch", sources: "autokaleidoskop-2026,krusnohorsky-pohar-2026" });
+    expect(raw.prepare("SELECT count(*) AS n FROM events WHERE discipline = 'jiny' AND location_name = 'Kdyně'").get()).toEqual({ n: 0 });
+    expect(one("brno|2026-10-10|vrch")).toMatchObject({
+      sources: "autokaleidoskop-2026,autoklub-cal-html-2026,automotodrom-brno-2026",
+    });
+  });
+
   it("stores no rider lists from Edda Cup", () => {
     const edda = join(fixturesDir, "edda", "edda-2026.extraction.json");
     if (!existsSync(edda)) return;

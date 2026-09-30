@@ -17,9 +17,14 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
   - `edda/edda-2026.html` – surové HTML stránky „Tratě“ (seznamy jezdců nestaženy).
   - `autokaleidoskop/autokaleidoskop-2026.html` – surové HTML článku.
   - `autoklub-cal/autoklub-cal-html-2026.html` – HTML **očištěné Apify** (jen hlavička + článek s tabulkami, bez WordPress menu/patičky); surové HTML má ~120 kB. Obsah kalendáře je stejný.
+  - Další zdroje (migrace `0005`), staženo přes Apify 30. 9. 2026:
+    - `cmpr/cmpr-2026.html`, `krusnohorsky-pohar/…`, `autodrom-most/…`, `automotodrom-brno/…` – HTML očištěné Apify (hlavní obsah stránky).
+    - `triola/triola-2026.html` – surové HTML bez inline skriptu na konci (skripty `htmlToText` stejně zahodí).
+    - V `automotodrom-brno` je název jedné akce (soukromý pronájem okruhu, jméno osoby) nahrazen „Soukromá akce“.
+    - Vynechané zdroje a důvody jsou v `migrations/0005_more_sources_2026.sql`.
   - `.txt` k nim vygenerované přes `--offline`.
 - `autoklub-cal/autoklub-cal-pdf-2026.pdf` zatím chybí (binární 185 kB soubor nejde přenést přes Apify connector) – stáhni lokálně `npm run fixtures:fetch autoklub-cal-pdf-2026`.
-- `*.extraction.json` (Autoklub HTML, Autokaleidoskop, Edda) teď vytvořil Claude v Claude Code session podle `SYSTEM_PROMPT` a schématu (bez API klíče, `model: "claude-code-session"`), ne `extractEvents()`. Karting a minikáry vynechány podle promptu, nejasná data (`1ý.`, `???`) zkopírována beze změny – normalizace je zahodí.
+- `*.extraction.json` (všechny HTML zdroje) teď vytvořil Claude v Claude Code session podle `SYSTEM_PROMPT` a schématu (bez API klíče, `model: "claude-code-session"`), ne `extractEvents()`. Karting a minikáry vynechány podle promptu, nejasná data (`1ý.`, `???`) zkopírována beze změny – normalizace je zahodí.
 - Ostrá extrakce: `ANTHROPIC_API_KEY=… npm run fixtures:extract [provider|source-id]` (model z `CLAUDE_MODEL`, jinak z `wrangler.jsonc`). Syntetické `extraction.sample.json` zůstávají kvůli testům chybových případů.
 
 ```bash
