@@ -27,7 +27,7 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
 - **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou denně a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** LLM s pevným JSON schématem – Cloudflare Workers AI (výchozí, zdarma v denním limitu, `EXTRACTOR=workers-ai`, model z `WORKERS_AI_MODEL`) nebo Claude API (`EXTRACTOR=claude`, model z `CLAUDE_MODEL`). Stažený HTML text nebo text z PDF pošli modelu a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní.
-- **Geokódování:** Nominatim z OpenStreetMap, maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`.
+- **Geokódování:** Open-Meteo Geocoding API (data GeoNames, bez klíče), maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`. Místo, které v dané zemi není, se hledá v sousedních (CZ, SK, DE, AT, PL). Nominatim nepoužíváme: jeho robots.txt zakazuje `/search` robotům.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
 - **Hosting frontendu:** Cloudflare Workers static assets — stejný Worker jako API a stahování (Cloudflare pro nové projekty doporučuje místo Pages). Auto-deploy z GitHubu přes Workers Builds.
 

@@ -35,7 +35,7 @@ export interface RunDeps {
   db: D1Database;
   /** For source websites: robots.txt + a few seconds between requests per host. */
   http: PoliteClient;
-  /** For Nominatim: >= 1 s between requests. */
+  /** For the geocoder (Open-Meteo): >= 1 s between requests. */
   geoHttp: PoliteClient;
   /** Claude API or Workers AI, see llm.ts. */
   llm: JsonModel;

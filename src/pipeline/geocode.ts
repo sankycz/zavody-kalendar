@@ -6,15 +6,35 @@ export interface GeoResult {
   region: string | null;
 }
 
-const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+const OPEN_METEO = "https://geocoding-api.open-meteo.com/v1/search";
+
+/** Countries tried when the place isn't found in the given one (the model sometimes gets the country wrong). */
+const NEIGHBORS = ["CZ", "SK", "DE", "AT", "PL"];
+
+interface OpenMeteoHit {
+  latitude: number;
+  longitude: number;
+  country_code?: string;
+  admin1?: string;
+}
 
 export function geocodeQuery(location: string, country: string): string {
   return `${location.trim()}, ${country.toUpperCase()}`;
 }
 
+async function search(http: PoliteClient, name: string, country: string | null): Promise<OpenMeteoHit[]> {
+  const params = new URLSearchParams({ name, count: "10", language: "cs", format: "json" });
+  if (country) params.set("countryCode", country.toUpperCase());
+  const res = await http.get(`${OPEN_METEO}?${params}`);
+  if (!res.ok) throw new Error(`Open-Meteo ${res.status} for '${name}'`);
+  return ((await res.json()) as { results?: OpenMeteoHit[] }).results ?? [];
+}
+
 /**
- * Nominatim geocoding with a D1 cache (`locations`). Misses are cached too
- * (found = 0) so the same unknown place isn't queried every week.
+ * Open-Meteo geocoding (GeoNames, no API key) with a D1 cache (`locations`).
+ * Results are ranked by the API (bigger places first). A place not found in
+ * its country is looked up in the neighboring ones. Misses are cached too
+ * (found = 0) so the same unknown place isn't queried every day.
  * The PoliteClient must be configured with >= 1000 ms per host.
  */
 export async function geocode(
@@ -34,21 +54,10 @@ export async function geocode(
       : null;
   }
 
-  const params = new URLSearchParams({
-    q: location,
-    countrycodes: country.toLowerCase(),
-    format: "jsonv2",
-    addressdetails: "1",
-    limit: "1",
-    "accept-language": "cs",
-  });
-  const res = await http.get(`${NOMINATIM}?${params}`);
-  if (!res.ok) throw new Error(`Nominatim ${res.status} for '${query}'`);
-  const hits = (await res.json()) as { lat: string; lon: string; address?: { state?: string } }[];
-  const hit = hits[0];
-  const result: GeoResult | null = hit
-    ? { lat: Number(hit.lat), lng: Number(hit.lon), region: hit.address?.state ?? null }
-    : null;
+  const name = location.trim();
+  let hit = (await search(http, name, country))[0];
+  if (!hit) hit = (await search(http, name, null)).find((h) => h.country_code && NEIGHBORS.includes(h.country_code));
+  const result: GeoResult | null = hit ? { lat: hit.latitude, lng: hit.longitude, region: hit.admin1 ?? null } : null;
 
   await db
     .prepare("INSERT OR REPLACE INTO locations (query, lat, lng, region, found) VALUES (?, ?, ?, ?, ?)")
@@ -66,7 +75,7 @@ export interface BackfillReport {
 
 /**
  * Geocode stored events that have a place but no coordinates yet (e.g. after
- * Nominatim was unreachable during ingest). Cached places cost no request.
+ * the geocoder was unreachable during ingest). Cached places cost no request.
  */
 export async function backfillCoordinates(db: D1Database, http: PoliteClient, limit: number): Promise<BackfillReport> {
   const { results } = await db

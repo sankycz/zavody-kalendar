@@ -5,7 +5,7 @@ Kalendář amatérských i mistrovských automobilových závodů v Česku (rall
 - Zadání: [`docs/SPEC.md`](docs/SPEC.md)
 - Pravidla pro AI asistenta: [`CLAUDE.md`](CLAUDE.md)
 
-Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Nominatim · Vite + React + TypeScript + Tailwind + Leaflet.
+Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Open-Meteo Geocoding · Vite + React + TypeScript + Tailwind + Leaflet.
 
 ## Vývoj
 
@@ -39,4 +39,4 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
   "https://zavody-kalendar.<subdomena>.workers.dev/admin/check-organizers?limit=10"
 ```
 
-Pipeline (`src/pipeline/`): `http.ts` (robots.txt, User-Agent, rozestupy) → hash obsahu → `htmlToText.ts` / PDF jako dokument → `extract.ts` (Claude, strukturovaný výstup) → `normalize.ts` (validace po položkách) → `dedupe.ts` → `geocode.ts` (Nominatim + cache) → `upsert.ts` (D1, priorita zdrojů). Po importu `organizer.ts` denně ověří weby pořadatelů nadcházejících závodů (tabulka `organizer_checks`).
+Pipeline (`src/pipeline/`): `http.ts` (robots.txt, User-Agent, rozestupy) → hash obsahu → `htmlToText.ts` / PDF jako dokument → `extract.ts` (Claude, strukturovaný výstup) → `normalize.ts` (validace po položkách) → `dedupe.ts` → `geocode.ts` (Open-Meteo + cache) → `upsert.ts` (D1, priorita zdrojů). Po importu `organizer.ts` denně ověří weby pořadatelů nadcházejících závodů (tabulka `organizer_checks`).
