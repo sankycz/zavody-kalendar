@@ -37,3 +37,33 @@ export function dateRange(from: string, to: string | null): string {
 export function formatTimestamp(iso: string): string {
   return dateTime.format(new Date(iso));
 }
+
+const longDate = new Intl.DateTimeFormat("cs-CZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const shortDate = new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
+
+/** "sobota 16. května 2026" or "pátek 22. 5. – sobota 23. 5. 2026" */
+export function longDateRange(from: string, to: string | null): string {
+  if (!to) return longDate.format(parse(from));
+  return `${weekday.format(parse(from))} ${dayMonth.format(parse(from))} – ${weekday.format(parse(to))} ${shortDate.format(parse(to))}`;
+}
+
+/** "16. 5. 2026" */
+export function formatDate(iso: string): string {
+  return shortDate.format(parse(iso.slice(0, 10)));
+}
+
+/** Days from today (local) to the event start; negative when it already started. */
+export function daysUntil(iso: string, today = new Date()): number {
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((parse(iso).getTime() - t.getTime()) / 86_400_000);
+}
+
+export function relativeDay(from: string, to: string | null, today = new Date()): string | null {
+  const d = daysUntil(from, today);
+  if (d === 0) return "dnes";
+  if (d === 1) return "zítra";
+  if (d < 0 && to && daysUntil(to, today) >= 0) return "právě probíhá";
+  if (d > 1 && d < 5) return `za ${d} dny`;
+  if (d >= 5 && d <= 14) return `za ${d} dní`;
+  return null;
+}

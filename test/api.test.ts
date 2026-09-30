@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventsQuery, handleApi, listEvents, todayInPrague } from "../src/api.ts";
+import { EventsQuery, getEvent, handleApi, listEvents, listRegions, todayInPrague } from "../src/api.ts";
 import { processExtraction } from "../src/pipeline/run.ts";
 import { upsertEvents } from "../src/pipeline/upsert.ts";
 import { createTestDb } from "./d1shim.ts";
@@ -56,6 +56,39 @@ describe("handleApi", () => {
   it("is read-only", async () => {
     const { d1 } = await seeded();
     expect((await handleApi(new Request("https://x/api/events", { method: "POST" }), d1)).status).toBe(405);
+  });
+});
+
+describe("event detail", () => {
+  it("returns all fields and named source links", async () => {
+    const { d1, raw } = await seeded();
+    const { id } = raw.prepare("SELECT id FROM events WHERE name = 'Hill'").get() as { id: string };
+    const e = await getEvent(d1, id);
+    expect(e).toMatchObject({ name: "Hill", discipline: "vrch", organizer: null, source_count: 1 });
+    expect(e!.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(e!.sources).toEqual([
+      { name: "Autoklub ČR – kalendář (PDF)", url: "https://x.example/", last_seen_at: expect.any(String) },
+    ]);
+
+    const res = await handleApi(new Request(`https://x/api/events/${id}`), d1);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { name: string }).name).toBe("Hill");
+  });
+
+  it("404 for unknown or malformed id", async () => {
+    const { d1 } = await seeded();
+    expect((await handleApi(new Request(`https://x/api/events/${"0".repeat(32)}`), d1)).status).toBe(404);
+    expect((await handleApi(new Request("https://x/api/events/x'--"), d1)).status).toBe(404);
+  });
+});
+
+describe("listRegions", () => {
+  it("lists regions of upcoming events only", async () => {
+    const { d1, raw } = await seeded();
+    raw.exec("UPDATE events SET region = 'Jihomoravský kraj' WHERE name = 'Past'");
+    raw.exec("UPDATE events SET region = 'Olomoucký kraj' WHERE name = 'Hill'");
+    raw.exec("UPDATE events SET region = 'Olomoucký kraj' WHERE name = 'Cross'");
+    expect(await listRegions(d1, "2026-05-02")).toEqual({ regions: ["Olomoucký kraj"] });
   });
 });
 

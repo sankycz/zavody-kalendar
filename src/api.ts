@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DISCIPLINES, LEVELS } from "./pipeline/schema.ts";
-import type { EventListItem, EventsResponse } from "./shared/types.ts";
+import type { EventDetail, EventListItem, EventSourceLink, EventsResponse, RegionsResponse } from "./shared/types.ts";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const csvOf = <T extends string>(values: readonly [T, ...T[]]) =>
@@ -62,6 +62,42 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
   return { events: events.results, last_ingest_at: meta?.last ?? null };
 }
 
+export async function getEvent(db: D1Database, id: string): Promise<EventDetail | null> {
+  const event = await db
+    .prepare(
+      `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
+              e.region, e.country, e.status, e.lat, e.lng, e.organizer, e.website_url, e.description, e.updated_at,
+              (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count
+         FROM events e WHERE e.id = ?`,
+    )
+    .bind(id)
+    .first<Omit<EventDetail, "sources">>();
+  if (!event) return null;
+  const { results } = await db
+    .prepare(
+      `SELECT s.name, es.source_url AS url, es.last_seen_at
+         FROM event_sources es JOIN sources s ON s.id = es.source_id
+        WHERE es.event_id = ? ORDER BY s.priority, s.id`,
+    )
+    .bind(id)
+    .all<EventSourceLink>();
+  return { ...event, sources: results };
+}
+
+export async function listRegions(db: D1Database, today = todayInPrague()): Promise<RegionsResponse> {
+  const { results } = await db
+    .prepare(
+      `SELECT DISTINCT region FROM events
+        WHERE region IS NOT NULL AND country = 'CZ' AND COALESCE(date_to, date_from) >= ?
+        ORDER BY region`,
+    )
+    .bind(today)
+    .all<{ region: string }>();
+  return { regions: results.map((r) => r.region) };
+}
+
+const CACHE = { "Cache-Control": "public, max-age=300" };
+
 export async function handleApi(request: Request, db: D1Database): Promise<Response> {
   const url = new URL(request.url);
   if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
@@ -71,9 +107,19 @@ export async function handleApi(request: Request, db: D1Database): Promise<Respo
     if (!parsed.success) {
       return Response.json({ error: "invalid query", issues: parsed.error.issues }, { status: 400 });
     }
-    return Response.json(await listEvents(db, parsed.data), {
-      headers: { "Cache-Control": "public, max-age=300" },
-    });
+    return Response.json(await listEvents(db, parsed.data), { headers: CACHE });
+  }
+
+  const detail = /^\/api\/events\/([0-9a-f]{32})$/.exec(url.pathname);
+  if (detail) {
+    const event = await getEvent(db, detail[1]!);
+    return event
+      ? Response.json(event, { headers: CACHE })
+      : Response.json({ error: "not found" }, { status: 404 });
+  }
+
+  if (url.pathname === "/api/regions") {
+    return Response.json(await listRegions(db), { headers: CACHE });
   }
 
   return Response.json({ error: "not found" }, { status: 404 });

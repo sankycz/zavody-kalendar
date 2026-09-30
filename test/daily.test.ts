@@ -81,3 +81,17 @@ describe("daily run", () => {
     ]);
   });
 });
+
+describe("updated_at", () => {
+  it("changes only when event data changes", async () => {
+    const { raw } = createTestDb();
+    raw.exec(`INSERT INTO events (name, date_from, discipline, level, dedupe_key, updated_at)
+              VALUES ('A', '2026-05-01', 'rally', 'mcr', 'k', '2026-01-01T00:00:00.000Z')`);
+    raw.exec("UPDATE events SET name = 'A', status = 'planned'");
+    expect(raw.prepare("SELECT updated_at FROM events").get()).toEqual({ updated_at: "2026-01-01T00:00:00.000Z" });
+    raw.exec("UPDATE events SET name = 'B'");
+    expect((raw.prepare("SELECT updated_at FROM events").get() as { updated_at: string }).updated_at).not.toBe(
+      "2026-01-01T00:00:00.000Z",
+    );
+  });
+});

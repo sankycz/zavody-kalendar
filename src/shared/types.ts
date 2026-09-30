@@ -25,3 +25,23 @@ export interface EventsResponse {
   /** Latest successful fetch of any source (ISO), null before the first run. */
   last_ingest_at: string | null;
 }
+
+export interface EventSourceLink {
+  /** Human-readable source name, e.g. 'Autoklub ČR – kalendář (PDF)'. */
+  name: string;
+  url: string;
+  last_seen_at: string;
+}
+
+export interface EventDetail extends EventListItem {
+  organizer: string | null;
+  website_url: string | null;
+  description: string | null;
+  updated_at: string;
+  sources: EventSourceLink[];
+}
+
+export interface RegionsResponse {
+  /** Regions (kraje) of upcoming events, alphabetical. */
+  regions: string[];
+}

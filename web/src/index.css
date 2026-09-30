@@ -46,3 +46,34 @@
     @apply bg-bg text-fg font-sans antialiased;
   }
 }
+
+/* Leaflet map: level colors from the theme tokens, dark tiles in dark mode. */
+@layer components {
+  .leaflet-container {
+    font: inherit;
+    background: var(--color-surface-2);
+  }
+  .dark .leaflet-tile {
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+  }
+  .leaflet-popup-content-wrapper,
+  .leaflet-popup-tip {
+    background: var(--color-surface);
+    color: var(--color-fg);
+  }
+  .leaflet-container a.map-popup-link {
+    color: var(--color-fg);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .map-popup-item + .map-popup-item {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
+  }
+  .marker-mcr { stroke: var(--color-surface); fill: var(--color-mcr); }
+  .marker-pohar { stroke: var(--color-surface); fill: var(--color-pohar); }
+  .marker-regionalni { stroke: var(--color-surface); fill: var(--color-regionalni); }
+  .marker-volny { stroke: var(--color-surface); fill: var(--color-volny); }
+  .marker-cancelled { fill-opacity: 0.3; stroke-dasharray: 3 3; }
+}
