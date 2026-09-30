@@ -18,6 +18,24 @@ export interface EventListItem {
   lat: number | null;
   lng: number | null;
   source_count: number;
+  /** What the organizer's own website reports, when it differs from the calendar. */
+  organizer_flag: OrganizerFlag | null;
+}
+
+export type OrganizerFlag = "cancelled" | "postponed" | "date_changed";
+
+export interface OrganizerCheckInfo {
+  url: string;
+  checked_at: string;
+  outcome: "confirmed" | "changed" | "not_mentioned" | "error";
+  status: "planned" | "cancelled" | "postponed" | null;
+  /** Dates the organizer reports, only when they differ from the calendar. */
+  date_from: string | null;
+  date_to: string | null;
+  notice: string | null;
+  /** Last check failed (earlier findings above still apply). */
+  error: string | null;
+  changed_at: string | null;
 }
 
 export interface EventsResponse {
@@ -39,6 +57,7 @@ export interface EventDetail extends EventListItem {
   description: string | null;
   updated_at: string;
   sources: EventSourceLink[];
+  organizer_check: OrganizerCheckInfo | null;
 }
 
 export interface RegionsResponse {

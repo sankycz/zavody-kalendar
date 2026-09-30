@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { EventListItem, Level } from "../../src/shared/types.ts";
 import { dateRange, dayNumber, monthHeading, monthKey, relativeDay, weekdays } from "./format.ts";
-import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
+import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL, countryLabel } from "./labels.ts";
 
 export const LEVEL_CLASS: Record<Level, string> = {
   mcr: "bg-mcr/12 text-mcr ring-mcr/30",
@@ -41,7 +41,13 @@ function EventCard({ e }: { e: EventListItem }) {
               {LEVEL_LABEL[e.level]}
             </span>
             {e.series && <span className="truncate text-muted">{e.series}</span>}
-            {cancelled && <span className="rounded-md bg-accent px-2 py-0.5 font-semibold text-accent-fg">Zrušeno</span>}
+            {e.organizer_flag ? (
+              <span className="rounded-md bg-accent px-2 py-0.5 font-semibold text-accent-fg">
+                {ORGANIZER_FLAG_LABEL[e.organizer_flag]}
+              </span>
+            ) : (
+              cancelled && <span className="rounded-md bg-accent px-2 py-0.5 font-semibold text-accent-fg">Zrušeno</span>
+            )}
           </div>
         </div>
       </a>

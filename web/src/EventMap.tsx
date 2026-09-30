@@ -3,9 +3,12 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type { EventListItem } from "../../src/shared/types.ts";
 import { dateRange } from "./format.ts";
-import { DISCIPLINE_LABEL, LEVEL_LABEL } from "./labels.ts";
+import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL } from "./labels.ts";
 
-type MapEvent = Pick<EventListItem, "id" | "name" | "date_from" | "date_to" | "discipline" | "level" | "status" | "lat" | "lng">;
+type MapEvent = Pick<
+  EventListItem,
+  "id" | "name" | "date_from" | "date_to" | "discipline" | "level" | "status" | "lat" | "lng" | "organizer_flag"
+>;
 
 const CZ_CENTER: L.LatLngTuple = [49.8, 15.5];
 
@@ -18,7 +21,11 @@ function popupHtml(events: MapEvent[], linkToDetail: boolean): string {
     .map((e) => {
       const title = esc(e.name);
       const name = linkToDetail ? `<a href="/zavod/${e.id}" class="map-popup-link">${title}</a>` : `<strong>${title}</strong>`;
-      const cancelled = e.status === "cancelled" ? " · <b>zrušeno</b>" : "";
+      const cancelled = e.organizer_flag
+        ? ` · <b>${esc(ORGANIZER_FLAG_LABEL[e.organizer_flag].toLowerCase())}</b>`
+        : e.status === "cancelled"
+          ? " · <b>zrušeno</b>"
+          : "";
       return `<div class="map-popup-item">${name}<div>${esc(dateRange(e.date_from, e.date_to))} · ${esc(
         DISCIPLINE_LABEL[e.discipline],
       )} · ${esc(LEVEL_LABEL[e.level])}${cancelled}</div></div>`;

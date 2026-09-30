@@ -32,6 +32,10 @@ npm run deploy                               # build webu + Worker + denní Cron
 # ruční spuštění (jen Autoklub, i když se obsah nezměnil):
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
   "https://zavody-kalendar.<subdomena>.workers.dev/admin/run?source=autoklub-cal-pdf-2026&force=1"
+
+# ruční kontrola webů pořadatelů (závody v příštích 14 dnech):
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "https://zavody-kalendar.<subdomena>.workers.dev/admin/check-organizers?limit=10"
 ```
 
-Pipeline (`src/pipeline/`): `http.ts` (robots.txt, User-Agent, rozestupy) → hash obsahu → `htmlToText.ts` / PDF jako dokument → `extract.ts` (Claude, strukturovaný výstup) → `normalize.ts` (validace po položkách) → `dedupe.ts` → `geocode.ts` (Nominatim + cache) → `upsert.ts` (D1, priorita zdrojů).
+Pipeline (`src/pipeline/`): `http.ts` (robots.txt, User-Agent, rozestupy) → hash obsahu → `htmlToText.ts` / PDF jako dokument → `extract.ts` (Claude, strukturovaný výstup) → `normalize.ts` (validace po položkách) → `dedupe.ts` → `geocode.ts` (Nominatim + cache) → `upsert.ts` (D1, priorita zdrojů). Po importu `organizer.ts` denně ověří weby pořadatelů nadcházejících závodů (tabulka `organizer_checks`).

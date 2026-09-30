@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { DISCIPLINES, LEVELS } from "./pipeline/schema.ts";
-import type { EventDetail, EventListItem, EventSourceLink, EventsResponse, RegionsResponse } from "./shared/types.ts";
+import type {
+  EventDetail,
+  EventListItem,
+  EventSourceLink,
+  EventsResponse,
+  OrganizerCheckInfo,
+  RegionsResponse,
+} from "./shared/types.ts";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const csvOf = <T extends string>(values: readonly [T, ...T[]]) =>
@@ -47,9 +54,11 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
     db
       .prepare(
         `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
-                e.region, e.country, e.status, e.lat, e.lng,
-                (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count
-           FROM events e
+                e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, e.lat, e.lng,
+                (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count,
+                CASE WHEN oc.status = 'cancelled' THEN 'cancelled' WHEN oc.status = 'postponed' THEN 'postponed'
+                     WHEN oc.date_from IS NOT NULL THEN 'date_changed' END AS organizer_flag
+           FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
           WHERE ${where.join(" AND ")}
           ORDER BY e.date_from, e.name
           LIMIT 2000`,
@@ -66,13 +75,23 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
   const event = await db
     .prepare(
       `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
-              e.region, e.country, e.status, e.lat, e.lng, e.organizer, e.website_url, e.description, e.updated_at,
-              (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count
-         FROM events e WHERE e.id = ?`,
+              e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, e.lat, e.lng, e.organizer, e.website_url, e.description, e.updated_at,
+              (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count,
+              CASE WHEN oc.status = 'cancelled' THEN 'cancelled' WHEN oc.status = 'postponed' THEN 'postponed'
+                     WHEN oc.date_from IS NOT NULL THEN 'date_changed' END AS organizer_flag
+         FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
+        WHERE e.id = ?`,
     )
     .bind(id)
-    .first<Omit<EventDetail, "sources">>();
+    .first<Omit<EventDetail, "sources" | "organizer_check">>();
   if (!event) return null;
+  const check = await db
+    .prepare(
+      `SELECT url, checked_at, outcome, status, date_from, date_to, notice, error, changed_at
+         FROM organizer_checks WHERE event_id = ?`,
+    )
+    .bind(id)
+    .first<OrganizerCheckInfo>();
   const { results } = await db
     .prepare(
       `SELECT s.name, es.source_url AS url, es.last_seen_at
@@ -81,7 +100,7 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
     )
     .bind(id)
     .all<EventSourceLink>();
-  return { ...event, sources: results };
+  return { ...event, sources: results, organizer_check: check };
 }
 
 export async function listRegions(db: D1Database, today = todayInPrague()): Promise<RegionsResponse> {

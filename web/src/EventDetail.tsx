@@ -11,6 +11,43 @@ const EventMap = lazy(() => import("./EventMap.tsx"));
 
 const STATUS_LABEL = { planned: null, cancelled: "Zrušeno", finished: "Proběhlo" } as const;
 
+function OrganizerBox({ e }: { e: Detail }) {
+  const c = e.organizer_check;
+  if (!c) return null;
+  const changed = c.outcome === "changed";
+  const title =
+    c.status === "cancelled"
+      ? "Pořadatel uvádí, že je závod zrušený"
+      : c.status === "postponed"
+        ? "Pořadatel uvádí, že je závod odložený"
+        : c.date_from
+          ? `Pořadatel uvádí jiný termín: ${formatDate(c.date_from)}${c.date_to ? ` – ${formatDate(c.date_to)}` : ""}`
+          : c.outcome === "confirmed"
+            ? "Web pořadatele termín potvrzuje"
+            : c.outcome === "not_mentioned"
+              ? "Na webu pořadatele o závodu zatím nic není"
+              : "Web pořadatele se nepodařilo ověřit";
+  return (
+    <section
+      aria-label="Web pořadatele"
+      className={`mt-5 rounded-xl border p-4 ${changed ? "border-accent bg-accent/8" : "border-border bg-surface"}`}
+    >
+      <p className={`font-semibold ${changed ? "text-accent" : ""}`}>
+        {!changed && c.outcome === "confirmed" && <span aria-hidden>✓ </span>}
+        {title}
+      </p>
+      {c.notice && <p className="mt-1 text-sm">{c.notice}</p>}
+      <p className="mt-2 text-xs text-muted">
+        Automaticky ověřeno {formatTimestamp(c.checked_at)} na{" "}
+        <a href={c.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+          {hostOf(c.url)}
+        </a>
+        {c.error && " (poslední pokus se nezdařil, platí dřívější zjištění)"}. Rozhoduje vždy informace pořadatele.
+      </p>
+    </section>
+  );
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5 sm:grid-cols-[10rem_1fr]">
@@ -146,6 +183,8 @@ export function EventDetailPage({ id }: { id: string }) {
           Sdílet
         </button>
       </div>
+
+      <OrganizerBox e={e} />
 
       <dl className="mt-5 divide-y divide-border rounded-xl border border-border bg-surface px-4">
         <Row label="Termín">

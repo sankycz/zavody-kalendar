@@ -98,6 +98,15 @@ create table locations (
 
 Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, který nad ním pustí normalizaci a deduplikaci bez volání API.
 
+## Kontrola webů pořadatelů
+
+Denně po stažení kalendářů se ověří weby pořadatelů (`events.website_url`) u závodů v příštích 14 dnech, max. `ORGANIZER_CHECK_LIMIT` (výchozí 10) za běh, nejbližší a nejdéle neověřené první. Ručně přes `POST /admin/check-organizers`.
+
+- Stránka se stahuje stejně jako zdroje (robots.txt, User-Agent, limit na doménu). Jen HTML; PDF a jiné typy se přeskočí.
+- Model se volá jen když se text stránky od minulé kontroly změnil. Vrací pevné schéma (zmiňuje závod?, stav planned/cancelled/postponed, termín, krátká poznámka), výstup se validuje.
+- Výsledek se ukládá do `organizer_checks`, ne do `events`: kalendářový import tak zrušení od pořadatele nepřepíše a změna termínu nevytvoří duplicitu. API zrušení od pořadatele promítá do stavu závodu, odklad a jiný termín ukazuje jako upozornění.
+- Neukládá se text stránky ani osobní údaje, jen hash a strukturovaný výsledek.
+
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
