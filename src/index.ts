@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { handleApi, pragueHour, todayInPrague } from "./api.ts";
+import { apifyEvents } from "./pipeline/facebook.ts";
 import { backfillCoordinates } from "./pipeline/geocode.ts";
 import { PoliteClient } from "./pipeline/http.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
@@ -17,12 +18,21 @@ export interface Env {
   ADMIN_TOKEN: string;
   CLAUDE_MODEL: string;
   CONTACT_EMAIL: string;
+  /** Apify API token for Facebook sources (secret); without it they fail with an error. */
+  APIFY_TOKEN?: string;
+  /** Max Facebook events per source and run (pay per event, default 50). */
+  APIFY_MAX_EVENTS?: string;
   /** Max organizer websites checked per run (default 10). */
   ORGANIZER_CHECK_LIMIT?: string;
 }
 
 /** Local (Prague) hour of the weekly run, see the crons in wrangler.jsonc. */
 const INGEST_HOUR = 5;
+
+function maxEvents(env: Env): number {
+  const n = Number(env.APIFY_MAX_EVENTS ?? 50);
+  return Number.isInteger(n) && n > 0 && n <= 500 ? n : 50;
+}
 
 function checkLimit(env: Env, override?: string | null): number {
   const n = Number(override ?? env.ORGANIZER_CHECK_LIMIT ?? DEFAULT_CHECK_LIMIT);
@@ -49,6 +59,7 @@ function deps(env: Env): RunDeps {
     http: new PoliteClient({ userAgent, minIntervalMs: 5000 }),
     geoHttp: new PoliteClient({ userAgent, minIntervalMs: 1100 }),
     llm: llm(env),
+    ...(env.APIFY_TOKEN ? { apify: apifyEvents(env.APIFY_TOKEN, maxEvents(env)) } : {}),
     log: (msg, data) => console.log(msg, data ?? ""),
   };
 }

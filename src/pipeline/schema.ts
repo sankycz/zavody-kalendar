@@ -73,7 +73,7 @@ export interface SourceRow {
   name: string;
   url: string;
   season: number;
-  kind: "html" | "pdf";
+  kind: "html" | "pdf" | "facebook";
   priority: number;
   last_fetched_at: string | null;
   last_content_hash: string | null;

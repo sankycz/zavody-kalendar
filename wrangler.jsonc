@@ -22,7 +22,8 @@
     "CLAUDE_MODEL": "claude-opus-5-5",
     "CONTACT_EMAIL": "j.sankot@gmail.com"
   },
-  // Secrets (wrangler secret put): ADMIN_TOKEN, and ANTHROPIC_API_KEY when EXTRACTOR = "claude"
+  // Secrets (wrangler secret put): ADMIN_TOKEN, ANTHROPIC_API_KEY when EXTRACTOR = "claude",
+  // APIFY_TOKEN for Facebook sources (kind 'facebook' in the sources table).
   "ai": { "binding": "AI" },
   "d1_databases": [
     {

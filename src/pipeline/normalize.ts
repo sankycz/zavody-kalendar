@@ -123,7 +123,7 @@ export function normalizeLocation(v: string | null | undefined): string | null {
   return out || null;
 }
 
-function normalizeUrl(v: string | null | undefined): string | null {
+export function normalizeUrl(v: string | null | undefined): string | null {
   const t = cleanText(v, 500);
   if (!t) return null;
   const withScheme = /^https?:\/\//i.test(t) ? t : /^www\./i.test(t) ? `https://${t}` : null;

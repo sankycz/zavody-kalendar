@@ -1,5 +1,6 @@
 import { dedupeBatch } from "./dedupe.ts";
 import { extractEvents } from "./extract.ts";
+import { excerptWithoutDescription, facebookInput, facebookPoint, parseTargets, type ApifyEvents } from "./facebook.ts";
 import { geocode, type GeoResult } from "./geocode.ts";
 import { decodeHtml } from "./decode.ts";
 import { htmlToText } from "./htmlToText.ts";
@@ -39,6 +40,8 @@ export interface RunDeps {
   geoHttp: PoliteClient;
   /** Claude API or Workers AI, see llm.ts. */
   llm: JsonModel;
+  /** Facebook events via Apify; unset when APIFY_TOKEN isn't configured. */
+  apify?: ApifyEvents;
   log?: (msg: string, data?: unknown) => void;
 }
 
@@ -66,13 +69,22 @@ export type RunReport =
 export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?: boolean } = {}): Promise<RunReport> {
   const log = deps.log ?? (() => {});
   try {
-    const res = await deps.http.get(source.url);
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${source.url}`);
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    // HTML is hashed after text extraction, so a scheduled run doesn't re-extract
-    // (and pay for) a page whose only change is an ad, counter or nonce.
-    const text =
-      source.kind === "html" ? htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url) : null;
+    let text: string | null = null;
+    let bytes = new Uint8Array();
+    let points: Map<string, GeoResult> | null = null;
+    if (source.kind === "facebook") {
+      if (!deps.apify) throw new Error("APIFY_TOKEN is not set");
+      const fb = facebookInput(await deps.apify.events(parseTargets(source.url)), source.season);
+      text = fb.text;
+      points = fb.points;
+    } else {
+      const res = await deps.http.get(source.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${source.url}`);
+      bytes = new Uint8Array(await res.arrayBuffer());
+      // HTML is hashed after text extraction, so a scheduled run doesn't re-extract
+      // (and pay for) a page whose only change is an ad, counter or nonce.
+      if (source.kind === "html") text = htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url);
+    }
     const hash = await sha256Hex(text != null ? new TextEncoder().encode(text) : bytes);
 
     if (!opts.force && hash === source.last_content_hash) {
@@ -87,7 +99,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     const extracted = await extractEvents(deps.llm, {
       sourceName: source.name,
       season: source.season,
-      kind: source.kind,
+      kind: source.kind === "pdf" ? "pdf" : "html",
       ...(text != null ? { text } : { pdf: bytes }),
     });
 
@@ -102,8 +114,15 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     const geocodeErrors = new Set<string>();
     for (const e of batch.events) {
       if (e.country !== "CZ") continue;
+      // Facebook knows where its event is: take its point, geocode only for the region.
+      const point = points ? facebookPoint(points, e.website_url, e.name) : undefined;
+      if (points) e.raw_excerpt = excerptWithoutDescription(e.raw_excerpt);
       try {
-        const g = await geocode(deps.db, deps.geoHttp, e.location_name!, e.country);
+        const found = await geocode(deps.db, deps.geoHttp, e.location_name!, e.country).catch((err: unknown) => {
+          if (point) return null;
+          throw err;
+        });
+        const g = point ? { ...point, region: found?.country === "CZ" ? found.region : null } : found;
         if (g && g.country !== "CZ") {
           abroad.push(`${e.name} (${e.location_name}, ${g.country})`);
           continue;

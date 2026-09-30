@@ -20,6 +20,10 @@ Začni prvními třemi. Další přidávej až ve chvíli, kdy pipeline běží 
 
 Kandidáti na později: Triola Cup, Krušnohorský pohár, Maverick Cup, Radeč Cup, kalendáře jednotlivých autoklubů, například https://www.autoklub-pisek.cz/kalendar/.
 
+**Facebook** (typ zdroje `facebook`): události přes Apify actor `apify/facebook-events-scraper` (API token ve Worker secretu `APIFY_TOKEN`, max. `APIFY_MAX_EVENTS` událostí na běh, platí se za událost). V `sources.url` je po řádcích, co stáhnout: odkaz na FB stránku pořadatele (záložka Události), na událost, nebo hledaná fráze. Hledání na FB je celosvětové, proto se berou jen události se zemí CZ a známým místem. Model z nich jako u webu vybere automobilové závody. Souřadnice místa se berou z Facebooku, geokodér jen doplní kraj. Kontakty z popisu se modelu neposílají a popis se neukládá.
+
+Kalendář obsahuje jen závody konané v České republice.
+
 URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžný kalendář 2026 vyšel 28. 1. 2026. Konfigurace zdrojů proto musí umět URL pro nový rok přidat bez změny kódu.
 
 ## Architektura
