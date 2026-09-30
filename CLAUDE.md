@@ -17,5 +17,8 @@ Kompletní zadání je v `docs/SPEC.md`. Čti ho před každou změnou.
 - Frontend: Vite + React + TypeScript strict + Tailwind + Leaflet/OSM. Česky, mobile-first, světlý/tmavý režim, filtry v URL.
 - Pro každý zdroj fixture v `fixtures/` a test normalizace + deduplikace bez volání API.
 
+## Příkazy
+`npm test` (vitest, D1 nahrazená node:sqlite nad `migrations/`), `npm run typecheck`, `npm run deploy`, `npm run fixtures:fetch`. Před commitem musí projít test i typecheck.
+
 ## Postup
 Pracuj po krocích z `docs/SPEC.md` („Pořadí práce“). Po každém kroku se zastav a ukaž výsledek.

@@ -89,7 +89,7 @@ create table locations (
 ## Pipeline
 
 1. Stáhni zdroj. Pokud se hash obsahu nezměnil od minula, skonči.
-2. Z PDF vytáhni text, z HTML odstraň navigaci a patičku.
+2. Z PDF vytáhni text, z HTML odstraň navigaci a patičku. *(Implementace: PDF se posílá modelu přímo jako dokument — zachová tabulkové rozložení s úrovněmi MČR/RSS a ve Workeru nestojí CPU čas.)*
 3. Pošli text do Claude API a dostaň pole závodů podle schématu. Výstup validuj přes zod. Nevalidní položky zaloguj a přeskoč, celou dávku kvůli nim neshazuj.
 4. Normalizuj: datum na ISO, disciplínu a úroveň na hodnoty z výčtu, místo na název obce.
 5. Geokóduj přes cache.
