@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e11d2e"/>
+      <stop offset="1" stop-color="#ff7a18"/>
+    </linearGradient>
+    <clipPath id="flag"><path d="M150,110 C230,88 320,132 400,110 L400,300 C320,322 230,278 150,300 Z"/></clipPath>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#7a0a14" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="0" fill="url(#g)"/>
+  <g transform="translate(56 56) scale(0.7812)">
+    <g filter="url(#sh)">
+      <path d="M150,110 C230,88 320,132 400,110 L400,300 C320,322 230,278 150,300 Z" fill="#16171a"/>
+      <g clip-path="url(#flag)" fill="#fff"><rect x="150.0" y="110.0" width="50.0" height="47.5"/><rect x="250.0" y="110.0" width="50.0" height="47.5"/><rect x="350.0" y="110.0" width="50.0" height="47.5"/><rect x="200.0" y="157.5" width="50.0" height="47.5"/><rect x="300.0" y="157.5" width="50.0" height="47.5"/><rect x="150.0" y="205.0" width="50.0" height="47.5"/><rect x="250.0" y="205.0" width="50.0" height="47.5"/><rect x="350.0" y="205.0" width="50.0" height="47.5"/><rect x="200.0" y="252.5" width="50.0" height="47.5"/><rect x="300.0" y="252.5" width="50.0" height="47.5"/></g>
+      <path d="M150,110 C230,88 320,132 400,110 L400,300 C320,322 230,278 150,300 Z" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
+      <path d="M150 100V412" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
