@@ -29,11 +29,13 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 - **Extrakce:** Claude API. Stažený HTML text nebo text z PDF pošli modelu s pevným JSON schématem a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní. Model si vezmi z proměnné prostředí `CLAUDE_MODEL`.
 - **Geokódování:** Nominatim z OpenStreetMap, maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
-- **Hosting frontendu:** Netlify.
+- **Hosting frontendu:** Cloudflare Pages (auto-deploy z GitHubu, větev `main`).
 
-Klíče patří do Supabase secrets a Netlify env proměnných. `ANTHROPIC_API_KEY` nikdy nesmí skončit ve frontendu.
+Klíče patří do Supabase secrets a Cloudflare Pages env proměnných. `ANTHROPIC_API_KEY` nikdy nesmí skončit ve frontendu.
 
 ## Datový model
+
+Závazné schéma je v `supabase/migrations/`. Oproti původnímu návrhu níže: `sources` má navíc `provider`, `name` a `priority` (jeden řádek = poskytovatel + sezóna + HTML/PDF, nižší priorita vyhrává konflikty), výčty jsou hlídané CHECK constrainty, `event_sources` má `first_seen_at`/`last_seen_at` a `locations` má `found`/`fetched_at`.
 
 ```sql
 create table sources (
@@ -119,7 +121,7 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 3. Minimální frontend se seznamem nad reálnými daty.
 4. Autokaleidoskop a Edda Cup, deduplikace napříč zdroji.
 5. Filtry, mapa, detail.
-6. pg_cron a nasazení na Vercel.
+6. pg_cron a nasazení na Cloudflare Pages.
 
 Po každém kroku se zastav a ukaž, co funguje. Dál pokračuj až po odsouhlasení.
 
@@ -128,4 +130,3 @@ Po každém kroku se zastav a ukaž, co funguje. Dál pokračuj až po odsouhlas
 - Zeptat se Autoklubu ČR, jestli kalendář neposkytují ve strojově čitelné podobě. Pokud ano, extrakce přes model u tohoto zdroje odpadá.
 - Zahrnout závody v zahraničí, které patří do českých seriálů, třeba vrchy v Rakousku? Návrh: ano, s příznakem země.
 - Track days a volné jízdy na okruzích. Podle mě patří do druhé verze jako samostatná disciplína.
-- Hosting: architektura říká Netlify, pořadí práce v kroku 6 Vercel — rozhodnout jeden.

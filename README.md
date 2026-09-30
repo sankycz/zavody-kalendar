@@ -5,4 +5,4 @@ Kalendář amatérských i mistrovských automobilových závodů v Česku (rall
 - Zadání: [`docs/SPEC.md`](docs/SPEC.md)
 - Pravidla pro AI asistenta: [`CLAUDE.md`](CLAUDE.md)
 
-Stack: Supabase (Postgres, Edge Functions, pg_cron) · Claude API pro extrakci dat · Nominatim · Vite + React + TypeScript + Tailwind + Leaflet.
+Stack: Supabase (Postgres, Edge Functions, pg_cron) · Cloudflare Pages · Claude API pro extrakci dat · Nominatim · Vite + React + TypeScript + Tailwind + Leaflet.
