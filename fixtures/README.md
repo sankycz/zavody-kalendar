@@ -6,7 +6,8 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
 |---|---|
 | `<provider>/<source-id>.pdf` / `.html` | Reálný stažený obsah zdroje (`npm run fixtures:fetch`). |
 | `<provider>/<source-id>.txt` | HTML převedené na text přes `htmlToText` – to, co jde do modelu. |
-| `<provider>/extraction.sample.json` | Výstup modelu ve tvaru `ExtractionSchema`. Nad ním testy pouští normalizaci, deduplikaci a upsert do D1. |
+| `<provider>/extraction.sample.json` | Syntetický výstup modelu ve tvaru `ExtractionSchema` se schválně vloženými chybami. Nad ním testy pouští normalizaci, deduplikaci a upsert do D1. |
+| `<provider>/<source-id>.extraction.json` | Reálný výstup modelu nad `.txt` / `.pdf` (`npm run fixtures:extract`). Testuje ho `test/realExtraction.test.ts`, bez volání API. |
 
 ## Stav
 
@@ -18,7 +19,7 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
   - `autoklub-cal/autoklub-cal-html-2026.html` – HTML **očištěné Apify** (jen hlavička + článek s tabulkami, bez WordPress menu/patičky); surové HTML má ~120 kB. Obsah kalendáře je stejný.
   - `.txt` k nim vygenerované přes `--offline`.
 - `autoklub-cal/autoklub-cal-pdf-2026.pdf` zatím chybí (binární 185 kB soubor nejde přenést přes Apify connector) – stáhni lokálně `npm run fixtures:fetch autoklub-cal-pdf-2026`.
-- Až bude první ostrá extrakce nad reálnými `.txt`, syntetické vzorky se nahradí skutečným výstupem modelu.
+- Ostrá extrakce: `ANTHROPIC_API_KEY=… npm run fixtures:extract [provider|source-id]` (model z `CLAUDE_MODEL`, jinak z `wrangler.jsonc`). Syntetické `extraction.sample.json` zůstávají kvůli testům chybových případů.
 
 ```bash
 CONTACT_EMAIL=you@example.com npm run fixtures:fetch            # všechny zdroje
