@@ -31,7 +31,8 @@ export function todayInPrague(now = new Date()): string {
 }
 
 export async function listEvents(db: D1Database, q: EventsQuery, today = todayInPrague()): Promise<EventsResponse> {
-  const where: string[] = ["COALESCE(e.date_to, e.date_from) >= ?"];
+  // Races in the Czech Republic only (older rows may still hold races abroad).
+  const where: string[] = ["e.country = 'CZ'", "COALESCE(e.date_to, e.date_from) >= ?"];
   const params: unknown[] = [q.from ?? today];
   if (q.to) {
     where.push("e.date_from <= ?");

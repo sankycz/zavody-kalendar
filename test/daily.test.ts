@@ -11,7 +11,7 @@ const event = {
   description: null, status: "planned", raw_excerpt: "16.5. Rallysprint Kopná",
 };
 
-function setup(pages: string[]) {
+function setup(pages: string[], events: unknown[] = [event]) {
   const { d1, raw } = createTestDb();
   // Only the Autokaleidoskop HTML source enabled; no geocoding needed (lookups hit the cache below).
   raw.exec("UPDATE sources SET enabled = 0 WHERE id <> 'autokaleidoskop-2026'");
@@ -33,7 +33,7 @@ function setup(pages: string[]) {
         return {
           finalMessage: async () => ({
             stop_reason: "end_turn",
-            parsed_output: { events: [event] },
+            parsed_output: { events },
             usage: { input_tokens: 1, output_tokens: 1 },
           }),
         };
@@ -64,6 +64,26 @@ describe("daily run", () => {
     expect(t.modelCalls()).toBe(1);
     expect((await t.runDay())[0]).toMatchObject({ status: "ok" });
     expect(t.modelCalls()).toBe(2);
+  });
+
+  it("keeps only races in the Czech Republic (by extracted country and by where the place is)", async () => {
+    const t = setup(
+      [`<main><p>16.5. Kopná, 11.7. Rechberg, 18.9. Annaberg</p><p>${"x".repeat(250)}</p></main>`],
+      [
+        event,
+        { ...event, name: "Rechberg", location_name: "Rechberg", country: "AT", discipline: "vrch" },
+        { ...event, name: "Rallye Miriquidi", location_name: "Annaberg-Buchholz", date_from: "2026-09-18" },
+      ],
+    );
+    t.raw.exec("INSERT INTO locations (query, lat, lng, region, country, found) VALUES ('Annaberg-Buchholz, CZ', 50.58, 13.0, 'Sasko', 'DE', 1)");
+    const [report] = await t.runDay();
+    expect(report).toMatchObject({
+      status: "ok",
+      valid: 1,
+      abroad: ["Rechberg (AT)", "Rallye Miriquidi (Annaberg-Buchholz, DE)"],
+      stats: { inserted: 1, updated: 0 },
+    });
+    expect(t.raw.prepare("SELECT name FROM events").all()).toEqual([{ name: "Rallysprint Kopná" }]);
   });
 
   it("marks past events finished, keeps cancelled and upcoming ones", async () => {

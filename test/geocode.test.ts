@@ -73,10 +73,10 @@ describe("geocode", () => {
             },
       ),
     );
-    expect(await geocode(db, http, "Annaberg-Buchholz", "CZ")).toEqual({ lat: 50.58, lng: 13.0, region: "Sasko" });
+    expect(await geocode(db, http, "Annaberg-Buchholz", "CZ")).toEqual({ lat: 50.58, lng: 13.0, region: "Sasko", country: "DE" });
     expect(asked).toEqual(["Annaberg-Buchholz/CZ", "Annaberg-Buchholz"]);
     // Cached: no further request.
-    expect(await geocode(db, http, "Annaberg-Buchholz", "CZ")).toEqual({ lat: 50.58, lng: 13.0, region: "Sasko" });
+    expect(await geocode(db, http, "Annaberg-Buchholz", "CZ")).toEqual({ lat: 50.58, lng: 13.0, region: "Sasko", country: "DE" });
     expect(asked).toHaveLength(2);
   });
 });

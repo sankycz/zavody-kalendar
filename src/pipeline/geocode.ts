@@ -4,6 +4,8 @@ export interface GeoResult {
   lat: number;
   lng: number;
   region: string | null;
+  /** Where the place actually is (ISO alpha-2); may differ from the extracted country. */
+  country: string;
 }
 
 const OPEN_METEO = "https://geocoding-api.open-meteo.com/v1/search";
@@ -51,12 +53,12 @@ export async function geocode(
 ): Promise<GeoResult | null> {
   const query = geocodeQuery(location, country);
   const cached = await db
-    .prepare("SELECT lat, lng, region, found FROM locations WHERE query = ?")
+    .prepare("SELECT lat, lng, region, country, found FROM locations WHERE query = ?")
     .bind(query)
-    .first<{ lat: number | null; lng: number | null; region: string | null; found: number }>();
+    .first<{ lat: number | null; lng: number | null; region: string | null; country: string | null; found: number }>();
   if (cached) {
     return cached.found && cached.lat != null && cached.lng != null
-      ? { lat: cached.lat, lng: cached.lng, region: cached.region }
+      ? { lat: cached.lat, lng: cached.lng, region: cached.region, country: cached.country ?? country.toUpperCase() }
       : null;
   }
 
@@ -64,12 +66,17 @@ export async function geocode(
   let hit = (await search(http, name, country))[0];
   if (!hit) hit = (await search(http, name, null)).find((h) => h.country_code && NEIGHBORS.includes(h.country_code));
   const result: GeoResult | null = hit
-    ? { lat: hit.latitude, lng: hit.longitude, region: czechRegion(hit.admin1 ?? null, hit.country_code) }
+    ? {
+        lat: hit.latitude,
+        lng: hit.longitude,
+        region: czechRegion(hit.admin1 ?? null, hit.country_code),
+        country: hit.country_code ?? country.toUpperCase(),
+      }
     : null;
 
   await db
-    .prepare("INSERT OR REPLACE INTO locations (query, lat, lng, region, found) VALUES (?, ?, ?, ?, ?)")
-    .bind(query, result?.lat ?? null, result?.lng ?? null, result?.region ?? null, result ? 1 : 0)
+    .prepare("INSERT OR REPLACE INTO locations (query, lat, lng, region, country, found) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(query, result?.lat ?? null, result?.lng ?? null, result?.region ?? null, result?.country ?? null, result ? 1 : 0)
     .run();
   return result;
 }
@@ -84,6 +91,7 @@ export interface BackfillReport {
 /**
  * Geocode stored events that have a place but no coordinates yet (e.g. after
  * the geocoder was unreachable during ingest). Cached places cost no request.
+ * A place found abroad sets the event's country (the API lists only CZ).
  */
 export async function backfillCoordinates(db: D1Database, http: PoliteClient, limit: number): Promise<BackfillReport> {
   const { results } = await db
@@ -100,8 +108,8 @@ export async function backfillCoordinates(db: D1Database, http: PoliteClient, li
       const g = await geocode(db, http, e.location_name, e.country);
       if (!g) continue;
       await db
-        .prepare("UPDATE events SET lat = ?, lng = ?, region = COALESCE(region, ?) WHERE id = ?")
-        .bind(g.lat, g.lng, g.region, e.id)
+        .prepare("UPDATE events SET lat = ?, lng = ?, region = COALESCE(region, ?), country = ? WHERE id = ?")
+        .bind(g.lat, g.lng, g.region, g.country, e.id)
         .run();
       report.geocoded++;
     } catch (err) {

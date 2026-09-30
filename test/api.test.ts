@@ -32,6 +32,13 @@ describe("listEvents", () => {
     expect(r.events[0]!.source_count).toBe(1);
   });
 
+  it("lists only races in the Czech Republic", async () => {
+    const { d1, raw } = await seeded();
+    raw.exec("UPDATE events SET country = 'DE' WHERE name = 'Hill'");
+    const r = await listEvents(d1, {}, "2026-05-02");
+    expect(r.events.map((e) => e.name)).toEqual(["Running now", "Cross"]);
+  });
+
   it("filters by discipline, level and date range", async () => {
     const { d1 } = await seeded();
     const q = EventsQuery.parse({ discipline: "vrch,autocross", level: "mcr", to: "2026-12-31" });

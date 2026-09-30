@@ -64,7 +64,7 @@ describe("upsert into D1 schema", () => {
 
   it("inserts events and source links, idempotent on re-run", async () => {
     const { d1, raw } = createTestDb();
-    const geo = new Map([["klatovy|2026-05-22|rally", { lat: 49.39, lng: 13.29, region: "Plzeňský kraj" }]]);
+    const geo = new Map([["klatovy|2026-05-22|rally", { lat: 49.39, lng: 13.29, region: "Plzeňský kraj", country: "CZ" }]]);
 
     expect(await upsertEvents(d1, AUTOKLUB, events, geo)).toEqual({ inserted: 5, updated: 0 });
     expect(await upsertEvents(d1, AUTOKLUB, events, geo)).toEqual({ inserted: 0, updated: 5 });

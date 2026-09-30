@@ -53,6 +53,8 @@ export type RunReport =
       valid: number;
       invalid: InvalidItem[];
       geocoded: number;
+      /** Races left out because they take place outside the Czech Republic. */
+      abroad?: string[];
       /** First few geocoding failures (distinct messages). */
       geocode_errors?: string[];
       /** Blocks the model failed on; the source is retried on the next run. */
@@ -92,22 +94,30 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     const batch = processExtraction(extracted.items, source.season);
     for (const bad of batch.invalid) log(`${source.id}: skipped invalid item: ${bad.error}`, bad.raw);
 
+    // The calendar covers races in the Czech Republic only.
+    const abroad: string[] = batch.events.filter((e) => e.country !== "CZ").map((e) => `${e.name} (${e.country})`);
+    const events: NormalizedEvent[] = [];
     const geo = new Map<string, GeoResult | null>();
     let geocoded = 0;
     const geocodeErrors = new Set<string>();
     for (const e of batch.events) {
-      if (!e.location_name) continue;
+      if (e.country !== "CZ") continue;
       try {
-        const g = await geocode(deps.db, deps.geoHttp, e.location_name, e.country);
+        const g = await geocode(deps.db, deps.geoHttp, e.location_name!, e.country);
+        if (g && g.country !== "CZ") {
+          abroad.push(`${e.name} (${e.location_name}, ${g.country})`);
+          continue;
+        }
         geo.set(e.dedupe_key, g);
         if (g) geocoded++;
       } catch (err) {
         log(`${source.id}: geocoding failed for '${e.location_name}': ${String(err)}`);
         if (geocodeErrors.size < 3) geocodeErrors.add(String(err));
       }
+      events.push(e);
     }
 
-    const stats = await upsertEvents(deps.db, source, batch.events, geo);
+    const stats = await upsertEvents(deps.db, source, events, geo);
 
     // Store the hash only after a complete, successful upsert, so a failed run is retried next time.
     await deps.db
@@ -117,13 +127,14 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       .bind(extracted.failedBlocks ? null : hash, source.id)
       .run();
 
-    log(`${source.id}: ${batch.events.length} events (${stats.inserted} new, ${stats.updated} updated), ${batch.invalid.length} invalid`);
+    log(`${source.id}: ${events.length} events (${stats.inserted} new, ${stats.updated} updated), ${batch.invalid.length} invalid`);
     return {
       source: source.id,
       status: "ok",
       hash,
       extracted: extracted.items.length,
-      valid: batch.events.length,
+      valid: events.length,
+      ...(abroad.length ? { abroad } : {}),
       invalid: batch.invalid,
       geocoded,
       ...(geocodeErrors.size ? { geocode_errors: [...geocodeErrors] } : {}),
