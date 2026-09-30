@@ -191,6 +191,7 @@ export function normalizeEvent(raw: unknown, season: number): NormalizeResult {
   const country = /^[A-Z]{2}$/.test(countryRaw) ? countryRaw : "CZ";
 
   const location_name = normalizeLocation(r.location_name);
+  if (!location_name) return { ok: false, error: "missing location_name", raw };
 
   return {
     ok: true,
@@ -209,7 +210,7 @@ export function normalizeEvent(raw: unknown, season: number): NormalizeResult {
       description: cleanText(r.description),
       status,
       raw_excerpt: cleanText(r.raw_excerpt, MAX_EXCERPT),
-      dedupe_key: dedupeKey(location_name ?? name, date_from, discipline),
+      dedupe_key: dedupeKey(location_name, date_from, discipline),
     },
   };
 }

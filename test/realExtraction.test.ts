@@ -13,13 +13,13 @@ interface RealExtraction {
   events: unknown[];
 }
 
-// Same ids / priorities as the seed in migrations/0001.
-const PRIORITY: Record<string, number> = {
-  "autoklub-cal-pdf-2026": 10,
-  "autoklub-cal-html-2026": 11,
-  "autokaleidoskop-2026": 50,
-  "edda-2026": 60,
-};
+// Same priorities as the sources table after migrations/0004 (read from the DB below).
+const PRIORITY: Record<string, number> = Object.fromEntries(
+  (createTestDb().raw.prepare("SELECT id, priority FROM sources").all() as { id: string; priority: number }[]).map((r) => [
+    r.id,
+    r.priority,
+  ]),
+);
 
 const fixturesDir = join(import.meta.dirname, "..", "fixtures");
 const real: { provider: string; data: RealExtraction }[] = readdirSync(fixturesDir, { withFileTypes: true })
@@ -62,13 +62,28 @@ describe.skipIf(real.length === 0)("real extraction fixtures", () => {
   it("skips the typos Autokaleidoskop really has, keeps the rest", () => {
     const k = real.find((r) => r.data.source_id === "autokaleidoskop-2026");
     if (!k) return;
-    expect(processExtraction(k.data.events, 2026).invalid.map((i) => i.error)).toEqual([
-      "invalid date_from '1ý.'",
-      "invalid date_from '???'",
+    const errors = processExtraction(k.data.events, 2026).invalid.map((i) => i.error);
+    expect(errors.filter((e) => e.startsWith("invalid date"))).toEqual(["invalid date_from '1ý.'", "invalid date_from '???'"]);
+    // e.g. "26. – 27.9. ???" (Edda Cup without a place) is not written at all.
+    expect(errors.filter((e) => e === "missing location_name")).toHaveLength(6);
+  });
+
+  it("merges one race written with a shorter and a longer place name, keeps the longer one", async () => {
+    const { d1, raw } = createTestDb();
+    for (const r of real) {
+      const src = { id: r.data.source_id, provider: r.provider, url: `https://${r.provider}.example/`, priority: PRIORITY[r.data.source_id]! };
+      await upsertEvents(d1, src, processExtraction(r.data.events, r.data.season).events, new Map());
+    }
+    const places = raw
+      .prepare("SELECT location_name l, dedupe_key k FROM events WHERE location_name LIKE 'Bečov%' OR location_name LIKE 'Náměšť%'")
+      .all();
+    expect(places).toEqual([
+      { l: "Náměšť nad Oslavou", k: "namest-nad-oslavou|2026-05-01|vrch" },
+      { l: "Bečov nad Teplou", k: "becov-nad-teplou|2026-09-04|vrch" },
     ]);
   });
 
-  it("links Edda Cup rounds listed a day apart by Edda and Autokaleidoskop", async () => {
+  it("links Edda Cup rounds listed a day apart by Edda and Autokaleidoskop, Edda's own dates win", async () => {
     const pick = real.filter((r) => r.data.source_id === "autokaleidoskop-2026" || r.data.source_id === "edda-2026");
     if (pick.length < 2) return;
     const { d1, raw } = createTestDb();
@@ -82,7 +97,7 @@ describe.skipIf(real.length === 0)("real extraction fixtures", () => {
       .map((r) => (r as { k: string }).k);
     // Edda 27.–28.3. vs Autokaleidoskop 28.3., Edda 01.–03.05. vs 2.–3.5. etc.
     expect(linked).toEqual(
-      expect.arrayContaining(["most|2026-03-28|vrch", "makarov|2026-05-02|vrch", "kdyne|2026-05-23|vrch", "milovice|2026-10-10|vrch"]),
+      expect.arrayContaining(["most|2026-03-27|vrch", "makarov|2026-05-01|vrch", "kdyne|2026-05-22|vrch", "milovice|2026-10-09|vrch"]),
     );
   });
 

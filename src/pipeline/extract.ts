@@ -17,7 +17,7 @@ Pravidla:
   - volny = volný závod bez seriálu.
   Když zdroj uvádí víc úrovní, vyber nejvyšší (mcr > pohar > regionalni > volny).
 - series: název seriálu / šampionátu tak, jak je ve zdroji, jinak null.
-- location_name: název obce, kde se jede (u rally sídlo / centrum rally). Ne název trati, okruhu ani klubu. Když obec není uvedena, null.
+- location_name: název obce, kde se jede (u rally sídlo / centrum rally, u okruhu obec, kde okruh leží). Ne název trati, okruhu ani klubu. Když obec ve zdroji chybí, ale místo konání je jednoznačně známé (např. Red Bull Ring → Spielberg, Barum Czech Rally Zlín → Zlín), doplň ji. Když obec nejde jednoznačně určit, null — takový závod se do kalendáře nezapíše.
 - country: ISO kód země konání (CZ, AT, SK, DE, PL…). Závody českých seriálů v zahraničí zahrň.
 - organizer: pořadatelský klub / spolek. Nikdy nevypisuj jména osob (jezdců, ředitelů, kontaktních osob) v žádném poli.
 - website_url: jen URL, které je přímo ve zdroji. Nevymýšlej je.

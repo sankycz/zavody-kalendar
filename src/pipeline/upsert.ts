@@ -1,4 +1,4 @@
-import { mergeEvent, type MergeFields } from "./dedupe.ts";
+import { dedupeKey, mergeEvent, placeOf, preferredLocation, type MergeFields } from "./dedupe.ts";
 import type { NormalizedEvent, SourceRow } from "./schema.ts";
 import type { GeoResult } from "./geocode.ts";
 
@@ -28,13 +28,16 @@ async function findNearMatch(
   source: Pick<SourceRow, "id" | "provider">,
   e: NormalizedEvent,
 ): Promise<ExistingRow | null> {
-  const place = e.dedupe_key.slice(0, e.dedupe_key.indexOf("|") + 1);
+  // Same place, or the same municipality written shorter/longer (see samePlace).
+  const place = placeOf(e.dedupe_key);
   return db
     .prepare(
       `SELECT ${EXISTING_COLUMNS}
          FROM events e
         WHERE e.discipline = ?
-          AND substr(e.dedupe_key, 1, ?) = ?
+          AND (substr(e.dedupe_key, 1, instr(e.dedupe_key, '|') - 1) = ?
+               OR e.dedupe_key LIKE ? || '-%|%'
+               OR ? LIKE substr(e.dedupe_key, 1, instr(e.dedupe_key, '|') - 1) || '-%')
           AND e.date_from <= date(?, '+1 day')
           AND coalesce(e.date_to, e.date_from) >= date(?, '-1 day')
           AND NOT EXISTS (SELECT 1 FROM event_sources es JOIN sources s ON s.id = es.source_id
@@ -42,7 +45,7 @@ async function findNearMatch(
         ORDER BY abs(julianday(e.date_from) - julianday(?))
         LIMIT 1`,
     )
-    .bind(source.id, e.discipline, place.length, place, e.date_to ?? e.date_from, e.date_from, source.provider, e.date_from)
+    .bind(source.id, e.discipline, place, place, place, e.date_to ?? e.date_from, e.date_from, source.provider, e.date_from)
     .first<ExistingRow>();
 }
 
@@ -101,6 +104,13 @@ export async function upsertEvents(
       const moveDates = !exact && incomingWins;
       const dateFrom = moveDates ? e.date_from : existing.date_from;
       const dateTo = moveDates ? e.date_to : merged.date_to && merged.date_to > dateFrom ? merged.date_to : null;
+      // 'Bečov' + 'Bečov nad Teplou' -> one event under the more specific name, whichever source wins.
+      const location = preferredLocation(existing.location_name, e.location_name) ?? merged.location_name;
+      let key = location ? dedupeKey(location, dateFrom, e.discipline) : moveDates ? e.dedupe_key : existing.dedupe_key;
+      if (key !== existing.dedupe_key) {
+        const taken = await db.prepare("SELECT 1 FROM events WHERE dedupe_key = ? AND id <> ?").bind(key, existing.id).first();
+        if (taken) key = existing.dedupe_key;
+      }
       await db
         .prepare(
           `UPDATE events SET name = ?, date_from = ?, date_to = ?, series = ?, level = ?, location_name = ?, region = ?,
@@ -109,9 +119,9 @@ export async function upsertEvents(
             WHERE id = ?`,
         )
         .bind(
-          merged.name, dateFrom, dateTo, merged.series, merged.level, merged.location_name, region,
+          merged.name, dateFrom, dateTo, merged.series, merged.level, location, region,
           existing.lat ?? g?.lat ?? null, existing.lng ?? g?.lng ?? null, merged.country, merged.organizer,
-          merged.website_url, merged.description, merged.status, moveDates ? e.dedupe_key : existing.dedupe_key,
+          merged.website_url, merged.description, merged.status, key,
           existing.id,
         )
         .run();

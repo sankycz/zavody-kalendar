@@ -15,6 +15,27 @@ export function dedupeKey(location: string, dateFrom: string, discipline: string
   return `${slug(location)}|${dateFrom}|${discipline}`;
 }
 
+/** Place part of a dedupe_key: 'becov-nad-teplou|2026-09-04|vrch' -> 'becov-nad-teplou'. */
+export function placeOf(key: string): string {
+  return key.slice(0, key.indexOf("|"));
+}
+
+/**
+ * Same municipality written shorter or longer: 'becov' ~ 'becov-nad-teplou',
+ * 'namest' ~ 'namest-nad-oslavou'. Whole words only ('most' !~ 'mostek').
+ */
+export function samePlace(a: string, b: string): boolean {
+  return a === b || a.startsWith(`${b}-`) || b.startsWith(`${a}-`);
+}
+
+/** Of two names for one place, keep the more specific (longer) one. */
+export function preferredLocation(a: string | null, b: string | null): string | null {
+  if (!a || !b) return a ?? b;
+  const [sa, sb] = [slug(a), slug(b)];
+  if (!samePlace(sa, sb)) return null;
+  return sb.length > sa.length ? b : a;
+}
+
 const MERGE_FIELDS = [
   "name",
   "date_to",
