@@ -25,6 +25,11 @@ export const EventsQuery = z.object({
 });
 export type EventsQuery = z.infer<typeof EventsQuery>;
 
+/** Hour (0–23) in Czech time. */
+export function pragueHour(now = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Prague", hour: "2-digit", hourCycle: "h23" }).format(now));
+}
+
 /** Today's date in Czech time, 'YYYY-MM-DD'. */
 export function todayInPrague(now = new Date()): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Prague" }).format(now);

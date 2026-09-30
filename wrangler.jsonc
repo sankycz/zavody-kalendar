@@ -11,8 +11,10 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/admin/*"]
   },
-  // Daily ingest 03:17 UTC; unchanged sources are skipped by content hash.
-  "triggers": { "crons": ["17 3 * * *"] },
+  // Weekly ingest Monday 05:00 Prague time: both UTC slots fire, the Worker runs only
+  // in the one that is 05:00 in Prague (03:00 UTC in summer, 04:00 UTC in winter).
+  // Unchanged sources are skipped by content hash.
+  "triggers": { "crons": ["0 3 * * 1", "0 4 * * 1"] },
   "vars": {
     // Extraction model: "workers-ai" (free 10k neurons/day) or "claude" (Claude API, needs ANTHROPIC_API_KEY).
     "EXTRACTOR": "workers-ai",

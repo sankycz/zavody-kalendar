@@ -232,7 +232,7 @@ export function EventDetailPage({ id }: { id: string }) {
           ))}
         </ul>
         <p className="mt-4 text-xs text-muted">
-          Údaje se stahují automaticky každý den. Aktuální informace vždy ověřte u pořadatele. Záznam změněn{" "}
+          Údaje se stahují automaticky každé pondělí. Aktuální informace vždy ověřte u pořadatele. Záznam změněn{" "}
           {formatTimestamp(e.updated_at)}.
         </p>
       </section>

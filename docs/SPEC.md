@@ -25,7 +25,7 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 ## Architektura
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
-- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou denně a ručně přes admin endpoint chráněný tokenem.
+- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně (pondělí 5:00 českého času) a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** LLM s pevným JSON schématem – Cloudflare Workers AI (výchozí, zdarma v denním limitu, `EXTRACTOR=workers-ai`, model z `WORKERS_AI_MODEL`) nebo Claude API (`EXTRACTOR=claude`, model z `CLAUDE_MODEL`). Stažený HTML text nebo text z PDF pošli modelu a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní.
 - **Geokódování:** Open-Meteo Geocoding API (data GeoNames, bez klíče), maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`. Místo, které v dané zemi není, se hledá v sousedních (CZ, SK, DE, AT, PL). Nominatim nepoužíváme: jeho robots.txt zakazuje `/search` robotům.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
@@ -100,7 +100,7 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 
 ## Kontrola webů pořadatelů
 
-Denně po stažení kalendářů se ověří weby pořadatelů (`events.website_url`) u závodů v příštích 14 dnech, max. `ORGANIZER_CHECK_LIMIT` (výchozí 10) za běh, nejbližší a nejdéle neověřené první. Ručně přes `POST /admin/check-organizers`.
+Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`events.website_url`) u závodů v příštích 14 dnech, max. `ORGANIZER_CHECK_LIMIT` (výchozí 10) za běh, nejbližší a nejdéle neověřené první. Ručně přes `POST /admin/check-organizers`.
 
 - Stránka se stahuje stejně jako zdroje (robots.txt, User-Agent, limit na doménu). Jen HTML; PDF a jiné typy se přeskočí.
 - Model se volá jen když se text stránky od minulé kontroly změnil. Vrací pevné schéma (zmiňuje závod?, stav planned/cancelled/postponed, termín, krátká poznámka), výstup se validuje.
@@ -110,7 +110,7 @@ Denně po stažení kalendářů se ověří weby pořadatelů (`events.website_
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
-- Maximálně jeden požadavek za pár sekund na doménu, stahuj jednou denně. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se denně označí jako `finished`.
+- Maximálně jeden požadavek za pár sekund na doménu, stahuj jednou týdně (pondělí 5:00). Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 

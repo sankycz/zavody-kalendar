@@ -69,7 +69,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     const res = await deps.http.get(source.url);
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${source.url}`);
     const bytes = new Uint8Array(await res.arrayBuffer());
-    // HTML is hashed after text extraction, so a daily run doesn't re-extract
+    // HTML is hashed after text extraction, so a scheduled run doesn't re-extract
     // (and pay for) a page whose only change is an ad, counter or nonce.
     const text =
       source.kind === "html" ? htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url) : null;
@@ -161,7 +161,7 @@ export async function runAll(deps: RunDeps, opts: { sourceId?: string; force?: b
 }
 
 /**
- * Mark events that are over as finished (daily). Cancelled ones stay cancelled.
+ * Mark events that are over as finished (each run). Cancelled ones stay cancelled.
  * `today` is the Czech date 'YYYY-MM-DD'.
  */
 export async function markFinished(db: D1Database, today: string): Promise<number> {

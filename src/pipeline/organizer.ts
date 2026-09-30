@@ -181,7 +181,7 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
   }
 }
 
-/** Check organizer websites of upcoming events (daily, after the calendar ingest). */
+/** Check organizer websites of upcoming events (weekly, after the calendar ingest). */
 export async function checkOrganizers(deps: OrganizerDeps, today: string, limit = DEFAULT_CHECK_LIMIT): Promise<OrganizerReport[]> {
   const reports: OrganizerReport[] = [];
   for (const e of await dueEvents(deps.db, today, limit)) reports.push(await checkOne(deps, e));

@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { handleApi, todayInPrague } from "./api.ts";
+import { handleApi, pragueHour, todayInPrague } from "./api.ts";
 import { backfillCoordinates } from "./pipeline/geocode.ts";
 import { PoliteClient } from "./pipeline/http.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
@@ -17,9 +17,12 @@ export interface Env {
   ADMIN_TOKEN: string;
   CLAUDE_MODEL: string;
   CONTACT_EMAIL: string;
-  /** Max organizer websites checked per daily run (default 10). */
+  /** Max organizer websites checked per run (default 10). */
   ORGANIZER_CHECK_LIMIT?: string;
 }
+
+/** Local (Prague) hour of the weekly run, see the crons in wrangler.jsonc. */
+const INGEST_HOUR = 5;
 
 function checkLimit(env: Env, override?: string | null): number {
   const n = Number(override ?? env.ORGANIZER_CHECK_LIMIT ?? DEFAULT_CHECK_LIMIT);
@@ -61,8 +64,10 @@ async function tokenMatches(given: string, expected: string): Promise<boolean> {
 }
 
 export default {
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-    // Daily: sources whose content didn't change are skipped by hash (no model call).
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    // Weekly, Monday 05:00 Prague time: two UTC crons cover summer and winter time.
+    if (pragueHour(new Date(controller.scheduledTime)) !== INGEST_HOUR) return;
+    // Sources whose content didn't change are skipped by hash (no model call).
     console.log(JSON.stringify(await runAll(deps(env))));
     const today = todayInPrague();
     console.log(`marked finished: ${await markFinished(env.DB, today)}`);

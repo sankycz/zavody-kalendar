@@ -115,7 +115,7 @@ function ListPage({ filters }: { filters: Filters }) {
 
           {state.data.last_ingest_at && (
             <p className="mt-10 text-center text-xs text-muted">
-              Data se aktualizují každý den, naposledy {formatTimestamp(state.data.last_ingest_at)}
+              Data se aktualizují každé pondělí, naposledy {formatTimestamp(state.data.last_ingest_at)}
             </p>
           )}
         </div>

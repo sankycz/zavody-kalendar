@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventsQuery, getEvent, handleApi, listEvents, listRegions, todayInPrague } from "../src/api.ts";
+import { EventsQuery, getEvent, handleApi, listEvents, listRegions, pragueHour, todayInPrague } from "../src/api.ts";
 import { processExtraction } from "../src/pipeline/run.ts";
 import { upsertEvents } from "../src/pipeline/upsert.ts";
 import { createTestDb } from "./d1shim.ts";
@@ -102,5 +102,14 @@ describe("listRegions", () => {
 describe("todayInPrague", () => {
   it("uses Czech time, not UTC", () => {
     expect(todayInPrague(new Date("2026-05-01T22:30:00Z"))).toBe("2026-05-02");
+  });
+});
+
+describe("pragueHour", () => {
+  it("follows Czech summer and winter time", () => {
+    expect(pragueHour(new Date("2026-10-05T03:00:00Z"))).toBe(5); // Monday, CEST
+    expect(pragueHour(new Date("2026-10-05T04:00:00Z"))).toBe(6);
+    expect(pragueHour(new Date("2026-11-02T04:00:00Z"))).toBe(5); // Monday, CET
+    expect(pragueHour(new Date("2026-11-02T03:00:00Z"))).toBe(4);
   });
 });

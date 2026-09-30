@@ -28,7 +28,7 @@ npx wrangler login
 # Extrakce běží ve výchozím stavu přes Workers AI (EXTRACTOR v wrangler.jsonc), klíč netřeba.
 # Pro Claude API: EXTRACTOR="claude" a  npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put ADMIN_TOKEN          # libovolný dlouhý náhodný řetězec
-npm run deploy                               # build webu + Worker + denní Cron Trigger (03:17 UTC)
+npm run deploy                               # build webu + Worker + Cron Trigger (pondělí 5:00 našeho času)
 
 # ruční spuštění (jen Autoklub, i když se obsah nezměnil):
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -39,4 +39,4 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
   "https://zavody-kalendar.<subdomena>.workers.dev/admin/check-organizers?limit=10"
 ```
 
-Pipeline (`src/pipeline/`): `http.ts` (robots.txt, User-Agent, rozestupy) → hash obsahu → `htmlToText.ts` / PDF jako dokument → `extract.ts` (Claude, strukturovaný výstup) → `normalize.ts` (validace po položkách) → `dedupe.ts` → `geocode.ts` (Open-Meteo + cache) → `upsert.ts` (D1, priorita zdrojů). Po importu `organizer.ts` denně ověří weby pořadatelů nadcházejících závodů (tabulka `organizer_checks`).
+Pipeline (`src/pipeline/`): `http.ts` (robots.txt, User-Agent, rozestupy) → hash obsahu → `htmlToText.ts` / PDF jako dokument → `extract.ts` (Claude, strukturovaný výstup) → `normalize.ts` (validace po položkách) → `dedupe.ts` → `geocode.ts` (Open-Meteo + cache) → `upsert.ts` (D1, priorita zdrojů). Po importu `organizer.ts` ověří weby pořadatelů nadcházejících závodů (tabulka `organizer_checks`).
