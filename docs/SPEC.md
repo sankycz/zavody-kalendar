@@ -21,6 +21,7 @@ Začni prvními třemi. Další přidávej až ve chvíli, kdy pipeline běží 
 Kandidáti na později: Triola Cup, Krušnohorský pohár, Maverick Cup, Radeč Cup, kalendáře jednotlivých autoklubů, například https://www.autoklub-pisek.cz/kalendar/.
 
 **Facebook** (zdroj s `sources.via = 'facebook'`): události přes Apify actor `apify/facebook-events-scraper` (API token ve Worker secretu `APIFY_TOKEN`, max. `APIFY_MAX_EVENTS` událostí na běh, platí se za událost). V `sources.url` je po řádcích, co stáhnout: odkaz na FB stránku pořadatele (záložka Události), na událost, nebo hledaná fráze. Hledání na FB je celosvětové, proto se berou jen události se zemí CZ a známým místem. Model z nich jako u webu vybere automobilové závody. Souřadnice místa se berou z Facebooku, geokodér jen doplní kraj. Kontakty z popisu se modelu neposílají a popis se neukládá.
+Actor bere adresy tvaru `facebook.com/<stránka>/events`, `facebook.com/groups/<id>/events` nebo `facebook.com/profile.php?id=<id>&sk=events`; `…/upcoming_hosted_events` nevrací nic. Stav 30. 9. 2026: aktuální události má jen skupina ČMPR (duplicitní s cmpr.cz), FB stránky Trioly (2016) a Mavericku (2015) jsou neaktivní, EDDA Cup, Krušnohorský pohár a AmaterCup stránku s událostmi nemají. Zdroj `facebook-2026` je proto vypnutý (url = skupina ČMPR).
 
 Kalendář obsahuje jen závody konané v České republice.
 
