@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zavody-kalendar",
+  "compatibility_date": "2026-09-30",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zavody-kalendar",
+      "database_id": "f7218d02-7f49-4b08-877f-49fecea6124f",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

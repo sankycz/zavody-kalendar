@@ -4,6 +4,6 @@ dist/
 .env.*
 !.env.example
 .DS_Store
-supabase/.temp/
+.wrangler/
 .netlify/
 .vercel/

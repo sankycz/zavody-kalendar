@@ -24,18 +24,18 @@ URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžn�
 
 ## Architektura
 
-- **Databáze:** Supabase Postgres.
-- **Stahování:** Supabase Edge Function v Deno, spouštěná přes pg_cron jednou týdně a ručně přes admin endpoint.
+- **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
+- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** Claude API. Stažený HTML text nebo text z PDF pošli modelu s pevným JSON schématem a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní. Model si vezmi z proměnné prostředí `CLAUDE_MODEL`.
 - **Geokódování:** Nominatim z OpenStreetMap, maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
 - **Hosting frontendu:** Cloudflare Pages (auto-deploy z GitHubu, větev `main`).
 
-Klíče patří do Supabase secrets a Cloudflare Pages env proměnných. `ANTHROPIC_API_KEY` nikdy nesmí skončit ve frontendu.
+Klíče patří do Cloudflare Worker secrets (`wrangler secret put`). `ANTHROPIC_API_KEY` nikdy nesmí skončit ve frontendu.
 
 ## Datový model
 
-Závazné schéma je v `supabase/migrations/`. Oproti původnímu návrhu níže: `sources` má navíc `provider`, `name` a `priority` (jeden řádek = poskytovatel + sezóna + HTML/PDF, nižší priorita vyhrává konflikty), výčty jsou hlídané CHECK constrainty, `event_sources` má `first_seen_at`/`last_seen_at` a `locations` má `found`/`fetched_at`.
+Závazné schéma je v `migrations/` (SQLite pro D1). Původní návrh níže je v Postgres syntaxi; ve skutečném schématu jsou `id` hex texty, data ISO texty `YYYY-MM-DD` (validované CHECKem), časy ISO 8601 UTC, booleany 0/1. Navíc: `sources` má `provider`, `name` a `priority` (jeden řádek = poskytovatel + sezóna + HTML/PDF, nižší priorita vyhrává konflikty), výčty hlídají CHECK constrainty, `event_sources` má `first_seen_at`/`last_seen_at`, `locations` má `found`/`fetched_at`. Databáze není veřejná — frontend čte přes read-only API ve Workeru.
 
 ```sql
 create table sources (
@@ -116,12 +116,12 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 
 ## Pořadí práce
 
-1. Supabase schéma a migrace.
+1. Schéma a migrace D1.
 2. Pipeline pro Autoklub ČR od stažení po upsert, s fixtures a testy.
 3. Minimální frontend se seznamem nad reálnými daty.
 4. Autokaleidoskop a Edda Cup, deduplikace napříč zdroji.
 5. Filtry, mapa, detail.
-6. pg_cron a nasazení na Cloudflare Pages.
+6. Cron Trigger a nasazení na Cloudflare Pages.
 
 Po každém kroku se zastav a ukaž, co funguje. Dál pokračuj až po odsouhlasení.
 
