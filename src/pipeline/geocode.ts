@@ -22,6 +22,12 @@ export function geocodeQuery(location: string, country: string): string {
   return `${location.trim()}, ${country.toUpperCase()}`;
 }
 
+/** GeoNames names Czech regions inconsistently ("Karlovarský", "Plzeňský kraj"): official names. */
+export function czechRegion(admin1: string | null, countryCode: string | undefined): string | null {
+  if (!admin1 || countryCode !== "CZ" || /kraj|Praha/i.test(admin1)) return admin1;
+  return admin1 === "Vysočina" ? "Kraj Vysočina" : `${admin1} kraj`;
+}
+
 async function search(http: PoliteClient, name: string, country: string | null): Promise<OpenMeteoHit[]> {
   const params = new URLSearchParams({ name, count: "10", language: "cs", format: "json" });
   if (country) params.set("countryCode", country.toUpperCase());
@@ -57,7 +63,9 @@ export async function geocode(
   const name = location.trim();
   let hit = (await search(http, name, country))[0];
   if (!hit) hit = (await search(http, name, null)).find((h) => h.country_code && NEIGHBORS.includes(h.country_code));
-  const result: GeoResult | null = hit ? { lat: hit.latitude, lng: hit.longitude, region: hit.admin1 ?? null } : null;
+  const result: GeoResult | null = hit
+    ? { lat: hit.latitude, lng: hit.longitude, region: czechRegion(hit.admin1 ?? null, hit.country_code) }
+    : null;
 
   await db
     .prepare("INSERT OR REPLACE INTO locations (query, lat, lng, region, found) VALUES (?, ?, ?, ?, ?)")

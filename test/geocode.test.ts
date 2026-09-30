@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backfillCoordinates, geocode } from "../src/pipeline/geocode.ts";
+import { backfillCoordinates, czechRegion, geocode } from "../src/pipeline/geocode.ts";
 import { PoliteClient } from "../src/pipeline/http.ts";
 import { createTestDb } from "./d1shim.ts";
 
@@ -78,5 +78,18 @@ describe("geocode", () => {
     // Cached: no further request.
     expect(await geocode(db, http, "Annaberg-Buchholz", "CZ")).toEqual({ lat: 50.58, lng: 13.0, region: "Sasko" });
     expect(asked).toHaveLength(2);
+  });
+});
+
+describe("czechRegion", () => {
+  it.each([
+    ["Karlovarský", "CZ", "Karlovarský kraj"],
+    ["Plzeňský kraj", "CZ", "Plzeňský kraj"],
+    ["Vysočina", "CZ", "Kraj Vysočina"],
+    ["Hlavní město Praha", "CZ", "Hlavní město Praha"],
+    ["Sasko", "DE", "Sasko"],
+    [null, "CZ", null],
+  ])("%s (%s) -> %s", (admin1, cc, want) => {
+    expect(czechRegion(admin1, cc)).toBe(want);
   });
 });
