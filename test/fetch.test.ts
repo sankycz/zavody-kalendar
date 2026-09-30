@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { decodeHtml } from "../src/pipeline/decode.ts";
 import { htmlToText } from "../src/pipeline/htmlToText.ts";
 import { PoliteClient, RobotsDisallowedError, sha256Hex } from "../src/pipeline/http.ts";
 import { isAllowed } from "../src/pipeline/robots.ts";
@@ -102,5 +103,24 @@ describe("sha256Hex", () => {
     expect(await sha256Hex(new TextEncoder().encode("abc"))).toBe(
       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
     );
+  });
+});
+
+describe("decodeHtml", () => {
+  // "Závod do vrchu Šternberk" in windows-1250.
+  const cp1250 = new Uint8Array([0x5a, 0xe1, 0x76, 0x6f, 0x64, 0x20, 0x64, 0x6f, 0x20, 0x76, 0x72, 0x63, 0x68, 0x75, 0x20, 0x8a, 0x74, 0x65, 0x72, 0x6e, 0x62, 0x65, 0x72, 0x6b]);
+
+  it("uses charset from Content-Type", () => {
+    expect(decodeHtml(cp1250, "text/html; charset=windows-1250")).toBe("Závod do vrchu Šternberk");
+  });
+
+  it("falls back to <meta charset> in the page", () => {
+    const meta = new TextEncoder().encode('<meta http-equiv="Content-Type" content="text/html; charset=windows-1250">');
+    const page = new Uint8Array([...meta, ...cp1250]);
+    expect(decodeHtml(page, "text/html")).toContain("Závod do vrchu Šternberk");
+  });
+
+  it("defaults to utf-8", () => {
+    expect(decodeHtml(new TextEncoder().encode("Kopná"), null)).toBe("Kopná");
   });
 });

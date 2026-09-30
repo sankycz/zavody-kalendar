@@ -10,10 +10,23 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
 
 ## Stav
 
-- `autoklub-cal/extraction.sample.json` je zatím **syntetický** (smyšlené závody se schválně vloženými chybami: překlepy v datech, duplicita, prázdný název). Cloudové prostředí, ve kterém vznikl, nemá přístup na autoklub.cz.
-- Až poběží `fixtures:fetch` a první ostrá extrakce, nahradí se skutečným výstupem modelu nad staženým PDF (test pak ověří reálná data).
+- Všechny tři `extraction.sample.json` (`autoklub-cal`, `autokaleidoskop`, `edda`) jsou zatím **syntetické**: smyšlené závody se schválně vloženými chybami (překlepy v datech, duplicity, prázdný název, nepovolená disciplína) a s překryvy mezi zdroji (posun data o den, stejný závod v Autoklubu i v Edda Cupu). Nad nimi běží testy normalizace a deduplikace napříč zdroji (`test/crossSource.test.ts`).
+- Cloudové prostředí nemá síťový přístup na weby zdrojů (proxy je blokuje), takže `fixtures:fetch` tam končí na HTTP 403. Reálné stránky se stáhnou lokálně, nebo v Claude session přes Apify connector.
+- Až bude reálný obsah a první ostrá extrakce, vzorky se nahradí skutečným výstupem modelu.
 
 ```bash
 CONTACT_EMAIL=you@example.com npm run fixtures:fetch            # všechny zdroje
 CONTACT_EMAIL=you@example.com npm run fixtures:fetch autoklub-cal  # jen jeden provider
 ```
+
+### Stažení přes Apify (když přímý přístup nejde)
+
+1. Stáhni stránku přes Apify (např. actor *Website Content Crawler* / *Web Scraper*, max. 1 stránka, bez následování odkazů – u Edda Cupu nechceme stránky se seznamy jezdců) a surové HTML ulož jako `fixtures/<provider>/<source-id>.html`.
+2. Vygeneruj text, který jde do modelu:
+
+```bash
+npm run fixtures:fetch -- --offline            # všechny uložené .html -> .txt
+npm run fixtures:fetch -- --offline edda       # jen jeden provider
+```
+
+Apify slouží jen k pořízení fixtures při vývoji. Produkční stahování dělá Worker sám (robots.txt, vlastní User-Agent, limit na doménu).

@@ -1,6 +1,7 @@
 import { dedupeBatch } from "./dedupe.ts";
 import { extractEvents, type MessagesClient } from "./extract.ts";
 import { geocode, type GeoResult } from "./geocode.ts";
+import { decodeHtml } from "./decode.ts";
 import { htmlToText } from "./htmlToText.ts";
 import { sha256Hex, type PoliteClient } from "./http.ts";
 import { normalizeEvent } from "./normalize.ts";
@@ -78,7 +79,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       kind: source.kind,
       ...(source.kind === "pdf"
         ? { pdf: bytes }
-        : { text: htmlToText(new TextDecoder("utf-8").decode(bytes), source.url) }),
+        : { text: htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url) }),
     });
 
     const batch = processExtraction(extracted.items, source.season);

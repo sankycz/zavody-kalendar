@@ -11,8 +11,8 @@ const fixture = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "fixtures", "autoklub-cal", "extraction.sample.json"), "utf8"),
 ) as { season: number; events: unknown[] };
 
-const AUTOKLUB = { id: "autoklub-cal-pdf-2026", url: "https://autoklub.example/cal.pdf", priority: 10 };
-const KALEIDO = { id: "autokaleidoskop-2026", url: "https://kaleido.example/", priority: 50 };
+const AUTOKLUB = { id: "autoklub-cal-pdf-2026", provider: "autoklub-cal", url: "https://autoklub.example/cal.pdf", priority: 10 };
+const KALEIDO = { id: "autokaleidoskop-2026", provider: "autokaleidoskop", url: "https://kaleido.example/", priority: 50 };
 
 describe("dedupe", () => {
   it("key ignores case and diacritics", () => {

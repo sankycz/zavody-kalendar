@@ -20,7 +20,7 @@ async function seeded() {
     ],
     2026,
   );
-  await upsertEvents(d1, { id: "autoklub-cal-pdf-2026", url: "https://x.example/", priority: 10 }, events, new Map());
+  await upsertEvents(d1, { id: "autoklub-cal-pdf-2026", provider: "autoklub-cal", url: "https://x.example/", priority: 10 }, events, new Map());
   return { d1, raw };
 }
 

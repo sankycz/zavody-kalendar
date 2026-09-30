@@ -1,0 +1,55 @@
+{
+  "_note": "SYNTETICKÝ vzorek ve tvaru výstupu modelu (ExtractionSchema), ne reálná stránka Edda Cupu. Bez seznamů jezdců (ty se nestahují). Reálné HTML stáhne `npm run fixtures:fetch` nebo Apify (viz fixtures/README.md).",
+  "source_id": "edda-2026",
+  "season": 2026,
+  "events": [
+    {
+      "name": "Ecce Homo Šternberk (Edda Cup)",
+      "date_from": "6.6.",
+      "date_to": "7.6.",
+      "discipline": "vrch",
+      "series": "Edda Cup",
+      "level": "pohar",
+      "location_name": "Šternberk",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Edda Test",
+      "website_url": null,
+      "description": null,
+      "status": "planned",
+      "raw_excerpt": "Ecce Homo Šternberk | 6.-7.6.2026"
+    },
+    {
+      "name": "Edda Cup Třebíč",
+      "date_from": "2026-07-25",
+      "date_to": "2026-07-26",
+      "discipline": "vrch",
+      "series": "Edda Cup",
+      "level": "pohar",
+      "location_name": "Třebíč",
+      "region": null,
+      "country": "CZ",
+      "organizer": null,
+      "website_url": null,
+      "description": null,
+      "status": "planned",
+      "raw_excerpt": "Třebíč - Kožichovice | 25.-26.7.2026"
+    },
+    {
+      "name": "Edda Cup Rechberg",
+      "date_from": "2026-07-12",
+      "date_to": null,
+      "discipline": "vrch",
+      "series": "Edda Cup",
+      "level": "pohar",
+      "location_name": "Rechberg",
+      "region": null,
+      "country": "AT",
+      "organizer": null,
+      "website_url": null,
+      "description": null,
+      "status": "planned",
+      "raw_excerpt": "Rechberg (AT) | 12.7.2026"
+    }
+  ]
+}
