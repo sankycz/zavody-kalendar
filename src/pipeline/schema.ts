@@ -73,7 +73,9 @@ export interface SourceRow {
   name: string;
   url: string;
   season: number;
-  kind: "html" | "pdf" | "facebook";
+  kind: "html" | "pdf";
+  /** How the source is fetched: download `url`, or Facebook events via Apify (`url` = targets). */
+  via?: "web" | "facebook";
   priority: number;
   last_fetched_at: string | null;
   last_content_hash: string | null;

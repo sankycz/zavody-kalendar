@@ -20,7 +20,7 @@ Začni prvními třemi. Další přidávej až ve chvíli, kdy pipeline běží 
 
 Kandidáti na později: Triola Cup, Krušnohorský pohár, Maverick Cup, Radeč Cup, kalendáře jednotlivých autoklubů, například https://www.autoklub-pisek.cz/kalendar/.
 
-**Facebook** (typ zdroje `facebook`): události přes Apify actor `apify/facebook-events-scraper` (API token ve Worker secretu `APIFY_TOKEN`, max. `APIFY_MAX_EVENTS` událostí na běh, platí se za událost). V `sources.url` je po řádcích, co stáhnout: odkaz na FB stránku pořadatele (záložka Události), na událost, nebo hledaná fráze. Hledání na FB je celosvětové, proto se berou jen události se zemí CZ a známým místem. Model z nich jako u webu vybere automobilové závody. Souřadnice místa se berou z Facebooku, geokodér jen doplní kraj. Kontakty z popisu se modelu neposílají a popis se neukládá.
+**Facebook** (zdroj s `sources.via = 'facebook'`): události přes Apify actor `apify/facebook-events-scraper` (API token ve Worker secretu `APIFY_TOKEN`, max. `APIFY_MAX_EVENTS` událostí na běh, platí se za událost). V `sources.url` je po řádcích, co stáhnout: odkaz na FB stránku pořadatele (záložka Události), na událost, nebo hledaná fráze. Hledání na FB je celosvětové, proto se berou jen události se zemí CZ a známým místem. Model z nich jako u webu vybere automobilové závody. Souřadnice místa se berou z Facebooku, geokodér jen doplní kraj. Kontakty z popisu se modelu neposílají a popis se neukládá.
 
 Kalendář obsahuje jen závody konané v České republice.
 

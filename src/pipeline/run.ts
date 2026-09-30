@@ -72,7 +72,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     let text: string | null = null;
     let bytes = new Uint8Array();
     let points: Map<string, GeoResult> | null = null;
-    if (source.kind === "facebook") {
+    if (source.via === "facebook") {
       if (!deps.apify) throw new Error("APIFY_TOKEN is not set");
       const fb = facebookInput(await deps.apify.events(parseTargets(source.url)), source.season);
       text = fb.text;
@@ -99,7 +99,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
     const extracted = await extractEvents(deps.llm, {
       sourceName: source.name,
       season: source.season,
-      kind: source.kind === "pdf" ? "pdf" : "html",
+      kind: source.kind,
       ...(text != null ? { text } : { pdf: bytes }),
     });
 

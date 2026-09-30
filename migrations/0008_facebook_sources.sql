@@ -1,36 +1,18 @@
 -- Facebook events as a source, fetched through the Apify actor
 -- apify/facebook-events-scraper (needs the APIFY_TOKEN Worker secret).
--- For kind 'facebook', `url` holds what to scrape, one entry per line:
--- a Facebook URL (page events tab, event, events search) or a search phrase.
--- SQLite can't change a CHECK constraint, so the table is rebuilt
--- (D1 runs a migration in one transaction; foreign keys are checked at the end).
-PRAGMA defer_foreign_keys = true;
-
-CREATE TABLE sources_new (
-  id                TEXT PRIMARY KEY,
-  provider          TEXT NOT NULL,
-  name              TEXT NOT NULL,
-  url               TEXT NOT NULL,
-  season            INTEGER NOT NULL CHECK (season BETWEEN 2000 AND 2100),
-  kind              TEXT NOT NULL CHECK (kind IN ('html', 'pdf', 'facebook')),
-  priority          INTEGER NOT NULL DEFAULT 100,
-  last_fetched_at   TEXT,
-  last_content_hash TEXT,
-  enabled           INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-  UNIQUE (provider, season, kind)
-);
-
-INSERT INTO sources_new (id, provider, name, url, season, kind, priority, last_fetched_at, last_content_hash, enabled)
-SELECT id, provider, name, url, season, kind, priority, last_fetched_at, last_content_hash, enabled FROM sources;
-
-DROP TABLE sources;
-ALTER TABLE sources_new RENAME TO sources;
+-- `via` says how a source is fetched: 'web' = download `url`, 'facebook' =
+-- run the actor; then `url` holds what to scrape, one entry per line (a
+-- Facebook URL – page events tab, event, events search – or a search phrase).
+-- `kind` stays the type of content for the model: Facebook events become text ('html').
+-- (A new column instead of a new `kind` value: changing the CHECK would mean
+-- rebuilding `sources`, which D1 refuses while event_sources references it.)
+ALTER TABLE sources ADD COLUMN via TEXT NOT NULL DEFAULT 'web' CHECK (via IN ('web', 'facebook'));
 
 -- Off until the organizers' pages are filled in and APIFY_TOKEN is set.
--- Lowest priority: an aggregator of posts, organizer sites and calendars win on conflicts.
-INSERT INTO sources (id, provider, name, url, season, kind, priority, enabled) VALUES
+-- Lowest priority: organizer sites and calendars win on conflicts.
+INSERT INTO sources (id, provider, name, url, season, kind, via, priority, enabled) VALUES
   ('facebook-2026', 'facebook', 'Facebook – události pořadatelů',
    'autoslalom
 závod do vrchu
 rallysprint
-autokros', 2026, 'facebook', 90, 0);
+autokros', 2026, 'html', 'facebook', 90, 0);
