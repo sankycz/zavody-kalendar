@@ -142,19 +142,19 @@ export function EventDetailPage({ id }: { id: string }) {
     <article className="pt-4">
       {back}
 
-      {/* The place on the map, fading out at the bottom into the race's glass card –
-          no hard map edge running through the card. */}
-      {hasPoint && (
-        <div className="relative mt-2 h-64 [mask-image:linear-gradient(to_bottom,black_50%,transparent_96%)] sm:h-80">
-          <Suspense fallback={<div className="glass h-full rounded-3xl" />}>
-            <EventMap events={[e]} single className="h-full w-full rounded-3xl" />
-          </Suspense>
-        </div>
-      )}
       <header
         style={{ ...disciplineStyle(e.discipline), viewTransitionName: `event-${e.id}` }}
-        className={`glass-strong card-glow relative z-10 rounded-3xl p-5 sm:p-6 ${hasPoint ? "mx-2 -mt-14 sm:mx-5" : "mt-2"}`}
+        className="glass-strong card-glow relative mt-2 overflow-hidden rounded-3xl"
       >
+        {/* The place on the map as the top of the card, fading into it. */}
+        {hasPoint && (
+          <div className="h-56 [mask-image:linear-gradient(to_bottom,black_55%,transparent)] sm:h-72">
+            <Suspense fallback={<div className="h-full animate-pulse bg-surface-2" />}>
+              <EventMap events={[e]} single framed={false} className="h-full w-full" />
+            </Suspense>
+          </div>
+        )}
+        <div className={`relative p-5 sm:p-6 ${hasPoint ? "-mt-10" : ""}`}>
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <DisciplineBadge d={e.discipline} />
           <span className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ring-inset ${LEVEL_CLASS[e.level]}`}>{LEVEL_LABEL[e.level]}</span>
@@ -201,6 +201,7 @@ export function EventDetailPage({ id }: { id: string }) {
           <button type="button" className={btnClass} onClick={() => void share(e)}>
             Sdílet
           </button>
+        </div>
         </div>
       </header>
       {hasPoint ? (

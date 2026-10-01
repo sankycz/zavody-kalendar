@@ -46,6 +46,7 @@ export default function EventMap({
   follow = true,
   onSelect,
   fullscreen = false,
+  framed = true,
   interactive = true,
   padding = { top: 24, bottom: 24 },
   className = "",
@@ -62,6 +63,8 @@ export default function EventMap({
   onSelect?: (id: string) => void;
   /** Edge to edge, no frame (map view); controls clear of the floating UI. */
   fullscreen?: boolean;
+  /** Own glass frame and rounded corners (false: part of a card that frames it). */
+  framed?: boolean;
   /** false: a still picture (detail header) – no dragging, zooming or controls. */
   interactive?: boolean;
   /** Room taken by floating UI over the map, px. */
@@ -166,7 +169,7 @@ export default function EventMap({
   return (
     <div
       ref={el}
-      className={`z-0 ${fullscreen ? "map-fullscreen" : "glass overflow-hidden rounded-2xl"} ${className}`}
+      className={`z-0 ${fullscreen ? "map-fullscreen" : framed ? "glass overflow-hidden rounded-2xl" : ""} ${className}`}
       style={fullscreen ? ({ "--map-top": `${padding.top}px`, "--map-bottom": `${padding.bottom}px` } as React.CSSProperties) : undefined}
     />
   );
