@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { RaceRef } from "./raceOrder.ts";
 import { navigate } from "./router.ts";
 
@@ -22,7 +22,9 @@ export function goToRace(r: RaceRef, dir: "next" | "prev") {
  * Tinder-like swipe on a phone: the card follows the finger (shift + tilt),
  * past a threshold it flies off and the next (swipe left) or previous (swipe
  * right) race comes in. Vertical scrolling stays the browser's (touch-action:
- * pan-y); the map and the screen edges (system back gesture) are left alone.
+ * pan-y); the map is left alone. A swipe may start at the very edge of the
+ * screen too: there iOS Safari would take it as back/forward through history
+ * (detail → list), so the app claims those touches (best effort, see below).
  */
 export function SwipeCard({ prev, next, children }: { prev: RaceRef | null; next: RaceRef | null; children: ReactNode }) {
   const card = useRef<HTMLDivElement>(null);
@@ -54,8 +56,9 @@ export function SwipeCard({ prev, next, children }: { prev: RaceRef | null; next
     const down = (e: PointerEvent) => {
       if (e.pointerType !== "touch" || !e.isPrimary || (!prev && !next)) return;
       const t = e.target as Element;
-      if (t.closest(".leaflet-container, input, select, textarea")) return;
-      if (e.clientX < 24 || e.clientX > window.innerWidth - 24) return;
+      // The whole screen of the detail swipes (also the margins beside the card), except the
+      // map, form fields and the app header.
+      if (t.closest(".leaflet-container, input, select, textarea, [data-app-header]")) return;
       start = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
       mode = "undecided";
       dx = 0;
@@ -84,7 +87,7 @@ export function SwipeCard({ prev, next, children }: { prev: RaceRef | null; next
       setTimeout(() => (suppressClick = false), 50);
       const target = dx < 0 ? next : prev;
       const speed = Math.abs(dx) / Math.max(1, performance.now() - s.t);
-      if (!target || e.type === "pointercancel" || (Math.abs(dx) < window.innerWidth * 0.28 && speed < 0.5)) return snapBack();
+      if (!target || e.type === "pointercancel" || (Math.abs(dx) < window.innerWidth * 0.22 && speed < 0.4)) return snapBack();
       const dir = dx < 0 ? "next" : "prev";
       if (reducedMotion()) return goToRace(target, dir);
       const sign = dx < 0 ? -1 : 1;
@@ -101,22 +104,45 @@ export function SwipeCard({ prev, next, children }: { prev: RaceRef | null; next
       }
     };
 
-    el.addEventListener("pointerdown", down);
-    el.addEventListener("pointermove", move);
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", up);
-    el.addEventListener("click", click, true);
+    // A touch that starts at the screen edge: Safari would turn it into history
+    // back/forward. Cancelling its touchstart keeps it for the card (a tap there
+    // is rare: the content has side margins).
+    const edge = (e: TouchEvent) => {
+      const x = e.touches[0]?.clientX ?? 0;
+      if ((prev || next) && e.touches.length === 1 && (x < 28 || x > window.innerWidth - 28)) e.preventDefault();
+    };
+    document.addEventListener("touchstart", edge, { passive: false });
+    // Horizontal moves are ours on the whole page (vertical scroll and pinch zoom stay the browser's).
+    const root = document.documentElement;
+    const touchAction = root.style.touchAction;
+    root.style.touchAction = "pan-y pinch-zoom";
+
+    document.addEventListener("pointerdown", down);
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+    document.addEventListener("click", click, true);
     return () => {
-      el.removeEventListener("pointerdown", down);
-      el.removeEventListener("pointermove", move);
-      el.removeEventListener("pointerup", up);
-      el.removeEventListener("pointercancel", up);
-      el.removeEventListener("click", click, true);
+      document.removeEventListener("touchstart", edge);
+      root.style.touchAction = touchAction;
+      document.removeEventListener("pointerdown", down);
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      document.removeEventListener("click", click, true);
     };
   }, [prev, next]);
 
   // A card that came by a swipe enters from behind the stack (or from the side it was pulled from).
   const enter = useRef(takeEntering());
+  // First detail on a touch screen: nudge the card once and say it can be swiped.
+  const [teach] = useState(() => !enter.current && (prev || next) !== null && firstSwipeLesson());
+  const [tip, setTip] = useState(teach);
+  useEffect(() => {
+    if (!tip) return;
+    const t = setTimeout(() => setTip(false), 4500);
+    return () => clearTimeout(t);
+  }, [tip]);
 
   return (
     <div className="relative">
@@ -138,13 +164,33 @@ export function SwipeCard({ prev, next, children }: { prev: RaceRef | null; next
       </div>
       <div
         ref={card}
-        className={`touch-pan-y will-change-transform ${enter.current ? `swipe-enter-${enter.current}` : ""}`}
+        className={`touch-pan-y will-change-transform ${enter.current ? `swipe-enter-${enter.current}` : teach ? "swipe-nudge" : ""}`}
         style={{ transformOrigin: "50% 100%" }}
       >
         {children}
       </div>
+      {tip && (
+        <p
+          role="status"
+          className="glass-strong pointer-events-none fixed inset-x-6 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 mx-auto max-w-sm rounded-2xl px-4 py-2.5 text-center text-sm font-semibold"
+        >
+          ← Táhni kartou do strany pro další závod →
+        </p>
+      )}
     </div>
   );
+}
+
+/** True once per device, on a touch screen: the first race detail shows how to swipe. */
+function firstSwipeLesson(): boolean {
+  if (typeof matchMedia !== "function" || !matchMedia("(pointer: coarse)").matches) return false;
+  try {
+    if (localStorage.getItem("swipe-lesson")) return false;
+    localStorage.setItem("swipe-lesson", "1");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Previous / next race as buttons under the detail (also on desktop, and a hint that swiping works). */

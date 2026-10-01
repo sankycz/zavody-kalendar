@@ -56,6 +56,9 @@
   html {
     color-scheme: light;
     -webkit-tap-highlight-color: transparent;
+    /* A horizontal swipe belongs to the app (races on a detail), not to the
+       browser's back/forward overscroll navigation (Chrome on Android). */
+    overscroll-behavior-x: none;
   }
   html.dark {
     color-scheme: dark;
@@ -398,4 +401,17 @@
   .swipe-enter-prev {
     animation: none;
   }
+}
+
+/* First race detail on a touch screen: the card nudges aside once to show it can be swiped. */
+@keyframes swipe-nudge {
+  0%, 100% { transform: none; }
+  30% { transform: translateX(-34px) rotate(-1.6deg); }
+  60% { transform: translateX(10px) rotate(0.4deg); }
+}
+.swipe-nudge {
+  animation: swipe-nudge 900ms cubic-bezier(0.3, 0.7, 0.3, 1) 600ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-nudge { animation: none; }
 }
