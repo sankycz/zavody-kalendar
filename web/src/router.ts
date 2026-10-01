@@ -18,7 +18,25 @@ function transition(update: () => void) {
   doc.startViewTransition(() => flushSync(update));
 }
 
+// The list restores its own scroll position (after its data is there), see savedScroll().
+if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+
 window.addEventListener("popstate", () => transition(notify));
+
+interface EntryState {
+  inApp?: boolean;
+  /** Scroll position of this entry when the visitor left it. */
+  scrollY?: number;
+}
+
+function entryState(): EntryState {
+  return (window.history.state as EntryState | null) ?? {};
+}
+
+/** Where the current history entry was scrolled when the visitor left it (null = never left). */
+export function savedScroll(): number | null {
+  return entryState().scrollY ?? null;
+}
 
 function subscribe(l: () => void) {
   listeners.add(l);
@@ -35,12 +53,16 @@ export function useLocation(): URL {
   return new URL(href, window.location.origin);
 }
 
-export function navigate(to: string, opts: { replace?: boolean } = {}) {
+export function navigate(to: string, opts: { replace?: boolean; top?: boolean } = {}) {
   if (to === snapshot()) return;
   if (opts.replace) {
-    window.history.replaceState(null, "", to);
+    // Keep the entry's state: "back" must still know it stays in the app.
+    window.history.replaceState({ ...entryState(), scrollY: undefined }, "", to);
+    if (opts.top) window.scrollTo(0, 0);
     return notify();
   }
+  // Remember where the page we leave was scrolled, for "back".
+  window.history.replaceState({ ...entryState(), scrollY: window.scrollY }, "");
   transition(() => {
     window.history.pushState({ inApp: true }, "", to);
     window.scrollTo(0, 0);
@@ -50,7 +72,7 @@ export function navigate(to: string, opts: { replace?: boolean } = {}) {
 
 /** True when the previous history entry is ours (so "back" stays in the app). */
 export function canGoBack(): boolean {
-  return (window.history.state as { inApp?: boolean } | null)?.inApp === true;
+  return entryState().inApp === true;
 }
 
 // Intercept clicks on same-origin links (capture phase, so Leaflet popups that

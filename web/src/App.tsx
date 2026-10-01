@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { EventListItem, EventsResponse } from "../../src/shared/types.ts";
 import { EventDetailPage } from "./EventDetail.tsx";
 import { EventList } from "./EventList.tsx";
@@ -11,7 +11,8 @@ import { usePosition } from "./geo.ts";
 import { Intro } from "./Intro.tsx";
 import { MapView } from "./MapView.tsx";
 import { NextRace, nextRace } from "./NextRace.tsx";
-import { navigate, useLocation } from "./router.ts";
+import { setRaceOrder } from "./raceOrder.ts";
+import { navigate, savedScroll, useLocation } from "./router.ts";
 import { SearchBar, SearchButton } from "./Search.tsx";
 import { Sheet } from "./Sheet.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
@@ -91,6 +92,20 @@ function ListPage({ filters }: { filters: Filters }) {
     () => (distances ? [...all].sort((a, b) => (distances.get(a.id) ?? Infinity) - (distances.get(b.id) ?? Infinity)) : all),
     [all, distances],
   );
+  // Swiping on a race detail goes through the races in this order.
+  useEffect(() => {
+    if (state.kind === "ready") setRaceOrder(events);
+  }, [events, state.kind]);
+
+  // Back from a race detail: the list renders from cache, scroll to where the visitor left it.
+  const restored = useRef(false);
+  useLayoutEffect(() => {
+    if (restored.current || state.kind !== "ready") return;
+    restored.current = true;
+    const y = savedScroll();
+    if (y != null) window.scrollTo(0, y);
+  }, [state.kind]);
+
   const highlight =
     state.kind === "ready" && filters.view === "list" && !near && !filters.from && !filters.to && activeFilterCount(filters) === 0 && !filters.q?.trim()
       ? nextRace(all)

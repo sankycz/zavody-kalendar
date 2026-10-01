@@ -6,7 +6,9 @@ import { eventToIcs } from "./ics.ts";
 import { DisciplineBadge, disciplineStyle } from "./Badges.tsx";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
 import { Countdown } from "./NextRace.tsx";
+import { useNeighbours } from "./raceOrder.ts";
 import { canGoBack, navigate } from "./router.ts";
+import { RaceSteps, SwipeCard } from "./Swipe.tsx";
 import { useJson } from "./useJson.ts";
 
 const EventMap = lazy(() => import("./EventMap.tsx"));
@@ -138,6 +140,7 @@ function hostOf(url: string): string {
 
 export function EventDetailPage({ id }: { id: string }) {
   const state = useJson<Detail>(`/api/events/${id}`);
+  const { prev, next } = useNeighbours(id);
 
   useEffect(() => {
     if (state.kind === "ready") document.title = `${state.data.name} – Závody aut v ČR`;
@@ -187,6 +190,7 @@ export function EventDetailPage({ id }: { id: string }) {
   return (
     <article className="pt-4">
       {back}
+      <SwipeCard prev={prev} next={next}>
 
       <header
         style={{ ...disciplineStyle(e.discipline), viewTransitionName: `event-${e.id}` }}
@@ -299,6 +303,9 @@ export function EventDetailPage({ id }: { id: string }) {
           {formatTimestamp(e.updated_at)}.
         </p>
       </section>
+      </SwipeCard>
+
+      <RaceSteps prev={prev} next={next} />
     </article>
   );
 }
