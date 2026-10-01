@@ -3,6 +3,7 @@ import { handleApi, pragueHour, todayInPrague } from "./api.ts";
 import { apifyEvents } from "./pipeline/facebook.ts";
 import { backfillCoordinates } from "./pipeline/geocode.ts";
 import { PoliteClient } from "./pipeline/http.ts";
+import { rollover } from "./pipeline/rollover.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
 import { checkOrganizers, DEFAULT_CHECK_LIMIT } from "./pipeline/organizer.ts";
 import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
@@ -78,12 +79,15 @@ export default {
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     // Weekly, Monday 05:00 Prague time: two UTC crons cover summer and winter time.
     if (pragueHour(new Date(controller.scheduledTime)) !== INGEST_HOUR) return;
-    // Sources whose content didn't change are skipped by hash (no model call).
-    console.log(JSON.stringify(await runAll(deps(env))));
+    const d = deps(env);
     const today = todayInPrague();
+    // Next season's calendars as soon as the organizers publish them (no code change per year).
+    console.log(JSON.stringify(await rollover(env.DB, d.http, today)));
+    // Sources whose content didn't change are skipped by hash (no model call).
+    console.log(JSON.stringify(await runAll(d)));
     console.log(`marked finished: ${await markFinished(env.DB, today)}`);
     // Then organizer websites of races in the next two weeks (model only when the page changed).
-    console.log(JSON.stringify(await checkOrganizers(deps(env), today, checkLimit(env))));
+    console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env))));
   },
 
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -92,6 +96,7 @@ export default {
     // Admin endpoints, POST with "Authorization: Bearer <ADMIN_TOKEN>":
     //   /admin/run[?source=<id>][&force=1]   calendar ingest
     //   /admin/check-organizers[?limit=<n>]  organizer website check
+    //   /admin/rollover                      add next season's sources (also weekly)
     //   /admin/geocode[?limit=<n>]           coordinates for stored events without them
     if (url.pathname.startsWith("/admin/")) {
       if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
@@ -102,6 +107,10 @@ export default {
 
     if (url.pathname === "/admin/check-organizers") {
       return Response.json(await checkOrganizers(deps(env), todayInPrague(), checkLimit(env, url.searchParams.get("limit"))));
+    }
+
+    if (url.pathname === "/admin/rollover") {
+      return Response.json(await rollover(env.DB, deps(env).http, todayInPrague()));
     }
 
     if (url.pathname === "/admin/geocode") {

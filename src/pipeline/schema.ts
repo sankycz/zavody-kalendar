@@ -76,6 +76,8 @@ export interface SourceRow {
   kind: "html" | "pdf";
   /** How the source is fetched: download `url`, or Facebook events via Apify (`url` = targets). */
   via?: "web" | "facebook";
+  /** Page where next season's calendar gets linked (see rollover.ts). */
+  index_url?: string | null;
   priority: number;
   last_fetched_at: string | null;
   last_content_hash: string | null;

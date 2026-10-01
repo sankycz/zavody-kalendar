@@ -27,6 +27,8 @@ Kalendář obsahuje jen závody konané v České republice.
 
 URL obsahují rok. Kalendář na další sezónu vychází v zimě, předběžný kalendář 2026 vyšel 28. 1. 2026. Konfigurace zdrojů proto musí umět URL pro nový rok přidat bez změny kódu.
 
+Další sezónu přidává každý týdenní běh sám (`src/pipeline/rollover.ts`, ručně `POST /admin/rollover`): u zdroje bez řádku na příští rok zkusí 1) stejnou URL, když v ní rok není, 2) URL s rokem +1, pokud existuje a stránka o tom roce opravdu mluví, 3) odkaz na `sources.index_url` (rozcestník, kde pořadatel kalendář odkazuje), který obsahuje příští rok a je nejpodobnější současné URL; PDF se hledá na stránce příštího roku téhož poskytovatele. Dokud kalendář nevyjde, zkouší to každý týden znovu. Zdroje minulých sezón se vypnou.
+
 ## Architektura
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
