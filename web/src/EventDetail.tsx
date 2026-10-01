@@ -3,7 +3,9 @@ import type { EventDetail as Detail } from "../../src/shared/types.ts";
 import { placeLabel, LEVEL_CLASS } from "./EventList.tsx";
 import { formatDate, formatTimestamp, longDateRange, relativeDay } from "./format.ts";
 import { eventToIcs } from "./ics.ts";
+import { DisciplineBadge, disciplineStyle } from "./Badges.tsx";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
+import { Countdown } from "./NextRace.tsx";
 import { canGoBack, navigate } from "./router.ts";
 import { useJson } from "./useJson.ts";
 
@@ -58,8 +60,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const btnBase = "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-3.5 text-sm font-medium transition-all";
-const btnClass = `${btnBase} glass hover:bg-surface-2`;
-const btnPrimary = `${btnBase} bg-racing text-white shadow-lg shadow-accent/30 hover:brightness-110`;
+const btnClass = `${btnBase} glass press hover:brightness-110`;
+const btnPrimary = `${btnBase} bg-racing press text-white shadow-lg shadow-accent/30 hover:brightness-110`;
 
 function downloadIcs(e: Detail) {
   const blob = new Blob([eventToIcs(e, window.location.href)], { type: "text/calendar;charset=utf-8" });
@@ -140,9 +142,20 @@ export function EventDetailPage({ id }: { id: string }) {
     <article className="pt-4">
       {back}
 
-      <header className="glass mt-2 rounded-3xl p-5 sm:p-6">
+      {/* The place on the map, the race's glass card over it. */}
+      {hasPoint && (
+        <div className="relative mt-2 h-60 sm:h-72">
+          <Suspense fallback={<div className="glass h-full rounded-3xl" />}>
+            <EventMap events={[e]} single className="h-full w-full rounded-3xl" />
+          </Suspense>
+        </div>
+      )}
+      <header
+        style={{ ...disciplineStyle(e.discipline), viewTransitionName: `event-${e.id}` }}
+        className={`glass-strong card-glow relative z-10 rounded-3xl p-5 sm:p-6 ${hasPoint ? "mx-2 -mt-16 sm:mx-5" : "mt-2"}`}
+      >
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 font-medium">{DISCIPLINE_LABEL[e.discipline]}</span>
+          <DisciplineBadge d={e.discipline} />
           <span className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ring-inset ${LEVEL_CLASS[e.level]}`}>{LEVEL_LABEL[e.level]}</span>
           {status && (
             <span className={`rounded-full px-2.5 py-0.5 font-semibold ${e.status === "cancelled" ? "bg-racing text-white" : "bg-surface-2 text-muted"}`}>
@@ -156,33 +169,44 @@ export function EventDetailPage({ id }: { id: string }) {
           {soon && <span className="font-semibold text-accent"> · {soon}</span>}
         </p>
         {place && <p className="text-muted">{place}</p>}
-      </header>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {e.website_url && (
-          <a href={e.website_url} target="_blank" rel="noopener noreferrer" className={btnPrimary}>
-            Web závodu ↗
-          </a>
+        {e.status === "planned" && (
+          <div className="mt-4">
+            <Countdown date={e.date_from} glass />
+          </div>
         )}
-        {hasPoint && (
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={btnClass}
-          >
-            Navigovat ↗
-          </a>
-        )}
-        {e.status !== "finished" && (
-          <button type="button" className={btnClass} onClick={() => downloadIcs(e)}>
-            Do kalendáře
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {e.website_url && (
+            <a href={e.website_url} target="_blank" rel="noopener noreferrer" className={btnPrimary}>
+              Web závodu ↗
+            </a>
+          )}
+          {hasPoint && (
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={btnClass}
+            >
+              Navigovat ↗
+            </a>
+          )}
+          {e.status !== "finished" && (
+            <button type="button" className={btnClass} onClick={() => downloadIcs(e)}>
+              Do kalendáře
+            </button>
+          )}
+          <button type="button" className={btnClass} onClick={() => void share(e)}>
+            Sdílet
           </button>
-        )}
-        <button type="button" className={btnClass} onClick={() => void share(e)}>
-          Sdílet
-        </button>
-      </div>
+        </div>
+      </header>
+      {hasPoint ? (
+        <p className="mt-2 px-3 text-xs text-muted">Poloha podle obce, ne přesné místo trati.</p>
+      ) : (
+        <p className="mt-2 px-3 text-xs text-muted">Poloha závodu zatím není známá.</p>
+      )}
 
       <OrganizerBox e={e} />
 
@@ -207,17 +231,6 @@ export function EventDetailPage({ id }: { id: string }) {
         )}
         {e.description && <Row label="Poznámka">{e.description}</Row>}
       </dl>
-
-      {hasPoint ? (
-        <section className="mt-5" aria-label="Mapa">
-          <Suspense fallback={<div className="glass h-56 rounded-2xl" />}>
-            <EventMap events={[e]} single className="h-56 sm:h-72" />
-          </Suspense>
-          <p className="mt-1.5 text-xs text-muted">Poloha podle obce, ne přesné místo trati.</p>
-        </section>
-      ) : (
-        <p className="mt-5 text-sm text-muted">Poloha závodu zatím není známá.</p>
-      )}
 
       <section className="glass mt-6 rounded-2xl p-4">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Zdroje</h2>

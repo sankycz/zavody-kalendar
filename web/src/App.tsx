@@ -1,19 +1,20 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EventListItem, EventsResponse } from "../../src/shared/types.ts";
 import { EventDetailPage } from "./EventDetail.tsx";
 import { EventList } from "./EventList.tsx";
-import { FilterBar } from "./FilterBar.tsx";
+import { Dock } from "./Dock.tsx";
+import { FilterBar, FilterPanel } from "./FilterBar.tsx";
 import { activeFilterCount, eventsApiUrl, listHref, parseFilters, seasonOf, seasonRange, type Filters } from "./filters.ts";
 import { formatTimestamp } from "./format.ts";
 import { distanceKm } from "./distance.ts";
 import { usePosition } from "./geo.ts";
 import { Intro } from "./Intro.tsx";
+import { MapView } from "./MapView.tsx";
 import { NextRace, nextRace } from "./NextRace.tsx";
 import { navigate, useLocation } from "./router.ts";
+import { Sheet } from "./Sheet.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { useJson } from "./useJson.ts";
-
-const EventMap = lazy(() => import("./EventMap.tsx"));
 
 function count(n: number): string {
   if (n === 1) return "1 závod";
@@ -54,6 +55,9 @@ function ListPage({ filters }: { filters: Filters }) {
   const onChange = (f: Filters) => navigate(listHref(f), { replace: true });
   const geo = usePosition();
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const openSheet = useCallback(() => setSheetOpen(true), []);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
 
   // Seasons stay known while the next filter loads.
   const [seasons, setSeasons] = useState<number[]>([]);
@@ -91,6 +95,65 @@ function ListPage({ filters }: { filters: Filters }) {
       ? nextRace(all)
       : null;
 
+  const filterCount = activeFilterCount(filters);
+  const nearOn = filters.sort === "near";
+  const nearBusy = geo.state === "asking";
+  const filterSheet = (
+    <Sheet open={sheetOpen} title="Filtry" onClose={closeSheet}>
+      <FilterPanel filters={filters} onChange={onChange} />
+      <button type="button" onClick={closeSheet} className="bg-racing press mt-6 min-h-12 w-full rounded-2xl font-bold text-white shadow-lg shadow-accent/30">
+        {state.kind === "ready" ? `Zobrazit ${count(state.data.events.length)}` : "Hotovo"}
+      </button>
+    </Sheet>
+  );
+  const dock = (
+    <Dock
+      view={filters.view}
+      onView={(view) => onChange({ ...filters, view })}
+      near={nearOn}
+      nearBusy={nearBusy}
+      onToggleNear={toggleNear}
+      filterCount={filterCount}
+      onFilters={openSheet}
+    />
+  );
+  const bar = (
+    <FilterBar filters={filters} onChange={onChange} near={nearOn} nearBusy={nearBusy} onToggleNear={toggleNear} onOpenFilters={openSheet} />
+  );
+  const geoNote = geoMessage && (
+    <p role="status" className="glass-strong mt-2 rounded-xl px-3 py-2 text-sm text-accent">
+      {geoMessage}
+    </p>
+  );
+
+  if (filters.view === "map") {
+    return (
+      <>
+        <MapView
+          events={events}
+          me={near}
+          distances={distances}
+          top={
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <ScopeToggle filters={filters} seasons={seasons} onChange={onChange} />
+                {state.kind === "ready" && (
+                  <span className="glass-strong rounded-full px-3 py-1.5 text-sm font-medium" aria-live="polite">
+                    {count(events.filter((e) => e.lat != null).length)} na mapě
+                  </span>
+                )}
+              </div>
+              {bar}
+              {geoNote}
+            </>
+          }
+        />
+        {dock}
+        {filterSheet}
+      </>
+    );
+  }
+
   return (
     <>
       <section className="pt-6 pb-4 sm:pt-10">
@@ -103,7 +166,7 @@ function ListPage({ filters }: { filters: Filters }) {
           {state.kind === "ready" && (
             <span className="text-sm text-muted" aria-live="polite">
               {count(state.data.events.length)}
-              {activeFilterCount(filters) > 0 ? " podle filtrů" : ""}
+              {filterCount > 0 ? " podle filtrů" : ""}
             </span>
           )}
         </div>
@@ -111,12 +174,8 @@ function ListPage({ filters }: { filters: Filters }) {
 
       {highlight && <NextRace event={highlight} />}
 
-      <FilterBar filters={filters} onChange={onChange} near={filters.sort === "near"} nearBusy={geo.state === "asking"} onToggleNear={toggleNear} />
-      {geoMessage && (
-        <p role="status" className="mt-2 px-1 text-sm text-accent">
-          {geoMessage}
-        </p>
-      )}
+      {bar}
+      {geoNote}
 
       {state.kind === "loading" && (
         <ul className="mt-5 space-y-2.5" aria-label="Načítám závody…">
@@ -137,29 +196,14 @@ function ListPage({ filters }: { filters: Filters }) {
         <div className="mt-5">
           {events.length === 0 ? (
             <div className="glass rounded-2xl px-4 py-10 text-center text-muted">
-              {activeFilterCount(filters) > 0
-                ? "Filtrům neodpovídá žádný závod."
-                : "Zatím tu nejsou žádné nadcházející závody."}
+              {filterCount > 0 ? "Filtrům neodpovídá žádný závod." : "Zatím tu nejsou žádné nadcházející závody."}
               {!state.data.last_ingest_at && " Data se objeví po prvním stažení zdrojů."}
+              {filterCount > 0 && (
+                <button type="button" onClick={openSheet} className="mt-3 block w-full text-sm font-semibold text-accent">
+                  Upravit filtry
+                </button>
+              )}
             </div>
-          ) : filters.view === "map" ? (
-            <>
-              <Suspense fallback={<div className="glass h-[65dvh] rounded-2xl" />}>
-                <EventMap events={events} me={near} className="h-[65dvh] min-h-80" />
-              </Suspense>
-              {(() => {
-                const missing = events.filter((e) => e.lat == null || e.lng == null).length;
-                return missing > 0 ? (
-                  <p className="mt-2 text-sm text-muted">
-                    {count(missing)} bez známé polohy –{" "}
-                    <a href={listHref({ ...filters, view: "list" })} className="underline underline-offset-2">
-                      zobrazit v seznamu
-                    </a>
-                    .
-                  </p>
-                ) : null;
-              })()}
-            </>
           ) : (
             <EventList events={events} {...(distances ? { distances } : {})} />
           )}
@@ -171,7 +215,21 @@ function ListPage({ filters }: { filters: Filters }) {
           )}
         </div>
       )}
+      {dock}
+      {filterSheet}
     </>
+  );
+}
+
+/** Moving color behind the glass (styled in index.css). */
+function Orbs() {
+  return (
+    <div className="orbs" aria-hidden>
+      <span />
+      <span />
+      <span />
+      <span />
+    </div>
   );
 }
 
@@ -181,6 +239,7 @@ export function App() {
 
   return (
     <div className="min-h-dvh">
+      <Orbs />
       <Intro />
       <header className="sticky top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="glass-strong mx-auto flex h-14 max-w-3xl items-center justify-between rounded-2xl pr-2 pl-4">
@@ -196,7 +255,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <main className="mx-auto max-w-3xl px-4 pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.5rem))] sm:pb-10">
         {detail ? <EventDetailPage key={detail[1]} id={detail[1]!} /> : <ListPage filters={parseFilters(loc.searchParams)} />}
       </main>
     </div>

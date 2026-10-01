@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 
 // Minimal history-based router: "/" = list (filters in the query string), "/zavod/<id>" = detail.
 
@@ -6,7 +7,18 @@ const listeners = new Set<() => void>();
 function notify() {
   for (const l of listeners) l();
 }
-window.addEventListener("popstate", notify);
+/**
+ * Page changes run inside a View Transition where the browser has it: the list
+ * card and the detail header share a view-transition-name, so one morphs into
+ * the other. Filter changes (replace) just update.
+ */
+function transition(update: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  if (typeof doc.startViewTransition !== "function" || matchMedia("(prefers-reduced-motion: reduce)").matches) return update();
+  doc.startViewTransition(() => flushSync(update));
+}
+
+window.addEventListener("popstate", () => transition(notify));
 
 function subscribe(l: () => void) {
   listeners.add(l);
@@ -25,10 +37,15 @@ export function useLocation(): URL {
 
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
   if (to === snapshot()) return;
-  if (opts.replace) window.history.replaceState(null, "", to);
-  else window.history.pushState({ inApp: true }, "", to);
-  if (!opts.replace) window.scrollTo(0, 0);
-  notify();
+  if (opts.replace) {
+    window.history.replaceState(null, "", to);
+    return notify();
+  }
+  transition(() => {
+    window.history.pushState({ inApp: true }, "", to);
+    window.scrollTo(0, 0);
+    notify();
+  });
 }
 
 /** True when the previous history entry is ours (so "back" stays in the app). */

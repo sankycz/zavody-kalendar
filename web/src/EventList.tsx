@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import type { EventListItem, Level } from "../../src/shared/types.ts";
 import { dateRange, dayNumber, daysUntil, monthHeading, monthKey, relativeDay, weekdays } from "./format.ts";
+import { DisciplineBadge, disciplineStyle } from "./Badges.tsx";
 import { formatDistance } from "./distance.ts";
-import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL, countryLabel } from "./labels.ts";
+import { LEVEL_LABEL, ORGANIZER_FLAG_LABEL, countryLabel } from "./labels.ts";
 
 export const LEVEL_CLASS: Record<Level, string> = {
   mcr: "bg-mcr/15 text-mcr ring-mcr/30",
@@ -29,7 +30,8 @@ function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
     <li>
       <a
         href={`/zavod/${e.id}`}
-        className={`glass group flex gap-3.5 rounded-2xl p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-accent sm:p-4 ${
+        style={{ ...disciplineStyle(e.discipline), viewTransitionName: `event-${e.id}` }}
+        className={`glass card-glow press shine group flex gap-3.5 rounded-2xl p-3 transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent sm:p-4 ${
           finished || cancelled ? "opacity-70 hover:opacity-100" : ""
         }`}
       >
@@ -64,7 +66,7 @@ function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
             {hot && <span className="font-semibold text-accent"> · {soon}</span>}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="rounded-full bg-surface-2 px-2.5 py-0.5 font-medium">{DISCIPLINE_LABEL[e.discipline]}</span>
+            <DisciplineBadge d={e.discipline} />
             <span className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ring-inset ${LEVEL_CLASS[e.level]}`}>
               {LEVEL_LABEL[e.level]}
             </span>
