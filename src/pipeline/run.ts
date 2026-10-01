@@ -1,4 +1,6 @@
 import { dedupeBatch } from "./dedupe.ts";
+import { todayInPrague } from "../api.ts";
+import { attachEventPage } from "./eventPage.ts";
 import { extractEvents } from "./extract.ts";
 import { excerptWithoutDescription, facebookInput, facebookPoint, parseTargets, type ApifyEvents } from "./facebook.ts";
 import { geocode, type GeoResult } from "./geocode.ts";
@@ -61,6 +63,8 @@ export type RunReport =
       abroad?: string[];
       /** First few geocoding failures (distinct messages). */
       geocode_errors?: string[];
+      /** Event page (scope 'event') without date/place, attached by name to a known race. */
+      attached?: string[];
       /** Blocks the model failed on; the source is retried on the next run. */
       failed_blocks?: string[];
       stats: UpsertStats;
@@ -122,10 +126,26 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
             sourceName: source.name,
             season: source.season,
             kind: source.kind,
+            scope: source.scope ?? "calendar",
             ...(text != null ? { text } : { pdf: bytes }),
           });
 
     const batch = processExtraction(extracted.items, source.season);
+    // An organizer's page without the date or place: attach it to the race it names.
+    const attached: string[] = [];
+    if (source.scope === "event") {
+      const rest: InvalidItem[] = [];
+      for (const bad of batch.invalid) {
+        if (!/date_from|location_name/.test(bad.error)) {
+          rest.push(bad);
+          continue;
+        }
+        const a = await attachEventPage(deps.db, source, bad.raw, todayInPrague());
+        if (a.ok) attached.push(`${a.name} (${a.links} odkazů)`);
+        else rest.push({ error: a.error, raw: bad.raw });
+      }
+      batch.invalid = rest;
+    }
     for (const bad of batch.invalid) log(`${source.id}: skipped invalid item: ${bad.error}`, bad.raw);
 
     // The calendar covers races in the Czech Republic only.
@@ -168,7 +188,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       .bind(extracted.failedBlocks ? null : hash, source.id)
       .run();
 
-    log(`${source.id}: ${events.length} events (${stats.inserted} new, ${stats.updated} updated), ${batch.invalid.length} invalid`);
+    log(`${source.id}: ${events.length} events (${stats.inserted} new, ${stats.updated} updated), ${attached.length} attached, ${batch.invalid.length} invalid`);
     return {
       source: source.id,
       status: "ok",
@@ -179,6 +199,7 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       invalid: batch.invalid,
       geocoded,
       ...(geocodeErrors.size ? { geocode_errors: [...geocodeErrors] } : {}),
+      ...(attached.length ? { attached } : {}),
       ...(extracted.failedBlocks ? { failed_blocks: extracted.failedBlocks } : {}),
       stats,
       usage: extracted.usage,

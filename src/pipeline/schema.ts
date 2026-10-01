@@ -18,6 +18,14 @@ export const STATUSES = ["planned", "cancelled", "finished"] as const;
 export type Discipline = (typeof DISCIPLINES)[number];
 export type Level = (typeof LEVELS)[number];
 export type Status = (typeof STATUSES)[number];
+export const LINK_KINDS = ["harmonogram", "mapa", "divaci", "propozice", "plakat", "video", "jine"] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
+
+export const ExtractedLinkSchema = z.object({
+  label: z.string().describe("Text odkazu tak, jak je ve zdroji"),
+  url: z.string().describe("URL přesně ze zdroje"),
+  kind: z.enum(LINK_KINDS),
+});
 
 /**
  * Shape the model must return (structured output). Deliberately loose on
@@ -40,6 +48,9 @@ export const ExtractedEventSchema = z.object({
   website_url: z.string().nullable().describe("Web závodu nebo pořadatele, pokud je ve zdroji"),
   description: z.string().nullable().describe("Krátká poznámka ze zdroje (max. 1–2 věty), jinak null"),
   status: z.enum(STATUSES),
+  links: z
+    .array(ExtractedLinkSchema)
+    .describe("Odkazy na dokumenty pro diváky u tohoto závodu (harmonogram, mapa, divácká místa, propozice, plakát); jinak []"),
   raw_excerpt: z.string().describe("Doslovný řádek / úsek zdroje, ze kterého položka vznikla"),
 });
 export type ExtractedEvent = z.infer<typeof ExtractedEventSchema>;
@@ -64,7 +75,15 @@ export interface NormalizedEvent {
   description: string | null;
   status: Status;
   raw_excerpt: string | null;
+  /** Documents for spectators, already filtered (see normalizeLinks). */
+  links: EventLinkInput[];
   dedupe_key: string;
+}
+
+export interface EventLinkInput {
+  label: string;
+  url: string;
+  kind: LinkKind;
 }
 
 export interface SourceRow {
@@ -80,6 +99,8 @@ export interface SourceRow {
   index_url?: string | null;
   /** Paginated listing: follow "next page" up to this many pages (default 1). */
   max_pages?: number;
+  /** 'event': the organizer's page of one race, see eventPage.ts. */
+  scope?: "calendar" | "event";
   priority: number;
   last_fetched_at: string | null;
   last_content_hash: string | null;

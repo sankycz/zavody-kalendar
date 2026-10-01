@@ -1,0 +1,35 @@
+{
+  "_note": "Extrakce provedená Claude v Claude Code session podle SYSTEM_PROMPT, EVENT_PAGE_NOTE a ExtractionSchema nad kbssped-2026.txt (bez API klíče, ne přes extractEvents()). Stránka termín ani obec neuvádí (jsou jen na plakátu), proto date_from \"\" a location_name null – položka se připojí podle názvu k závodu, který zná kalendář (eventPage.ts). Startovní listina, seznam posádek a přihlášky vynechány podle promptu.",
+  "source_id": "kbssped-2026",
+  "season": 2026,
+  "model": "claude-code-session",
+  "extracted_at": "2026-10-01",
+  "usage": null,
+  "events": [
+    {
+      "name": "Podbrdské setkání Legend",
+      "date_from": "",
+      "date_to": null,
+      "discipline": "rally",
+      "series": null,
+      "level": "volny",
+      "location_name": null,
+      "region": null,
+      "country": "CZ",
+      "organizer": "KBS Sedliště",
+      "website_url": null,
+      "description": null,
+      "status": "planned",
+      "links": [
+        { "label": "Časový harmonogram", "url": "https://www.kbssped.cz/wp-content/uploads/2026/09/Harmonogram_2026.png", "kind": "harmonogram" },
+        { "label": "Mapa", "url": "https://www.kbssped.cz/wp-content/uploads/2026/09/mapa_2026.png", "kind": "mapa" },
+        { "label": "Informace pro diváky", "url": "https://www.ewrc.cz/clanek/40723-xi-podbrdske-setkani-legend-2026-pozvanka-a-divacky-pruvodce", "kind": "divaci" },
+        { "label": "Divácká místa", "url": "https://www.kbssped.cz/wp-content/uploads/2026/09/mapa_DM_final_2026.jpg", "kind": "divaci" },
+        { "label": "Zvláštní ustanovení", "url": "https://www.kbssped.cz/wp-content/uploads/2026/08/ZU_legendy_2026_a.pdf", "kind": "propozice" },
+        { "label": "Technické požadavky", "url": "https://www.kbssped.cz/wp-content/uploads/2026/08/Technicke-Pozadavky-RKHA-20163.pdf", "kind": "propozice" },
+        { "label": "Plakát", "url": "https://www.kbssped.cz/wp-content/uploads/2026/08/Plakat-XIPSL-2026-2-scaled.jpg", "kind": "plakat" }
+      ],
+      "raw_excerpt": "Podbrdské setkání Legend"
+    }
+  ]
+}

@@ -28,6 +28,7 @@ Pravidla:
 - website_url: jen URL, které je přímo ve zdroji. Nevymýšlej je.
 - status: cancelled, pokud zdroj uvádí zrušeno / odloženo bez náhradního termínu; jinak planned.
 - description: krátká faktická poznámka ze zdroje (např. "předběžný termín"), jinak null.
+- links: odkazy ze zdroje na dokumenty pro diváky u daného závodu — kind: harmonogram (časový harmonogram), mapa (mapa trati / RZ), divaci (divácká místa, informace pro diváky), propozice (zvláštní ustanovení, propozice, technické předpisy), plakat, video (pozvánka, přenos), jine. label = text odkazu, url přesně ze zdroje. Nikdy ne startovní listiny, seznamy přihlášených / posádek, výsledky ani přihlášky; ne počítadla, reklamy a sociální sítě. Když nic takového není, [].
 - raw_excerpt: doslovný úsek zdroje (jeden řádek tabulky / odstavec), ze kterého položka vznikla.
 - Nic si nedomýšlej. Co ve zdroji není, je null.`;
 
@@ -35,6 +36,8 @@ export interface ExtractInput {
   sourceName: string;
   season: number;
   kind: "html" | "pdf";
+  /** 'event': the organizer's page of one race (see eventPage.ts). */
+  scope?: "calendar" | "event";
   /** Plain text for html sources. */
   text?: string;
   /** Raw PDF bytes for pdf sources. */
@@ -48,11 +51,23 @@ export interface ExtractOutput {
   failedBlocks?: string[];
 }
 
+/**
+ * An organizer's page of one race often lacks the date or the place (they are
+ * on the poster); the item is then matched by name to a race the calendars
+ * know, so it must not be dropped or given a made-up date.
+ */
+export const EVENT_PAGE_NOTE =
+  "Tento zdroj je stránka pořadatele jednoho závodu: vrať právě jednu položku. " +
+  "Když stránka neuvádí termín závodu, dej date_from \"\" (data aktualizace dokumentů nejsou termín); " +
+  "když neuvádí obec, location_name null. Hlavně vyplň name a links.";
+
+function task(input: ExtractInput): string {
+  const base = `Zdroj: ${input.sourceName}\nSezóna: ${input.season}\nVytáhni všechny automobilové závody podle pravidel.`;
+  return input.scope === "event" ? `${base}\n${EVENT_PAGE_NOTE}` : base;
+}
+
 export function buildUserContent(input: ExtractInput): ContentPart[] {
-  const instruction: ContentPart = {
-    type: "text",
-    text: `Zdroj: ${input.sourceName}\nSezóna: ${input.season}\nVytáhni všechny automobilové závody podle pravidel.`,
-  };
+  const instruction: ContentPart = { type: "text", text: task(input) };
   if (input.kind === "pdf") {
     if (!input.pdf) throw new ModelError("pdf source without pdf bytes");
     return [{ type: "pdf", data: input.pdf }, instruction];

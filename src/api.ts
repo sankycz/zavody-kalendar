@@ -2,6 +2,7 @@ import { z } from "zod";
 import { DISCIPLINES, LEVELS } from "./pipeline/schema.ts";
 import type {
   EventDetail,
+  EventLink,
   EventListItem,
   EventSourceLink,
   EventsResponse,
@@ -92,7 +93,7 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
         WHERE e.id = ?`,
     )
     .bind(id)
-    .first<Omit<EventDetail, "sources" | "organizer_check">>();
+    .first<Omit<EventDetail, "sources" | "links" | "organizer_check">>();
   if (!event) return null;
   const check = await db
     .prepare(
@@ -109,7 +110,15 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
     )
     .bind(id)
     .all<EventSourceLink>();
-  return { ...event, sources: results, organizer_check: check };
+  const links = await db
+    .prepare(
+      `SELECT l.label, l.url, l.kind
+         FROM event_links l JOIN sources s ON s.id = l.source_id
+        WHERE l.event_id = ? ORDER BY s.priority, l.position`,
+    )
+    .bind(id)
+    .all<EventLink>();
+  return { ...event, sources: results, links: links.results, organizer_check: check };
 }
 
 export async function listRegions(db: D1Database, today = todayInPrague()): Promise<RegionsResponse> {

@@ -1,7 +1,7 @@
 // Types shared between the Worker API and the web frontend.
-import type { Discipline, Level, Status } from "../pipeline/schema.ts";
+import type { Discipline, Level, LinkKind, Status } from "../pipeline/schema.ts";
 
-export type { Discipline, Level, Status };
+export type { Discipline, Level, LinkKind, Status };
 
 export interface EventListItem {
   id: string;
@@ -53,12 +53,21 @@ export interface EventSourceLink {
   last_seen_at: string;
 }
 
+/** A document for spectators (schedule, map, regulations…) linked by a source. */
+export interface EventLink {
+  label: string;
+  url: string;
+  kind: LinkKind;
+}
+
 export interface EventDetail extends EventListItem {
   organizer: string | null;
   website_url: string | null;
   description: string | null;
   updated_at: string;
   sources: EventSourceLink[];
+  /** Absent from older API versions. */
+  links?: EventLink[];
   organizer_check: OrganizerCheckInfo | null;
 }
 

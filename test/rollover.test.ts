@@ -68,7 +68,11 @@ describe("rollover", () => {
       "triola-2026": ["same-url", "http://www.triola-cup.cz/kalendar/"],
       "autodrom-most-2026": ["same-url", "https://www.autodrom-most.cz/kalendar-zavodu-c1423/"],
       "automotodrom-brno-2026": ["same-url", "https://www.automotodrombrno.cz/kalendar-akci/"],
-      "facebook-2026": ["same-url", "autoslalom\nzávod do vrchu\nrallysprint\nautokros"],
+      "facebook-2026": [
+        "same-url",
+        "autoslalom\nzávod do vrchu\nrallysprint\nautokros\nhttps://www.facebook.com/podbrdskesetkanilegend.cz/events",
+      ],
+      "kbssped-2026": ["same-url", "https://www.kbssped.cz/?page_id=34"],
     });
     expect(
       t.raw.prepare("SELECT id, name, kind, via, priority, enabled FROM sources WHERE season = 2027 AND provider IN ('autoklub-cal', 'cmpr', 'facebook') ORDER BY id").all(),
@@ -80,6 +84,7 @@ describe("rollover", () => {
     ]);
 
     expect(t.raw.prepare("SELECT max_pages, priority FROM sources WHERE id = 'autoklub-podniky-2027'").get()).toEqual({ max_pages: 10, priority: 9 });
+    expect(t.raw.prepare("SELECT scope, priority FROM sources WHERE id = 'kbssped-2027'").get()).toEqual({ scope: "event", priority: 20 });
 
     // Next run: everything has its 2027 row, nothing is fetched or added again.
     t.asked.length = 0;

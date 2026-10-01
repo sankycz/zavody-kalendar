@@ -76,7 +76,12 @@ export function dedupeBatch(events: NormalizedEvent[]): NormalizedEvent[] {
   const byKey = new Map<string, NormalizedEvent>();
   for (const e of events) {
     const prev = byKey.get(e.dedupe_key);
-    byKey.set(e.dedupe_key, prev ? { ...mergeEvent(prev, e, false), raw_excerpt: prev.raw_excerpt } : e);
+    if (!prev) {
+      byKey.set(e.dedupe_key, e);
+      continue;
+    }
+    const links = [...prev.links, ...e.links.filter((l) => !prev.links.some((p) => p.url === l.url))];
+    byKey.set(e.dedupe_key, { ...mergeEvent(prev, e, false), raw_excerpt: prev.raw_excerpt, links });
   }
   return [...byKey.values()];
 }
