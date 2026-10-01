@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { EventListItem, Level } from "../../src/shared/types.ts";
-import { dateRange, dayNumber, monthHeading, monthKey, relativeDay, weekdays } from "./format.ts";
+import { dateRange, dayNumber, daysUntil, monthHeading, monthKey, relativeDay, weekdays } from "./format.ts";
 import { formatDistance } from "./distance.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL, countryLabel } from "./labels.ts";
 
@@ -22,7 +22,9 @@ function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
   const finished = e.status === "finished";
   const place = placeLabel(e);
   const soon = relativeDay(e.date_from, e.date_to);
-  const hot = soon != null && !cancelled && !finished;
+  const upcoming = !cancelled && !finished && daysUntil(e.date_to ?? e.date_from) >= 0;
+  // Date badge: full racing color within two weeks, a warm tint for later races, grey for past/cancelled.
+  const hot = upcoming && soon != null;
   return (
     <li>
       <a
@@ -33,11 +35,19 @@ function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
       >
         <div
           className={`flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-2 text-center ${
-            hot ? "bg-racing text-white shadow-lg shadow-accent/30" : "bg-surface-2"
+            hot
+              ? "bg-racing text-white shadow-lg shadow-accent/30"
+              : upcoming
+                ? "bg-accent/10 ring-1 ring-accent/35 ring-inset"
+                : "bg-surface-2"
           }`}
         >
-          <span className="text-2xl leading-none font-extrabold tabular-nums">{dayNumber(e.date_from)}</span>
-          <span className={`mt-1 text-xs ${hot ? "text-white/85" : "text-muted"}`}>{weekdays(e.date_from, e.date_to)}</span>
+          <span className={`text-2xl leading-none font-extrabold tabular-nums ${upcoming && !hot ? "text-racing" : ""}`}>
+            {dayNumber(e.date_from)}
+          </span>
+          <span className={`mt-1 text-xs ${hot ? "text-white/85" : upcoming ? "font-medium text-accent" : "text-muted"}`}>
+            {weekdays(e.date_from, e.date_to)}
+          </span>
         </div>
         <div className="min-w-0 flex-1">
           <h3 className={`font-semibold leading-snug ${cancelled ? "text-muted line-through" : ""}`}>
