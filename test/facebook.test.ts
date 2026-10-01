@@ -130,6 +130,13 @@ describe("facebook source run", () => {
     });
   });
 
+  it("doesn't call the model when there's no upcoming event in CZ", async () => {
+    const t = setup({ events: async () => dataset.map((e) => ({ ...e, isPast: true })) });
+    const [report] = await runAll(t.deps);
+    expect(report).toMatchObject({ source: "facebook-2026", status: "ok", extracted: 0, stats: { inserted: 0, updated: 0 } });
+    expect(t.prompts).toEqual([]);
+  });
+
   it("reports a missing APIFY_TOKEN as a source error", async () => {
     const t = setup();
     expect(await runAll(t.deps)).toEqual([{ source: "facebook-2026", status: "error", error: "APIFY_TOKEN is not set" }]);

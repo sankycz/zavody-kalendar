@@ -96,12 +96,16 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       return { source: source.id, status: "unchanged", hash };
     }
 
-    const extracted = await extractEvents(deps.llm, {
-      sourceName: source.name,
-      season: source.season,
-      kind: source.kind,
-      ...(text != null ? { text } : { pdf: bytes }),
-    });
+    // Facebook with no upcoming event in CZ: nothing for the model to read.
+    const extracted =
+      points?.size === 0
+        ? { items: [], usage: { input_tokens: 0, output_tokens: 0 } }
+        : await extractEvents(deps.llm, {
+            sourceName: source.name,
+            season: source.season,
+            kind: source.kind,
+            ...(text != null ? { text } : { pdf: bytes }),
+          });
 
     const batch = processExtraction(extracted.items, source.season);
     for (const bad of batch.invalid) log(`${source.id}: skipped invalid item: ${bad.error}`, bad.raw);
