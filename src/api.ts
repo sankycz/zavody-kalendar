@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fold } from "./pipeline/normalize.ts";
 import { DISCIPLINES, LEVELS } from "./pipeline/schema.ts";
 import type {
   EventDetail,
@@ -23,6 +24,8 @@ export const EventsQuery = z.object({
   discipline: csvOf(DISCIPLINES).optional(),
   level: csvOf(LEVELS).optional(),
   region: z.string().max(100).optional(),
+  /** Full-text search: every word must occur in the name, place, region, series, organizer or discipline. */
+  q: z.string().max(100).optional(),
 });
 export type EventsQuery = z.infer<typeof EventsQuery>;
 
@@ -34,6 +37,33 @@ export function pragueHour(now = new Date()): number {
 /** Today's date in Czech time, 'YYYY-MM-DD'. */
 export function todayInPrague(now = new Date()): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Prague" }).format(now);
+}
+
+/** Words a visitor may search a discipline by. */
+const DISCIPLINE_WORDS: Record<string, string> = {
+  rally: "rally rallye",
+  rallysprint: "rallysprint rally sprint",
+  vrch: "zavod do vrchu vrch",
+  autocross: "autokros autocross rallycross",
+  slalom: "autoslalom slalom",
+  okruh: "okruh okruhy",
+  drift: "drift",
+  regularity: "regularity pravidelnost",
+  historic: "historicka historic veterani",
+  jiny: "",
+};
+
+/** Folded search words of a query ('Železné  hory' → ['zelezne', 'hory']). */
+export function searchWords(q: string | undefined): string[] {
+  return q ? fold(q).split(/[^a-z0-9]+/).filter(Boolean) : [];
+}
+
+type Searchable = Pick<EventListItem, "name" | "location_name" | "region" | "series" | "discipline"> & { organizer?: string | null };
+
+export function matchesSearch(e: Searchable, words: string[]): boolean {
+  if (words.length === 0) return true;
+  const text = fold([e.name, e.location_name, e.region, e.series, e.organizer, DISCIPLINE_WORDS[e.discipline]].filter(Boolean).join(" "));
+  return words.every((w) => text.includes(w));
 }
 
 export async function listEvents(db: D1Database, q: EventsQuery, today = todayInPrague()): Promise<EventsResponse> {
@@ -62,7 +92,7 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
       .prepare(
         `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
                 e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, e.lat, e.lng,
-                (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count,
+                (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count, e.organizer,
                 CASE WHEN oc.status = 'cancelled' THEN 'cancelled' WHEN oc.status = 'postponed' THEN 'postponed'
                      WHEN oc.date_from IS NOT NULL THEN 'date_changed' END AS organizer_flag
            FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
@@ -71,14 +101,17 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
           LIMIT 2000`,
       )
       .bind(...params)
-      .all<EventListItem>(),
+      .all<EventListItem & { organizer: string | null }>(),
     db.prepare("SELECT MAX(last_fetched_at) AS last FROM sources").first<{ last: string | null }>(),
     db
       .prepare("SELECT DISTINCT CAST(substr(date_from, 1, 4) AS INTEGER) AS year FROM events WHERE country = 'CZ' ORDER BY year")
       .all<{ year: number }>(),
   ]);
 
-  return { events: events.results, last_ingest_at: meta?.last ?? null, seasons: seasons.results.map((r) => r.year) };
+  // Diacritics-insensitive search in code: SQLite has no unaccent, and a season is a few hundred rows.
+  const words = searchWords(q.q);
+  const found = events.results.filter((e) => matchesSearch(e, words)).map(({ organizer: _o, ...e }) => e);
+  return { events: found, last_ingest_at: meta?.last ?? null, seasons: seasons.results.map((r) => r.year) };
 }
 
 export async function getEvent(db: D1Database, id: string): Promise<EventDetail | null> {

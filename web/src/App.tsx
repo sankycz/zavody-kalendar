@@ -12,6 +12,7 @@ import { Intro } from "./Intro.tsx";
 import { MapView } from "./MapView.tsx";
 import { NextRace, nextRace } from "./NextRace.tsx";
 import { navigate, useLocation } from "./router.ts";
+import { SearchBar, SearchButton } from "./Search.tsx";
 import { Sheet } from "./Sheet.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { useJson } from "./useJson.ts";
@@ -91,7 +92,7 @@ function ListPage({ filters }: { filters: Filters }) {
     [all, distances],
   );
   const highlight =
-    state.kind === "ready" && filters.view === "list" && !near && !filters.from && !filters.to && activeFilterCount(filters) === 0
+    state.kind === "ready" && filters.view === "list" && !near && !filters.from && !filters.to && activeFilterCount(filters) === 0 && !filters.q?.trim()
       ? nextRace(all)
       : null;
 
@@ -120,6 +121,8 @@ function ListPage({ filters }: { filters: Filters }) {
   const bar = (
     <FilterBar filters={filters} onChange={onChange} near={nearOn} nearBusy={nearBusy} onToggleNear={toggleNear} onOpenFilters={openSheet} />
   );
+  const query = filters.q?.trim() ?? "";
+  const searchBar = filters.q !== null && <SearchBar filters={filters} onChange={onChange} />;
   const geoNote = geoMessage && (
     <p role="status" className="glass-strong mt-2 rounded-xl px-3 py-2 text-sm text-accent">
       {geoMessage}
@@ -135,6 +138,7 @@ function ListPage({ filters }: { filters: Filters }) {
           distances={distances}
           top={
             <>
+              {searchBar}
               <div className="flex flex-wrap items-center gap-2">
                 <ScopeToggle filters={filters} seasons={seasons} onChange={onChange} />
                 {state.kind === "ready" && (
@@ -156,6 +160,7 @@ function ListPage({ filters }: { filters: Filters }) {
 
   return (
     <>
+      {searchBar && <div className="pt-4">{searchBar}</div>}
       <section className="pt-6 pb-4 sm:pt-10">
         <h1 className="text-3xl leading-tight font-extrabold tracking-tight sm:text-4xl">
           Závody aut <span className="text-racing">v Česku</span>
@@ -166,6 +171,7 @@ function ListPage({ filters }: { filters: Filters }) {
           {state.kind === "ready" && (
             <span className="text-sm text-muted" aria-live="polite">
               {count(state.data.events.length)}
+              {query ? ` pro „${query}“` : ""}
               {filterCount > 0 ? " podle filtrů" : ""}
             </span>
           )}
@@ -196,7 +202,20 @@ function ListPage({ filters }: { filters: Filters }) {
         <div className="mt-5">
           {events.length === 0 ? (
             <div className="glass rounded-2xl px-4 py-10 text-center text-muted">
-              {filterCount > 0 ? "Filtrům neodpovídá žádný závod." : "Zatím tu nejsou žádné nadcházející závody."}
+              {query
+                ? `Pro „${query}“ jsme nic nenašli${filterCount > 0 ? " (platí i filtry)" : ""}.`
+                : filterCount > 0
+                  ? "Filtrům neodpovídá žádný závod."
+                  : "Zatím tu nejsou žádné nadcházející závody."}
+              {query && !filters.from && !filters.to && (
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...filters, ...seasonRange(new Date().getFullYear()) })}
+                  className="mt-3 block w-full text-sm font-semibold text-accent"
+                >
+                  Hledat i v proběhlých závodech sezóny
+                </button>
+              )}
               {!state.data.last_ingest_at && " Data se objeví po prvním stažení zdrojů."}
               {filterCount > 0 && (
                 <button type="button" onClick={openSheet} className="mt-3 block w-full text-sm font-semibold text-accent">
@@ -251,7 +270,10 @@ export function App() {
             </span>
             Závody aut v ČR
           </a>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <SearchButton filters={detail ? null : parseFilters(loc.searchParams)} />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

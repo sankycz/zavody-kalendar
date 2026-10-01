@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_FILTERS, activeFilterCount, listHref, parseFilters, seasonOf, seasonRange } from "../web/src/filters.ts";
+import { EMPTY_FILTERS, activeFilterCount, eventsApiUrl, listHref, parseFilters, seasonOf, seasonRange } from "../web/src/filters.ts";
 import { distanceKm, formatDistance } from "../web/src/distance.ts";
 
 describe("season switch", () => {
@@ -27,5 +27,16 @@ describe("distance", () => {
     expect(km).toBeLessThan(190);
     expect(formatDistance(km)).toMatch(/^18\d km$/);
     expect(formatDistance(0.83)).toBe("850 m");
+  });
+});
+
+describe("search in the URL", () => {
+  it("keeps an open empty bar on the page, sends only words to the API", () => {
+    const open = parseFilters(new URLSearchParams("q="));
+    expect(open.q).toBe("");
+    expect(listHref(open)).toBe("/?q=");
+    expect(eventsApiUrl(open)).toBe("/api/events");
+    expect(eventsApiUrl({ ...EMPTY_FILTERS, q: " Miriquidi " })).toBe("/api/events?q=Miriquidi");
+    expect(parseFilters(new URLSearchParams("")).q).toBeNull();
   });
 });

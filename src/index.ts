@@ -7,6 +7,7 @@ import { rollover } from "./pipeline/rollover.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
 import { checkOrganizers, DEFAULT_CHECK_LIMIT } from "./pipeline/organizer.ts";
 import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
+import { mergeEvents } from "./pipeline/upsert.ts";
 
 export interface Env {
   DB: D1Database;
@@ -98,6 +99,7 @@ export default {
     //   /admin/check-organizers[?limit=<n>]  organizer website check
     //   /admin/rollover                      add next season's sources (also weekly)
     //   /admin/geocode[?limit=<n>]           coordinates for stored events without them
+    //   /admin/merge?keep=<id>&drop=<id>     merge a duplicate race into another one
     if (url.pathname.startsWith("/admin/")) {
       if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
       const auth = request.headers.get("Authorization") ?? "";
@@ -118,6 +120,12 @@ export default {
       const n = Number(url.searchParams.get("limit") ?? 40);
       const limit = Number.isInteger(n) && n > 0 && n <= 40 ? n : 40;
       return Response.json(await backfillCoordinates(env.DB, deps(env).geoHttp, limit));
+    }
+
+    if (url.pathname === "/admin/merge") {
+      const [keep, drop] = [url.searchParams.get("keep") ?? "", url.searchParams.get("drop") ?? ""];
+      if (!/^[0-9a-f]{32}$/.test(keep) || !/^[0-9a-f]{32}$/.test(drop)) return Response.json({ error: "keep and drop must be event ids" }, { status: 400 });
+      return Response.json({ merged: await mergeEvents(env.DB, keep, drop) });
     }
 
     if (url.pathname === "/admin/run") {

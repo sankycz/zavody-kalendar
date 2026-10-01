@@ -13,6 +13,8 @@ export interface Filters {
   to: string;
   view: View;
   sort: Sort;
+  /** Full-text search: null = search bar closed, "" = open and empty. */
+  q: string | null;
 }
 
 export const DISCIPLINES = Object.keys(DISCIPLINE_LABEL) as Discipline[];
@@ -38,6 +40,7 @@ export function parseFilters(params: URLSearchParams): Filters {
     to: date("to"),
     view: params.get("view") === "map" ? "map" : "list",
     sort: params.get("sort") === "near" ? "near" : "date",
+    q: params.has("q") ? params.get("q")!.slice(0, 100) : null,
   };
 }
 
@@ -50,6 +53,8 @@ function toParams(f: Filters, withView: boolean): URLSearchParams {
   if (f.to) p.set("to", f.to);
   if (withView && f.view === "map") p.set("view", "map");
   if (withView && f.sort === "near") p.set("sort", "near");
+  // The page keeps an open, empty search bar; the API only gets real words.
+  if (f.q !== null && (withView || f.q.trim())) p.set("q", withView ? f.q : f.q.trim());
   return p;
 }
 
@@ -84,4 +89,4 @@ export function activeFilterCount(f: Filters): number {
   return f.discipline.length + f.level.length + (f.region ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0);
 }
 
-export const EMPTY_FILTERS: Filters = { discipline: [], level: [], region: "", from: "", to: "", view: "list", sort: "date" };
+export const EMPTY_FILTERS: Filters = { discipline: [], level: [], region: "", from: "", to: "", view: "list", sort: "date", q: null };
