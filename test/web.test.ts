@@ -40,3 +40,13 @@ describe("search in the URL", () => {
     expect(parseFilters(new URLSearchParams("")).q).toBeNull();
   });
 });
+
+describe("swiping between races", () => {
+  it("moves along the order of the list", async () => {
+    const { neighboursIn } = await import("../web/src/raceOrder.ts");
+    const races = [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }];
+    expect(neighboursIn(races, "b")).toEqual({ prev: races[0], next: races[2] });
+    expect(neighboursIn(races, "a")).toEqual({ prev: null, next: races[1] });
+    expect(neighboursIn(races, "x")).toEqual({ prev: null, next: null });
+  });
+});

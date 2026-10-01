@@ -372,3 +372,30 @@
 @keyframes intro-out {
   to { opacity: 0; visibility: hidden; }
 }
+
+/* Race detail reached by a swipe: the next card rises from behind the stack,
+   the previous one is pulled back in from the left (Swipe.tsx). */
+@keyframes swipe-enter-next {
+  from {
+    opacity: 0.35;
+    transform: translateY(18px) scale(0.92);
+  }
+}
+@keyframes swipe-enter-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-60%) rotate(-10deg);
+  }
+}
+.swipe-enter-next {
+  animation: swipe-enter-next 380ms cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
+}
+.swipe-enter-prev {
+  animation: swipe-enter-prev 380ms cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-enter-next,
+  .swipe-enter-prev {
+    animation: none;
+  }
+}
