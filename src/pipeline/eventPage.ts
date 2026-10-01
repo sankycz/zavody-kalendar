@@ -8,8 +8,8 @@ import { saveLinks } from "./upsert.ts";
  * has the schedule, maps and regulations but not the date or the place (they
  * are on the poster). An item the normal path rejects for that reason is
  * attached by name to a race of the same season the calendars already know:
- * the source is linked to it, its documents are added and the page fills the
- * race's empty website and description. No race is created from a page
+ * the source is linked to it, its documents are added and the page sets the
+ * race's website and description (only fills them when a better source has them). No race is created from a page
  * without a date.
  */
 
@@ -57,7 +57,7 @@ export type AttachResult = { ok: true; event_id: string; name: string; links: nu
  */
 export async function attachEventPage(
   db: D1Database,
-  source: Pick<SourceRow, "id" | "url" | "season">,
+  source: Pick<SourceRow, "id" | "url" | "season" | "priority">,
   raw: unknown,
   today: string,
 ): Promise<AttachResult> {
@@ -90,15 +90,25 @@ export async function attachEventPage(
     .bind(match.id, source.id, source.url, excerpt)
     .run();
 
-  // The organizer's page is the race's website when no source gave one.
+  // The organizer's page is the race's website when no better source gave one
+  // (it beats a Facebook event link, not Autoklub ČR).
+  const best = await db
+    .prepare(
+      `SELECT MIN(s.priority) AS p FROM event_sources es JOIN sources s ON s.id = es.source_id
+        WHERE es.event_id = ? AND es.source_id <> ?`,
+    )
+    .bind(match.id, source.id)
+    .first<{ p: number | null }>();
+  const wins = best?.p == null || source.priority <= best.p;
   const website = normalizeUrl(item.website_url) ?? source.url;
   const description = item.description?.replace(/\s+/g, " ").trim().slice(0, 1000) || null;
   await db
     .prepare(
-      `UPDATE events SET website_url = COALESCE(website_url, ?), description = COALESCE(description, ?)
-        WHERE id = ? AND (website_url IS NULL OR (description IS NULL AND ? IS NOT NULL))`,
+      wins
+        ? "UPDATE events SET website_url = ?, description = COALESCE(?, description) WHERE id = ?"
+        : "UPDATE events SET website_url = COALESCE(website_url, ?), description = COALESCE(description, ?) WHERE id = ?",
     )
-    .bind(website, description, match.id, description)
+    .bind(website, description, match.id)
     .run();
 
   const links: EventLinkInput[] = normalizeLinks(item.links);

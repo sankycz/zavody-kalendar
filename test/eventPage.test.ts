@@ -84,6 +84,7 @@ describe("organizer page of one race (scope 'event')", () => {
           {
             name: "XI. Podbrdské setkání legend 2026", date_from: "2026-10-02", date_to: "2026-10-03", discipline: "rally",
             level: "volny", location_name: "Sedliště", country: "CZ", status: "planned", raw_excerpt: "XI. Podbrdské setkání legend 2026",
+            website_url: "https://www.facebook.com/events/1049712654653439/",
           },
           {
             name: "XX. Partr Rally Vsetín", date_from: "2026-10-02", date_to: "2026-10-03", discipline: "rally",
@@ -139,6 +140,7 @@ describe("organizer page of one race (scope 'event')", () => {
     expect(t.raw.prepare("SELECT count(*) AS n FROM events").get()).toEqual({ n: 2 });
     const id = (t.raw.prepare("SELECT id FROM events WHERE name LIKE 'XI.%'").get() as { id: string }).id;
     const detail = (await getEvent(t.d1, id))!;
+    // The organizer's page (priority 20) replaces the Facebook event link (90).
     expect(detail.website_url).toBe(URL);
     expect(detail.sources.map((s) => s.name)).toEqual(["KBS Sedliště – Podbrdské setkání legend", "Facebook – události pořadatelů"]);
     expect(detail.links?.map((l) => [l.kind, l.label])).toEqual([
