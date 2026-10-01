@@ -17,6 +17,7 @@ Začni prvními třemi. Další přidávej až ve chvíli, kdy pipeline běží 
 1. **Autoklub ČR**, souhrnný kalendář automobilového sportu. HTML stránka https://www.autoklub.cz/205368-kalendar-automobiloveho-sportu-acr-2026/ a PDF verze https://www.autoklub.cz/wp-content/uploads/2026/01/cal-predbezny-26-v6.pdf. PDF u rally rozlišuje MČR, RSS a volný závod, to je hlavní zdroj pro pole `level`.
 2. **Autokaleidoskop**, průběžně aktualizovaný kalendář včetně regionálních rally a pohárů. https://www.autokaleidoskop.cz/Kalendar/AKTUALIZACE:-Kalendar-automobilovych-zavodu-v-CR-2026/ Text je špatně strukturovaný, s překlepy v datech. Počítej s tím.
 3. **Edda Cup**, amatérské závody do vrchu. http://www.edda.cz/mscrdovrchu/index.php?m=trate
+4. **Autoklub ČR – kalendář podniků** (databáze podniků, sport Automobily), https://www.autoklub.cz/ostatni/kalendar-podniku/?id_sport=1212&termin_od=01.01.2026&termin_do=31.12.2026. Živá data včetně zrušených podniků („– ZRUŠENO“), 15 na stránku – zdroj prochází stránkování (`sources.max_pages`, `src/pipeline/paging.ts`). Seznam neuvádí místo, model ho bere z názvu podniku; podniky bez místa vypadnou (pokrývají je ostatní zdroje). Nejvyšší priorita (9).
 
 Kandidáti na později: Triola Cup, Krušnohorský pohár, Maverick Cup, Radeč Cup, kalendáře jednotlivých autoklubů, například https://www.autoklub-pisek.cz/kalendar/.
 

@@ -23,6 +23,7 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
     - V `automotodrom-brno` je název jedné akce (soukromý pronájem okruhu, jméno osoby) nahrazen „Soukromá akce“.
     - Vynechané zdroje a důvody jsou v `migrations/0005_more_sources_2026.sql`.
   - `.txt` k nim vygenerované přes `--offline`.
+- `autoklub-podniky/autoklub-podniky-2026.html` – skutečný markup první stránky (15 z 94 podniků) kalendáře podniků Autoklubu ČR včetně stránkování, staženo přes Apify 1. 10. 2026, bez hlavičky a formuláře. `.extraction.json` k ní vytvořil Claude podle `SYSTEM_PROMPT`. Stránkování testuje `test/paging.test.ts`.
 - `facebook/facebook-2026.dataset.json` – reálný výstup Apify actoru `apify/facebook-events-scraper` (hledání „autoslalom“, „závod do vrchu“, „rallysprint“, 30. 9. 2026), jen pole, která pipeline používá. Pole s pořadateli (jména osob) vynechána, e-mail v jednom popisu nahrazen `example.no`. Test: `test/facebook.test.ts`.
 - `autoklub-cal/autoklub-cal-pdf-2026.pdf` zatím chybí (binární 185 kB soubor nejde přenést přes Apify connector) – stáhni lokálně `npm run fixtures:fetch autoklub-cal-pdf-2026`.
 - `*.extraction.json` (všechny HTML zdroje) teď vytvořil Claude v Claude Code session podle `SYSTEM_PROMPT` a schématu (bez API klíče, `model: "claude-code-session"`), ne `extractEvents()`. Karting a minikáry vynechány podle promptu, nejasná data (`1ý.`, `???`) zkopírována beze změny – normalizace je zahodí.

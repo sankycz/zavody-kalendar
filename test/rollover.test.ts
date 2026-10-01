@@ -27,6 +27,9 @@ const WEB: Record<string, () => Response> = {
       "/Kalendar/Kalendar-automobilovych-zavodu-v-CR-2027/",
       "/Kalendar/AKTUALIZACE:-Kalendar-automobilovych-zavodu-v-CR-2026/",
     ),
+  // The dates are in the URL: the same address with 2027 is next season's listing.
+  "https://www.autoklub.cz/ostatni/kalendar-podniku/?id_sport=1212&termin_od=01.01.2027&termin_do=31.12.2027": () =>
+    page('<input name="termin_od" value="01.01.2027"> Celkem nalezeno 3 podniků.'),
   "https://www.krusnohorskypohar.cz/": () =>
     links("/index.php/vysledky-2027/", "/index.php/kalendar-2027/", "/index.php/kalendar-2026/", "/index.php/kalendar-2025/"),
 };
@@ -56,6 +59,10 @@ describe("rollover", () => {
       "autoklub-cal-pdf-2026": ["index", "https://www.autoklub.cz/wp-content/uploads/2026/12/cal-predbezny-27-v1.pdf"],
       "autokaleidoskop-2026": ["index", "https://www.autokaleidoskop.cz/Kalendar/Kalendar-automobilovych-zavodu-v-CR-2027/"],
       "krusnohorsky-pohar-2026": ["index", "https://www.krusnohorskypohar.cz/index.php/kalendar-2027/"],
+      "autoklub-podniky-2026": [
+        "year-in-url",
+        "https://www.autoklub.cz/ostatni/kalendar-podniku/?id_sport=1212&termin_od=01.01.2027&termin_do=31.12.2027",
+      ],
       "edda-2026": ["same-url", "http://www.edda.cz/mscrdovrchu/index.php?m=trate"],
       "cmpr-2026": ["same-url", "https://cmpr.cz/souteze-poharu/"],
       "triola-2026": ["same-url", "http://www.triola-cup.cz/kalendar/"],
@@ -71,6 +78,8 @@ describe("rollover", () => {
       { id: "cmpr-2027", name: "Českomoravský pohár rallye – kalendář 2027", kind: "html", via: "web", priority: 22, enabled: 1 },
       { id: "facebook-2027", name: "Facebook – události pořadatelů 2027", kind: "html", via: "facebook", priority: 90, enabled: 0 },
     ]);
+
+    expect(t.raw.prepare("SELECT max_pages, priority FROM sources WHERE id = 'autoklub-podniky-2027'").get()).toEqual({ max_pages: 10, priority: 9 });
 
     // Next run: everything has its 2027 row, nothing is fetched or added again.
     t.asked.length = 0;

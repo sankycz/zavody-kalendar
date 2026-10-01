@@ -7,6 +7,7 @@ import { htmlToText } from "./htmlToText.ts";
 import type { JsonModel } from "./llm.ts";
 import { sha256Hex, type PoliteClient } from "./http.ts";
 import { normalizeEvent } from "./normalize.ts";
+import { nextPageUrl } from "./paging.ts";
 import type { NormalizedEvent, SourceRow } from "./schema.ts";
 import { upsertEvents, type UpsertStats } from "./upsert.ts";
 
@@ -83,7 +84,24 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
       bytes = new Uint8Array(await res.arrayBuffer());
       // HTML is hashed after text extraction, so a scheduled run doesn't re-extract
       // (and pay for) a page whose only change is an ad, counter or nonce.
-      if (source.kind === "html") text = htmlToText(decodeHtml(bytes, res.headers.get("Content-Type")), source.url);
+      if (source.kind === "html") {
+        let html = decodeHtml(bytes, res.headers.get("Content-Type"));
+        const pages = [htmlToText(html, source.url)];
+        // A paginated listing: follow "next page" up to max_pages.
+        const seen = new Set([source.url]);
+        let pageUrl = source.url;
+        while (pages.length < (source.max_pages ?? 1)) {
+          const next = nextPageUrl(html, pageUrl);
+          if (!next || seen.has(next)) break;
+          const r = await deps.http.get(next);
+          if (!r.ok) throw new Error(`HTTP ${r.status} for ${next}`);
+          html = decodeHtml(new Uint8Array(await r.arrayBuffer()), r.headers.get("Content-Type"));
+          pages.push(htmlToText(html, next));
+          seen.add(next);
+          pageUrl = next;
+        }
+        text = pages.join("\n");
+      }
     }
     const hash = await sha256Hex(text != null ? new TextEncoder().encode(text) : bytes);
 

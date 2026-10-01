@@ -78,6 +78,8 @@ export interface SourceRow {
   via?: "web" | "facebook";
   /** Page where next season's calendar gets linked (see rollover.ts). */
   index_url?: string | null;
+  /** Paginated listing: follow "next page" up to this many pages (default 1). */
+  max_pages?: number;
   priority: number;
   last_fetched_at: string | null;
   last_content_hash: string | null;

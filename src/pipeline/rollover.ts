@@ -138,10 +138,10 @@ export async function rollover(db: D1Database, http: PoliteClient, today: string
     const id = nextLabel(s.id, year, "-");
     await db
       .prepare(
-        `INSERT INTO sources (id, provider, name, url, season, kind, via, priority, enabled, index_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sources (id, provider, name, url, season, kind, via, priority, enabled, index_url, max_pages)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(id, s.provider, nextLabel(s.name, year, " "), found.url, year, s.kind, s.via ?? "web", s.priority, s.enabled, s.index_url ?? null)
+      .bind(id, s.provider, nextLabel(s.name, year, " "), found.url, year, s.kind, s.via ?? "web", s.priority, s.enabled, s.index_url ?? null, s.max_pages ?? 1)
       .run();
     if (s.kind === "html") nextOfProvider.set(s.provider, found.url);
     out.push({ source: s.id, season: year, status: "added", id, url: found.url, how: found.how });
