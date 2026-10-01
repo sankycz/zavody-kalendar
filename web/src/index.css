@@ -117,53 +117,70 @@
   }
 }
 
-/* Leaflet map: level colors from the theme tokens, dark tiles in dark mode. */
-@layer components {
-  .leaflet-container {
-    font: inherit;
-    background: var(--color-surface-2);
-  }
-  .dark .leaflet-tile {
-    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.6);
-  }
-  .leaflet-popup-content-wrapper,
-  .leaflet-popup-tip {
-    background: var(--color-glass-strong);
-    color: var(--color-fg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--color-glass-border);
-  }
-  .leaflet-popup-content-wrapper {
-    border-radius: 14px;
-  }
-  .leaflet-bar a {
-    background: var(--color-glass-strong);
-    color: var(--color-fg);
-    border-color: var(--color-border);
-  }
-  .leaflet-control-attribution {
-    background: var(--color-glass-strong) !important;
-    color: var(--color-muted);
-  }
-  .leaflet-container a.map-popup-link {
-    color: var(--color-fg);
-    font-weight: 600;
-    text-decoration: underline;
-  }
-  .map-popup-item + .map-popup-item {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--color-border);
-  }
-  .marker-mcr { stroke: #fff; fill: var(--color-mcr); }
-  .marker-pohar { stroke: #fff; fill: var(--color-pohar); }
-  .marker-regionalni { stroke: #fff; fill: var(--color-regionalni); }
-  .marker-volny { stroke: #fff; fill: var(--color-volny); }
-  .marker-finished { fill-opacity: 0.45; }
-  .marker-me { stroke: #fff; fill: #0ea5e9; filter: drop-shadow(0 0 6px rgb(14 165 233 / 0.8)); }
-  .marker-cancelled { fill-opacity: 0.3; stroke-dasharray: 3 3; }
+/*
+ * Leaflet map: theme colors, dark tiles in dark mode. Not in a @layer on purpose:
+ * leaflet.css is unlayered (and loads later, with the map), and unlayered rules
+ * always beat layered ones – e.g. its `.leaflet-tile { filter: inherit }` wiped
+ * out the dark-mode filter. `:root` lifts these above Leaflet's equal selectors.
+ */
+:root .leaflet-container {
+  font: inherit;
+  background: var(--color-surface-2);
 }
+:root.dark .leaflet-container {
+  background: #1b1d24;
+}
+:root.dark .leaflet-tile {
+  /* OSM tiles inverted to a dark map; hue turned back so water stays blue-ish. */
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55);
+}
+:root .leaflet-popup-content-wrapper,
+:root .leaflet-popup-tip {
+  background: var(--color-glass-strong);
+  color: var(--color-fg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 10px 30px -12px var(--color-glass-edge);
+}
+:root .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+}
+:root .leaflet-container a.leaflet-popup-close-button {
+  color: var(--color-muted);
+}
+:root .leaflet-bar a {
+  background: var(--color-glass-strong);
+  color: var(--color-fg);
+  border-color: var(--color-border);
+}
+:root .leaflet-bar a:hover {
+  background: var(--color-surface-2);
+}
+:root .leaflet-control-attribution {
+  background: var(--color-glass-strong);
+  color: var(--color-muted);
+}
+:root .leaflet-control-attribution a {
+  color: var(--color-fg);
+}
+:root .leaflet-container a.map-popup-link {
+  color: var(--color-fg);
+  font-weight: 600;
+  text-decoration: underline;
+}
+.map-popup-item + .map-popup-item {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+.marker-mcr { stroke: #fff; fill: var(--color-mcr); }
+.marker-pohar { stroke: #fff; fill: var(--color-pohar); }
+.marker-regionalni { stroke: #fff; fill: var(--color-regionalni); }
+.marker-volny { stroke: #fff; fill: var(--color-volny); }
+.marker-finished { fill-opacity: 0.45; }
+.marker-me { stroke: #fff; fill: #0ea5e9; filter: drop-shadow(0 0 6px rgb(14 165 233 / 0.8)); }
+.marker-cancelled { fill-opacity: 0.3; stroke-dasharray: 3 3; }
 
 /* Start-lights intro (Intro.tsx): lights on 0.5–2.1 s, out at 2.7 s, logo, fade out 3.5–4 s. */
 @layer components {
