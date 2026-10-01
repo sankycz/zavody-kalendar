@@ -14,6 +14,13 @@ export function monthHeading(iso: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+const monthShortFmt = new Intl.DateTimeFormat("cs-CZ", { month: "short" });
+
+/** "říj" */
+export function monthShort(iso: string): string {
+  return monthShortFmt.format(parse(iso)).replace(".", "");
+}
+
 export function monthKey(iso: string): string {
   return iso.slice(0, 7);
 }

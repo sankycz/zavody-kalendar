@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { EventListItem } from "../../src/shared/types.ts";
 import { placeLabel } from "./EventList.tsx";
 import { longDateRange } from "./format.ts";
-import { DISCIPLINE_LABEL, LEVEL_LABEL } from "./labels.ts";
+import { DisciplineBadge } from "./Badges.tsx";
+import { LEVEL_LABEL } from "./labels.ts";
 
 function startOf(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
@@ -25,9 +26,9 @@ function useNow(everyMs: number): number {
   return now;
 }
 
-function Unit({ value, label }: { value: number; label: string }) {
+function Unit({ value, label, glass }: { value: number; label: string; glass: boolean }) {
   return (
-    <div className="min-w-14 rounded-xl bg-white/15 px-2 py-1.5 text-center backdrop-blur">
+    <div className={`min-w-14 rounded-xl px-2 py-1.5 text-center backdrop-blur ${glass ? "bg-surface-2 ring-1 ring-glass-border ring-inset" : "bg-white/15"}`}>
       <div className="text-2xl leading-none font-extrabold tabular-nums">{value}</div>
       <div className="mt-1 text-[0.65rem] font-semibold tracking-wider uppercase opacity-85">{label}</div>
     </div>
@@ -36,21 +37,35 @@ function Unit({ value, label }: { value: number; label: string }) {
 
 const plural = (n: number, one: string, few: string, many: string) => (n === 1 ? one : n >= 2 && n <= 4 ? few : many);
 
-/** Highlighted card of the next race with a live countdown to its first day. */
-export function NextRace({ event }: { event: EventListItem }) {
+/** Live countdown to the first day of a race; null once it started. */
+export function Countdown({ date, glass = false }: { date: string; glass?: boolean }) {
   const now = useNow(1000);
-  const left = startOf(event.date_from) - now;
-  const running = left <= 0;
+  const left = startOf(date) - now;
+  if (left <= 0) return null;
   const d = Math.floor(left / 86_400_000);
   const h = Math.floor((left % 86_400_000) / 3_600_000);
   const m = Math.floor((left % 3_600_000) / 60_000);
   const s = Math.floor((left % 60_000) / 1000);
+  return (
+    <div className="flex gap-2" role="timer" aria-label={`Start za ${d} ${plural(d, "den", "dny", "dní")} a ${h} h`}>
+      <Unit glass={glass} value={d} label={plural(d, "den", "dny", "dní")} />
+      <Unit glass={glass} value={h} label="hod" />
+      <Unit glass={glass} value={m} label="min" />
+      <Unit glass={glass} value={s} label="s" />
+    </div>
+  );
+}
+
+/** Highlighted card of the next race with a live countdown to its first day. */
+export function NextRace({ event }: { event: EventListItem }) {
+  const now = useNow(60_000);
+  const running = startOf(event.date_from) <= now;
   const place = placeLabel(event);
 
   return (
     <a
       href={`/zavod/${event.id}`}
-      className="bg-racing group relative mb-5 block overflow-hidden rounded-3xl p-5 text-white shadow-xl shadow-accent/25 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-6"
+      className="bg-racing press shine group relative mb-5 block overflow-hidden rounded-3xl p-5 text-white shadow-xl shadow-accent/25 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-6"
     >
       {/* Checkered strip, a nod to the finish flag. */}
       <div
@@ -72,17 +87,12 @@ export function NextRace({ event }: { event: EventListItem }) {
           {place && <> · {place}</>}
         </p>
         <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 font-semibold">{DISCIPLINE_LABEL[event.discipline]}</span>
+          <DisciplineBadge d={event.discipline} onColor />
           <span className="rounded-full bg-white/20 px-2.5 py-0.5 font-semibold">{LEVEL_LABEL[event.level]}</span>
         </div>
-        {!running && (
-          <div className="mt-4 flex gap-2" role="timer" aria-label={`Start za ${d} ${plural(d, "den", "dny", "dní")} a ${h} h`}>
-            <Unit value={d} label={plural(d, "den", "dny", "dní")} />
-            <Unit value={h} label="hod" />
-            <Unit value={m} label="min" />
-            <Unit value={s} label="s" />
-          </div>
-        )}
+        <div className="mt-4">
+          <Countdown date={event.date_from} />
+        </div>
       </div>
     </a>
   );
