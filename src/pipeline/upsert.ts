@@ -1,5 +1,5 @@
 import { dedupeKey, mergeEvent, placeOf, preferredLocation, type MergeFields } from "./dedupe.ts";
-import type { NormalizedEvent, SourceRow } from "./schema.ts";
+import type { EventLinkInput, NormalizedEvent, SourceRow } from "./schema.ts";
 import type { GeoResult } from "./geocode.ts";
 
 export interface UpsertStats {
@@ -142,6 +142,25 @@ export async function upsertEvents(
       )
       .bind(eventId, source.id, source.url, e.raw_excerpt)
       .run();
+    await saveLinks(db, eventId, source.id, e.links);
   }
   return stats;
+}
+
+/**
+ * Replace a source's documents of an event with the current ones. A URL that
+ * another source of the event already links keeps that source's row.
+ */
+export async function saveLinks(db: D1Database, eventId: string, sourceId: string, links: EventLinkInput[]): Promise<void> {
+  await db.prepare("DELETE FROM event_links WHERE event_id = ? AND source_id = ?").bind(eventId, sourceId).run();
+  let position = 0;
+  for (const l of links) {
+    await db
+      .prepare(
+        `INSERT INTO event_links (event_id, source_id, url, label, kind, position) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (event_id, url) DO NOTHING`,
+      )
+      .bind(eventId, sourceId, l.url, l.label, l.kind, position++)
+      .run();
+  }
 }

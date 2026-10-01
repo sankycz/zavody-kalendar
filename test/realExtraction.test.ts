@@ -14,12 +14,10 @@ interface RealExtraction {
 }
 
 // Same priorities as the sources table after migrations/0004 (read from the DB below).
-const PRIORITY: Record<string, number> = Object.fromEntries(
-  (createTestDb().raw.prepare("SELECT id, priority FROM sources").all() as { id: string; priority: number }[]).map((r) => [
-    r.id,
-    r.priority,
-  ]),
-);
+const SOURCES = createTestDb().raw.prepare("SELECT id, priority, scope FROM sources").all() as { id: string; priority: number; scope: string }[];
+const PRIORITY: Record<string, number> = Object.fromEntries(SOURCES.map((r) => [r.id, r.priority]));
+// Organizer pages of one race (no date on the page) are covered by test/eventPage.test.ts.
+const EVENT_PAGES = new Set(SOURCES.filter((r) => r.scope === "event").map((r) => r.id));
 
 const fixturesDir = join(import.meta.dirname, "..", "fixtures");
 const real: { provider: string; data: RealExtraction }[] = readdirSync(fixturesDir, { withFileTypes: true })
@@ -32,6 +30,7 @@ const real: { provider: string; data: RealExtraction }[] = readdirSync(fixturesD
         data: JSON.parse(readFileSync(join(fixturesDir, d.name, f), "utf8")) as RealExtraction,
       })),
   )
+  .filter((r) => !EVENT_PAGES.has(r.data.source_id))
   .sort((a, b) => (PRIORITY[a.data.source_id] ?? 99) - (PRIORITY[b.data.source_id] ?? 99));
 
 describe.skipIf(real.length === 0)("real extraction fixtures", () => {

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import type { EventDetail as Detail } from "../../src/shared/types.ts";
+import type { EventDetail as Detail, EventLink, LinkKind } from "../../src/shared/types.ts";
 import { placeLabel, LEVEL_CLASS } from "./EventList.tsx";
 import { formatDate, formatTimestamp, longDateRange, relativeDay } from "./format.ts";
 import { eventToIcs } from "./ics.ts";
@@ -46,6 +46,52 @@ function OrganizerBox({ e }: { e: Detail }) {
         </a>
         {c.error && " (poslední pokus se nezdařil, platí dřívější zjištění)"}. Rozhoduje vždy informace pořadatele.
       </p>
+    </section>
+  );
+}
+
+/** Line icons (24×24, stroke) per kind of document. */
+const LINK_ICON: Record<LinkKind, string> = {
+  harmonogram: "M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
+  mapa: "M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14",
+  divaci: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm13 9v-1a4 4 0 0 0-3-3.87M16 4.13a3 3 0 0 1 0 5.74",
+  propozice: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 13h8M8 17h5",
+  plakat: "M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9h.01",
+  video: "m10 8 6 4-6 4V8ZM12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
+  jine: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1m2 5a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
+};
+
+/** Documents for spectators from the organizer: schedule, maps, regulations, poster. */
+function LinksBox({ links }: { links: EventLink[] }) {
+  if (links.length === 0) return null;
+  return (
+    <section aria-labelledby="links-title" className="glass mt-5 rounded-2xl p-4">
+      <h2 id="links-title" className="text-sm font-semibold tracking-wide text-muted uppercase">
+        Pro diváky
+      </h2>
+      <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {links.map((l) => (
+          <li key={l.url}>
+            <a
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="press flex min-h-12 items-center gap-3 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-glass-border transition-all ring-inset hover:brightness-110"
+            >
+              <span aria-hidden className="bg-racing grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white shadow-md shadow-accent/25">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={LINK_ICON[l.kind]} />
+                </svg>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold first-letter:uppercase">{l.label}</span>
+                <span className="block truncate text-xs text-muted">{hostOf(l.url)}</span>
+              </span>
+              <span aria-hidden className="text-muted">↗</span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -209,6 +255,8 @@ export function EventDetailPage({ id }: { id: string }) {
       ) : (
         <p className="mt-2 px-3 text-xs text-muted">Poloha závodu zatím není známá.</p>
       )}
+
+      <LinksBox links={e.links ?? []} />
 
       <OrganizerBox e={e} />
 

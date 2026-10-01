@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DISCIPLINES, LEVELS, STATUSES, type NormalizedEvent } from "./schema.ts";
+import { DISCIPLINES, LEVELS, LINK_KINDS, STATUSES, type EventLinkInput, type NormalizedEvent } from "./schema.ts";
 import { dedupeKey } from "./dedupe.ts";
 
 export type NormalizeResult =
@@ -135,6 +135,49 @@ export function normalizeUrl(v: string | null | undefined): string | null {
   }
 }
 
+const MAX_LINKS = 12;
+
+const LooseLink = z.object({
+  label: z.string().nullable().optional(),
+  url: z.string(),
+  kind: z.string().nullable().optional(),
+});
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/**
+ * Documents a race page links to that are worth showing (schedule, map,
+ * spectator areas, regulations, poster). Left out whatever lists people
+ * (start lists, lists of entered crews, results with names) and entry forms –
+ * the calendar stores no personal data and takes no registrations.
+ */
+const PEOPLE_OR_ENTRY = /startovn|listin|posad|prihlas|seznam|jezdc|vysledk|entry|result/;
+
+export function normalizeLinks(raw: unknown): EventLinkInput[] {
+  if (!Array.isArray(raw)) return [];
+  const out: EventLinkInput[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const r = LooseLink.safeParse(item);
+    if (!r.success) continue;
+    const url = normalizeUrl(r.data.url);
+    const label = cleanText(r.data.label, 80);
+    if (!url || !label || seen.has(url)) continue;
+    if (PEOPLE_OR_ENTRY.test(fold(`${label} ${safeDecode(url)}`))) continue;
+    const kind = mapEnum(r.data.kind ?? "jine", LINK_KINDS, {}) ?? "jine";
+    seen.add(url);
+    out.push({ label, url, kind });
+    if (out.length === MAX_LINKS) break;
+  }
+  return out;
+}
+
 const LooseItem = z.object({
   name: z.string(),
   date_from: z.string(),
@@ -150,6 +193,7 @@ const LooseItem = z.object({
   description: z.string().nullable().optional(),
   status: z.string().nullable().optional(),
   raw_excerpt: z.string().nullable().optional(),
+  links: z.unknown().optional(),
 });
 
 /**
@@ -210,6 +254,7 @@ export function normalizeEvent(raw: unknown, season: number): NormalizeResult {
       description: cleanText(r.description),
       status,
       raw_excerpt: cleanText(r.raw_excerpt, MAX_EXCERPT),
+      links: normalizeLinks(r.links),
       dedupe_key: dedupeKey(location_name, date_from, discipline),
     },
   };

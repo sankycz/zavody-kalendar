@@ -22,6 +22,8 @@ const SOURCES = [
   { id: "automotodrom-brno-2026", provider: "automotodrom-brno", kind: "html", url: "https://www.automotodrombrno.cz/kalendar-akci/" },
   // First page only (the source follows 7 pages of 15 events, see paging.ts).
   { id: "autoklub-podniky-2026", provider: "autoklub-podniky", kind: "html", url: "https://www.autoklub.cz/ostatni/kalendar-podniku/?id_sport=1212&termin_od=01.01.2026&termin_do=31.12.2026" },
+  // The organizer's page of one race (scope 'event'), see migrations/0011.
+  { id: "kbssped-2026", provider: "kbssped", kind: "html", url: "https://www.kbssped.cz/?page_id=34" },
 ] as const;
 
 const args = process.argv.slice(2);
