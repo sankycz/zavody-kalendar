@@ -275,7 +275,7 @@ export function App() {
     <div className="min-h-dvh">
       <Orbs />
       <Intro />
-      <header className="sticky top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <header data-app-header className="sticky top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="glass-strong mx-auto flex h-14 max-w-3xl items-center justify-between rounded-2xl pr-2 pl-4">
           <a href="/" className="flex items-center gap-2.5 font-bold tracking-tight">
             <span aria-hidden className="bg-racing grid h-8 w-8 place-items-center rounded-xl shadow-md shadow-accent/30">
