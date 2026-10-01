@@ -2,6 +2,8 @@ import type { Discipline, Level } from "../../src/shared/types.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL } from "./labels.ts";
 
 export type View = "list" | "map";
+/** "near" = by distance from the visitor (position kept in the browser, never in the URL). */
+export type Sort = "date" | "near";
 
 export interface Filters {
   discipline: Discipline[];
@@ -10,6 +12,7 @@ export interface Filters {
   from: string;
   to: string;
   view: View;
+  sort: Sort;
 }
 
 export const DISCIPLINES = Object.keys(DISCIPLINE_LABEL) as Discipline[];
@@ -34,6 +37,7 @@ export function parseFilters(params: URLSearchParams): Filters {
     from: date("from"),
     to: date("to"),
     view: params.get("view") === "map" ? "map" : "list",
+    sort: params.get("sort") === "near" ? "near" : "date",
   };
 }
 
@@ -45,6 +49,7 @@ function toParams(f: Filters, withView: boolean): URLSearchParams {
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
   if (withView && f.view === "map") p.set("view", "map");
+  if (withView && f.sort === "near") p.set("sort", "near");
   return p;
 }
 
@@ -60,13 +65,23 @@ export function eventsApiUrl(f: Filters): string {
   return q ? `/api/events?${q}` : "/api/events";
 }
 
-/** First day of the current season (calendar year); `from` = this means "whole season". */
-export function seasonStart(today = new Date()): string {
-  return `${today.getFullYear()}-01-01`;
+/** Date range of a whole season (calendar year). */
+export function seasonRange(year: number): { from: string; to: string } {
+  return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
+/** The season the filters show as a whole (set by the season switch), or null. */
+export function seasonOf(f: Pick<Filters, "from" | "to">): number | null {
+  const m = /^(\d{4})-01-01$/.exec(f.from);
+  if (!m) return null;
+  const year = Number(m[1]);
+  return f.to === "" || f.to === `${year}-12-31` ? year : null;
+}
+
+/** Filters the visitor set in the filter panel (the season switch isn't one of them). */
 export function activeFilterCount(f: Filters): number {
+  if (seasonOf(f) !== null) return f.discipline.length + f.level.length + (f.region ? 1 : 0);
   return f.discipline.length + f.level.length + (f.region ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0);
 }
 
-export const EMPTY_FILTERS: Filters = { discipline: [], level: [], region: "", from: "", to: "", view: "list" };
+export const EMPTY_FILTERS: Filters = { discipline: [], level: [], region: "", from: "", to: "", view: "list", sort: "date" };

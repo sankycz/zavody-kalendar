@@ -161,5 +161,66 @@
   .marker-regionalni { stroke: #fff; fill: var(--color-regionalni); }
   .marker-volny { stroke: #fff; fill: var(--color-volny); }
   .marker-finished { fill-opacity: 0.45; }
+  .marker-me { stroke: #fff; fill: #0ea5e9; filter: drop-shadow(0 0 6px rgb(14 165 233 / 0.8)); }
   .marker-cancelled { fill-opacity: 0.3; stroke-dasharray: 3 3; }
+}
+
+/* Start-lights intro (Intro.tsx): lights on 0.5–2.1 s, out at 2.7 s, logo, fade out 3.5–4 s. */
+@layer components {
+  .intro {
+    background:
+      radial-gradient(60vmax 60vmax at 50% 40%, rgb(225 29 46 / 0.22), transparent 70%),
+      #06070b;
+    animation: intro-out 0.5s ease-in 3.5s forwards;
+  }
+  .intro--reduced {
+    animation: intro-out 0.3s ease-in 0.6s forwards;
+  }
+  .intro-gantry {
+    background: linear-gradient(#1c1d24, #111218);
+    box-shadow: 0 20px 60px -20px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.06);
+    animation: intro-in 0.35s ease-out both;
+  }
+  .intro-light {
+    display: block;
+    width: clamp(1.75rem, 8vw, 2.75rem);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: #23242c;
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.6);
+    /* on, then off – the later animation wins once both have run */
+    animation:
+      intro-light-on 0.12s ease-out forwards,
+      intro-light-off 0.08s linear forwards;
+    animation-delay: 99s, 99s;
+  }
+  .intro-logo {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+    animation: intro-logo 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 2.8s forwards;
+  }
+  .intro--reduced .intro-logo {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes intro-in {
+  from { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes intro-light-on {
+  to {
+    background: radial-gradient(circle at 40% 35%, #ffb4b4, #ff2a2a 45%, #b0000e);
+    box-shadow: 0 0 22px 6px rgb(255 42 42 / 0.65), inset 0 -2px 4px rgb(0 0 0 / 0.3);
+  }
+}
+@keyframes intro-light-off {
+  to { background: #23242c; box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.6); }
+}
+@keyframes intro-logo {
+  to { opacity: 1; transform: none; }
+}
+@keyframes intro-out {
+  to { opacity: 0; visibility: hidden; }
 }

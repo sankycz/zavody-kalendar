@@ -1,10 +1,14 @@
-import { Suspense, lazy } from "react";
-import type { EventsResponse } from "../../src/shared/types.ts";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import type { EventListItem, EventsResponse } from "../../src/shared/types.ts";
 import { EventDetailPage } from "./EventDetail.tsx";
 import { EventList } from "./EventList.tsx";
 import { FilterBar } from "./FilterBar.tsx";
-import { activeFilterCount, eventsApiUrl, listHref, parseFilters, seasonStart, type Filters } from "./filters.ts";
+import { activeFilterCount, eventsApiUrl, listHref, parseFilters, seasonOf, seasonRange, type Filters } from "./filters.ts";
 import { formatTimestamp } from "./format.ts";
+import { distanceKm } from "./distance.ts";
+import { usePosition } from "./geo.ts";
+import { Intro } from "./Intro.tsx";
+import { NextRace, nextRace } from "./NextRace.tsx";
 import { navigate, useLocation } from "./router.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { useJson } from "./useJson.ts";
@@ -17,22 +21,24 @@ function count(n: number): string {
   return `${n} závodů`;
 }
 
-function ScopeToggle({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
-  const start = seasonStart();
-  const whole = filters.from === start;
+/** Upcoming, or a whole season – this year and any later one that already has races. */
+function ScopeToggle({ filters, seasons, onChange }: { filters: Filters; seasons: number[]; onChange: (f: Filters) => void }) {
+  const thisYear = new Date().getFullYear();
+  const years = [...new Set([thisYear, ...seasons.filter((y) => y >= thisYear)])].sort();
+  const current = seasonOf(filters);
   const opts = [
-    { key: "upcoming", label: "Nadcházející", on: !filters.from, from: "" },
-    { key: "season", label: `Celá sezóna ${start.slice(0, 4)}`, on: whole, from: start },
+    { key: "upcoming", label: "Nadcházející", on: !filters.from && !filters.to, range: { from: "", to: "" } },
+    ...years.map((y) => ({ key: String(y), label: `Sezóna ${y}`, on: current === y, range: seasonRange(y) })),
   ];
   return (
-    <div role="group" aria-label="Rozsah" className="glass flex rounded-full p-1">
+    <div role="group" aria-label="Rozsah" className="glass flex max-w-full overflow-x-auto rounded-full p-1">
       {opts.map((o) => (
         <button
           key={o.key}
           type="button"
           aria-pressed={o.on}
-          onClick={() => onChange({ ...filters, from: o.from })}
-          className={`min-h-8 rounded-full px-3.5 text-sm font-medium transition-all ${
+          onClick={() => onChange({ ...filters, ...o.range })}
+          className={`min-h-8 shrink-0 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-all ${
             o.on ? "bg-racing text-white shadow-md shadow-accent/30" : "text-muted hover:text-fg"
           }`}
         >
@@ -46,6 +52,44 @@ function ScopeToggle({ filters, onChange }: { filters: Filters; onChange: (f: Fi
 function ListPage({ filters }: { filters: Filters }) {
   const state = useJson<EventsResponse>(eventsApiUrl(filters));
   const onChange = (f: Filters) => navigate(listHref(f), { replace: true });
+  const geo = usePosition();
+  const [geoMessage, setGeoMessage] = useState<string | null>(null);
+
+  // Seasons stay known while the next filter loads.
+  const [seasons, setSeasons] = useState<number[]>([]);
+  useEffect(() => {
+    if (state.kind === "ready") setSeasons(state.data.seasons ?? []);
+  }, [state]);
+
+  // Arriving at ?sort=near in a new visit: ask for the position again.
+  useEffect(() => {
+    if (filters.sort === "near" && geo.state === "idle") void geo.request();
+  }, [filters.sort, geo]);
+
+  const toggleNear = async () => {
+    setGeoMessage(null);
+    if (filters.sort === "near") return onChange({ ...filters, sort: "date" });
+    const pos = await geo.request();
+    if (pos) onChange({ ...filters, sort: "near" });
+    else setGeoMessage("Polohu se nepodařilo zjistit. Povolte prosím přístup k poloze v prohlížeči.");
+  };
+
+  const near = filters.sort === "near" ? geo.pos : null;
+  const all = state.kind === "ready" ? state.data.events : [];
+  const distances = useMemo(() => {
+    if (!near) return undefined;
+    const m = new Map<string, number>();
+    for (const e of all) if (e.lat != null && e.lng != null) m.set(e.id, distanceKm(near, { lat: e.lat, lng: e.lng }));
+    return m;
+  }, [all, near]);
+  const events: EventListItem[] = useMemo(
+    () => (distances ? [...all].sort((a, b) => (distances.get(a.id) ?? Infinity) - (distances.get(b.id) ?? Infinity)) : all),
+    [all, distances],
+  );
+  const highlight =
+    state.kind === "ready" && filters.view === "list" && !near && !filters.from && !filters.to && activeFilterCount(filters) === 0
+      ? nextRace(all)
+      : null;
 
   return (
     <>
@@ -55,17 +99,24 @@ function ListPage({ filters }: { filters: Filters }) {
         </h1>
         <p className="mt-1.5 text-muted">Rally, vrchy, okruhy, autokros a slalom na jednom místě.</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <ScopeToggle filters={filters} onChange={onChange} />
+          <ScopeToggle filters={filters} seasons={seasons} onChange={onChange} />
           {state.kind === "ready" && (
             <span className="text-sm text-muted" aria-live="polite">
               {count(state.data.events.length)}
-              {activeFilterCount(filters) > (filters.from === seasonStart() ? 1 : 0) ? " podle filtrů" : ""}
+              {activeFilterCount(filters) > 0 ? " podle filtrů" : ""}
             </span>
           )}
         </div>
       </section>
 
-      <FilterBar filters={filters} onChange={onChange} />
+      {highlight && <NextRace event={highlight} />}
+
+      <FilterBar filters={filters} onChange={onChange} near={filters.sort === "near"} nearBusy={geo.state === "asking"} onToggleNear={toggleNear} />
+      {geoMessage && (
+        <p role="status" className="mt-2 px-1 text-sm text-accent">
+          {geoMessage}
+        </p>
+      )}
 
       {state.kind === "loading" && (
         <ul className="mt-5 space-y-2.5" aria-label="Načítám závody…">
@@ -84,7 +135,7 @@ function ListPage({ filters }: { filters: Filters }) {
 
       {state.kind === "ready" && (
         <div className="mt-5">
-          {state.data.events.length === 0 ? (
+          {events.length === 0 ? (
             <div className="glass rounded-2xl px-4 py-10 text-center text-muted">
               {activeFilterCount(filters) > 0
                 ? "Filtrům neodpovídá žádný závod."
@@ -94,10 +145,10 @@ function ListPage({ filters }: { filters: Filters }) {
           ) : filters.view === "map" ? (
             <>
               <Suspense fallback={<div className="glass h-[65dvh] rounded-2xl" />}>
-                <EventMap events={state.data.events} className="h-[65dvh] min-h-80" />
+                <EventMap events={events} me={near} className="h-[65dvh] min-h-80" />
               </Suspense>
               {(() => {
-                const missing = state.data.events.filter((e) => e.lat == null || e.lng == null).length;
+                const missing = events.filter((e) => e.lat == null || e.lng == null).length;
                 return missing > 0 ? (
                   <p className="mt-2 text-sm text-muted">
                     {count(missing)} bez známé polohy –{" "}
@@ -110,7 +161,7 @@ function ListPage({ filters }: { filters: Filters }) {
               })()}
             </>
           ) : (
-            <EventList events={state.data.events} />
+            <EventList events={events} {...(distances ? { distances } : {})} />
           )}
 
           {state.data.last_ingest_at && (
@@ -130,6 +181,7 @@ export function App() {
 
   return (
     <div className="min-h-dvh">
+      <Intro />
       <header className="sticky top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="glass-strong mx-auto flex h-14 max-w-3xl items-center justify-between rounded-2xl pr-2 pl-4">
           <a href="/" className="flex items-center gap-2.5 font-bold tracking-tight">

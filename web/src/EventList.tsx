@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { EventListItem, Level } from "../../src/shared/types.ts";
 import { dateRange, dayNumber, monthHeading, monthKey, relativeDay, weekdays } from "./format.ts";
+import { formatDistance } from "./distance.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL, countryLabel } from "./labels.ts";
 
 export const LEVEL_CLASS: Record<Level, string> = {
@@ -11,10 +12,12 @@ export const LEVEL_CLASS: Record<Level, string> = {
 };
 
 export function placeLabel(e: Pick<EventListItem, "location_name" | "region" | "country">): string {
-  return [e.location_name, e.country !== "CZ" ? countryLabel(e.country) : e.region].filter(Boolean).join(", ");
+  const area = e.country !== "CZ" ? countryLabel(e.country) : e.region;
+  // "Praha, Praha" → "Praha"
+  return [e.location_name, area && area !== e.location_name ? area : null].filter(Boolean).join(", ");
 }
 
-function EventCard({ e }: { e: EventListItem }) {
+function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
   const cancelled = e.status === "cancelled";
   const finished = e.status === "finished";
   const place = placeLabel(e);
@@ -37,7 +40,14 @@ function EventCard({ e }: { e: EventListItem }) {
           <span className={`mt-1 text-xs ${hot ? "text-white/85" : "text-muted"}`}>{weekdays(e.date_from, e.date_to)}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className={`font-semibold leading-snug ${cancelled ? "text-muted line-through" : ""}`}>{e.name}</h3>
+          <h3 className={`font-semibold leading-snug ${cancelled ? "text-muted line-through" : ""}`}>
+            {e.name}
+            {km !== undefined && (
+              <span className="ml-2 inline-block rounded-full bg-[#0ea5e9]/15 px-2 py-0.5 align-middle text-xs font-bold text-[#0284c7] dark:text-[#38bdf8]">
+                {formatDistance(km)}
+              </span>
+            )}
+          </h3>
           <p className="mt-0.5 text-sm text-muted">
             <span className="tabular-nums">{dateRange(e.date_from, e.date_to)}</span>
             {place && <> · {place}</>}
@@ -76,7 +86,11 @@ function EventCard({ e }: { e: EventListItem }) {
   );
 }
 
-export function EventList({ events }: { events: EventListItem[] }) {
+/**
+ * Races grouped by month; with `distances` (near me) one list in the given
+ * order, nearest first, each with its distance.
+ */
+export function EventList({ events, distances }: { events: EventListItem[]; distances?: Map<string, number> }) {
   const months = useMemo(() => {
     const groups = new Map<string, EventListItem[]>();
     for (const e of events) {
@@ -85,6 +99,16 @@ export function EventList({ events }: { events: EventListItem[] }) {
     }
     return [...groups.entries()];
   }, [events]);
+
+  if (distances) {
+    return (
+      <ul className="space-y-2.5" aria-label="Závody podle vzdálenosti">
+        {events.map((e) => (
+          <EventCard key={e.id} e={e} km={distances.get(e.id)} />
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <div className="space-y-7">
