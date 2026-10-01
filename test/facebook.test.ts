@@ -43,6 +43,12 @@ describe("facebookInput", () => {
     expect(fb.points.get("https://www.facebook.com/events/1617291233447981/")).toEqual({ lat: 49.75, lng: 16.6667, region: null, country: "CZ" });
   });
 
+  it("leaves out past events (the calendars cover them)", () => {
+    const fb = facebookInput([slalom, { ...slalom, url: "https://www.facebook.com/events/333/", isPast: true }], 2026);
+    expect(fb.skipped).toBe(1);
+    expect(fb.points.has("https://www.facebook.com/events/333/")).toBe(false);
+  });
+
   it("drops contact details and other seasons", () => {
     const fb = facebookInput([slalom, { ...slalom, url: "https://www.facebook.com/events/222/", utcStartDate: "2025-06-13T07:00:00.000Z" }], 2026);
     expect(fb.skipped).toBe(1);
