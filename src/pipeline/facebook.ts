@@ -18,6 +18,7 @@ export interface FbEvent {
   duration?: string | null;
   isCanceled?: boolean;
   isOnline?: boolean;
+  isPast?: boolean;
   description?: string | null;
   location?: {
     name?: string | null;
@@ -97,18 +98,23 @@ export interface FacebookInput {
   text: string;
   /** Facebook's coordinates by event URL and by folded event name. */
   points: Map<string, GeoResult>;
-  /** Events left out before the model (online, abroad, no place, other season). */
+  /** Events left out before the model (past, online, abroad, no place, other season). */
   skipped: number;
 }
 
-/** Events in the Czech Republic with a known place, as model input + their coordinates. */
+/**
+ * Upcoming events in the Czech Republic with a known place, as model input +
+ * their coordinates. Past events are left out: the organizers' calendars cover
+ * those, and Facebook's place and day often differ from them (the event of a
+ * rally sits at its service park, on its main day), so they'd come back as duplicates.
+ */
 export function facebookInput(items: FbEvent[], season: number): FacebookInput {
   const seen = new Set<string>();
   const kept: { e: FbEvent; url: string; date: string; lat: number; lng: number }[] = [];
   for (const e of items) {
     const url = normalizeUrl(e.url);
     const loc = e.location;
-    if (!url || !e.name || !e.utcStartDate || e.isOnline || seen.has(url)) continue;
+    if (!url || !e.name || !e.utcStartDate || e.isPast || e.isOnline || seen.has(url)) continue;
     if (loc?.countryCode !== "CZ" || typeof loc.latitude !== "number" || typeof loc.longitude !== "number") continue;
     const date = todayInPrague(new Date(e.utcStartDate));
     if (Number(date.slice(0, 4)) !== season) continue;
