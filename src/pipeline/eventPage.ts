@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { fold, normalizeLinks, normalizeUrl } from "./normalize.ts";
+import { sameRaceName } from "./dedupe.ts";
+import { normalizeLinks, normalizeUrl } from "./normalize.ts";
 import type { EventLinkInput, SourceRow } from "./schema.ts";
 import { saveLinks } from "./upsert.ts";
 
@@ -13,33 +14,7 @@ import { saveLinks } from "./upsert.ts";
  * without a date.
  */
 
-/** Words that say nothing about which race it is. */
-const STOP = new Set(["a", "v", "ve", "na", "u", "do", "z", "ze", "of", "the", "cz", "rocnik", "zavod", "zavody"]);
-
-/** Distinctive words of a race name: no diacritics, years, ordinals (XI., 11.) or stop words. */
-export function nameWords(name: string): Set<string> {
-  return new Set(
-    fold(name)
-      .split(/[^a-z0-9]+/)
-      .filter((w) => w.length > 1 && !/^\d+$/.test(w) && !/^[ivxlc]+$/.test(w) && !STOP.has(w)),
-  );
-}
-
-/**
- * Same race named in two places: most words of the shorter name appear in the
- * other one ('Podbrdské setkání Legend' ~ 'XI. Podbrdské setkání legend 2026'),
- * and at least two of them, so 'Rally Vsetín' doesn't match 'Rally Jizera'
- * and a one-word name matches nothing.
- */
-export function sameRaceName(a: string, b: string): boolean {
-  const wa = nameWords(a);
-  const wb = nameWords(b);
-  const shorter = wa.size <= wb.size ? wa : wb;
-  const longer = shorter === wa ? wb : wa;
-  let shared = 0;
-  for (const w of shorter) if (longer.has(w)) shared++;
-  return shared >= 2 && shared / shorter.size >= 0.75;
-}
+export { nameWords, sameRaceName } from "./dedupe.ts";
 
 const PageItem = z.object({
   name: z.string(),

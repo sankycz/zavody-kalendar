@@ -105,7 +105,7 @@ create table locations (
 3. Pošli text modelu (Workers AI / Claude API) a dostaň pole závodů podle schématu. Výstup validuj přes zod. Nevalidní položky zaloguj a přeskoč, celou dávku kvůli nim neshazuj.
 4. Normalizuj: datum na ISO, disciplínu a úroveň na hodnoty z výčtu, místo na název obce.
 5. Geokóduj přes cache.
-6. Deduplikuj. `dedupe_key` = normalizované místo + datum začátku + disciplína. Stejný závod z více zdrojů je jeden řádek v `events` a víc řádků v `event_sources`. Při konfliktu má přednost Autoklub ČR.
+6. Deduplikuj. `dedupe_key` = normalizované místo + datum začátku + disciplína. Stejný závod z více zdrojů je jeden řádek v `events` a víc řádků v `event_sources`. Při konfliktu má přednost Autoklub ČR. Když klíč nesedí: stejné místo a termín ±1 den (překlep v datu), nebo stejný název závodu (aspoň dvě společná slova) a termín ±1 den, i když se liší místo – pak vyhrává místo, které zdroj výslovně uvádí, před místem, které model odhadl z názvu (`statedIn`). Ručně sloučené duplicity (`POST /admin/merge?keep=&drop=`) a přesunuté závody si pamatují starý klíč v `event_aliases`, takže je zdroj se starým údajem nezaloží znovu.
 7. Upsert. Závod, který ze zdroje zmizel, nemaž. Nech ho a označ až ručně.
 
 Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, který nad ním pustí normalizaci a deduplikaci bez volání API.
@@ -130,6 +130,7 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 
 - Výchozí pohled je seznam nadcházejících závodů seřazený podle data.
 - Filtry: disciplína, úroveň, kraj, rozsah dat. Stav filtrů drž v URL, aby šel odkaz sdílet.
+- Fulltextové hledání (lupa v hlavičce, `?q=` v URL i v `/api/events`): všechna slova musí být v názvu, obci, kraji, seriálu, pořadateli nebo disciplíně, bez ohledu na diakritiku.
 - Mapa ukazuje stejnou množinu jako seznam.
 - Detail: všechna pole, odkazy na pořadatele a na všechny zdroje, čas poslední aktualizace.
 - Musí fungovat na mobilu, uživatel se na to bude dívat hlavně venku u trati. Světlý a tmavý režim.

@@ -101,6 +101,7 @@ export function FilterPanel({ filters, onChange }: { filters: Filters; onChange:
             ...EMPTY_FILTERS,
             view: filters.view,
             sort: filters.sort,
+            q: filters.q,
             // The season switch above isn't a filter: keep it.
             ...(seasonOf(filters) !== null ? { from: filters.from, to: filters.to } : {}),
           })

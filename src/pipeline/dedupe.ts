@@ -1,5 +1,10 @@
 import type { NormalizedEvent } from "./schema.ts";
 
+/** Lowercase ASCII without diacritics (same as normalize.ts fold, kept here to avoid an import cycle). */
+function fold(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 /** ASCII slug: 'Český Krumlov' -> 'cesky-krumlov'. */
 export function slug(s: string): string {
   return s
@@ -84,4 +89,45 @@ export function dedupeBatch(events: NormalizedEvent[]): NormalizedEvent[] {
     byKey.set(e.dedupe_key, { ...mergeEvent(prev, e, false), raw_excerpt: prev.raw_excerpt, links });
   }
   return [...byKey.values()];
+}
+
+/** Words that say nothing about which race it is. */
+const STOP = new Set(["a", "v", "ve", "na", "u", "do", "z", "ze", "of", "the", "cz", "rocnik", "zavod", "zavody"]);
+
+/** Distinctive words of a race name: no diacritics, years, ordinals (XI., 11.) or stop words. */
+export function nameWords(name: string): Set<string> {
+  return new Set(
+    fold(name)
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 1 && !/^\d+$/.test(w) && !/^[ivxlc]+$/.test(w) && !STOP.has(w)),
+  );
+}
+
+/**
+ * Same race named in two places: most words of the shorter name appear in the
+ * other one ('Podbrdské setkání Legend' ~ 'XI. Podbrdské setkání legend 2026'),
+ * and at least two of them, so 'Rally Vsetín' doesn't match 'Rally Jizera'
+ * and a one-word name matches nothing.
+ */
+export function sameRaceName(a: string, b: string): boolean {
+  const wa = nameWords(a);
+  const wb = nameWords(b);
+  const shorter = wa.size <= wb.size ? wa : wb;
+  const longer = shorter === wa ? wb : wa;
+  let shared = 0;
+  for (const w of shorter) if (longer.has(w)) shared++;
+  return shared >= 2 && shared / shorter.size >= 0.75;
+}
+
+/**
+ * The source names the place itself rather than the model guessing it:
+ * every word of the place starts a word of the excerpt with its first three
+ * letters ('Železný Brod' in "Rallye Jizera, Žel.Brod", 'Kyjov' in "…, Kyjov",
+ * but not 'Liberec' in "Rallye Jizera (https://…)").
+ */
+export function statedIn(location: string, excerpt: string | null): boolean {
+  if (!excerpt) return false;
+  const words = fold(location).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !["nad", "pod"].includes(w));
+  const starts = new Set(fold(excerpt).split(/[^a-z0-9]+/).filter(Boolean).map((w) => w.slice(0, 3)));
+  return words.length > 0 && words.every((w) => starts.has(w.slice(0, 3)));
 }

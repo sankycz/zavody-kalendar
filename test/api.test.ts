@@ -120,3 +120,22 @@ describe("pragueHour", () => {
     expect(pragueHour(new Date("2026-11-02T03:00:00Z"))).toBe(4);
   });
 });
+
+describe("full-text search", () => {
+  it("matches every word in name, place or discipline, without diacritics", async () => {
+    const { d1 } = await seeded();
+    const names = async (q: string) => (await listEvents(d1, { q }, "2026-01-01")).events.map((e) => e.name);
+    expect(await names("sternberk")).toEqual(["Hill"]);
+    expect(await names("autokros")).toEqual(["Cross"]);
+    expect(await names("RALLY klatovy")).toEqual(["Running now"]);
+    expect(await names("rally brno")).toEqual([]);
+    expect(await names("  ")).toHaveLength(4);
+  });
+
+  it("is a query parameter of /api/events", async () => {
+    const { d1 } = await seeded();
+    const res = await handleApi(new Request("https://x.cz/api/events?from=2026-01-01&q=P%C5%99erov"), d1);
+    expect(((await res.json()) as { events: { name: string }[] }).events.map((e) => e.name)).toEqual(["Cross"]);
+    expect((await handleApi(new Request(`https://x.cz/api/events?q=${"x".repeat(101)}`), d1)).status).toBe(400);
+  });
+});
