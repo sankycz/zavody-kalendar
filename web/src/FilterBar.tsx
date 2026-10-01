@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { RegionsResponse } from "../../src/shared/types.ts";
-import { DISCIPLINES, EMPTY_FILTERS, LEVELS, activeFilterCount, seasonStart, type Filters } from "./filters.ts";
+import { DISCIPLINES, EMPTY_FILTERS, LEVELS, activeFilterCount, seasonOf, type Filters } from "./filters.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL } from "./labels.ts";
 import { useJson } from "./useJson.ts";
 
@@ -28,11 +28,20 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 const fieldClass =
   "min-h-10 w-full rounded-xl border border-glass-border bg-glass-strong px-3 text-sm text-fg backdrop-blur focus:outline-2 focus:outline-accent";
 
-export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
+interface Props {
+  filters: Filters;
+  onChange: (f: Filters) => void;
+  /** Sorted by distance from the visitor. */
+  near: boolean;
+  /** Waiting for the browser's position. */
+  nearBusy: boolean;
+  onToggleNear: () => void;
+}
+
+export function FilterBar({ filters, onChange, near, nearBusy, onToggleNear }: Props) {
   const [open, setOpen] = useState(false);
   const regions = useJson<RegionsResponse>("/api/regions");
-  // The season toggle above sets `from` too; it isn't counted as a filter here.
-  const count = activeFilterCount(filters) - (filters.from === seasonStart() ? 1 : 0);
+  const count = activeFilterCount(filters);
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const regionOptions = regions.kind === "ready" ? regions.data.regions : [];
 
@@ -55,6 +64,25 @@ export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (
           )}
         </button>
 
+        <button
+          type="button"
+          aria-pressed={near}
+          onClick={onToggleNear}
+          disabled={nearBusy}
+          className={`flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold transition-colors ${
+            near ? "bg-racing text-white shadow-md shadow-accent/25" : "hover:bg-surface-2"
+          } ${nearBusy ? "opacity-60" : ""}`}
+          title="Seřadit podle vzdálenosti od vás"
+        >
+          <svg aria-hidden viewBox="0 0 24 24" className={`h-4 w-4 ${nearBusy ? "animate-pulse" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            <circle cx="12" cy="12" r="6.5" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+          </svg>
+          <span className="hidden sm:inline">Blízko mě</span>
+          <span className="sm:hidden">Blízko</span>
+        </button>
+
         <div role="group" aria-label="Zobrazení" className="ml-auto flex rounded-xl bg-surface-2 p-1">
           {(["list", "map"] as const).map((v) => (
             <button
@@ -69,7 +97,7 @@ export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (
               <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 {v === "list" ? <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /> : <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14" />}
               </svg>
-              {v === "list" ? "Seznam" : "Mapa"}
+              <span className="sr-only sm:not-sr-only">{v === "list" ? "Seznam" : "Mapa"}</span>
             </button>
           ))}
         </div>
@@ -133,7 +161,15 @@ export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (
           {count > 0 && (
             <button
               type="button"
-              onClick={() => onChange({ ...EMPTY_FILTERS, view: filters.view, from: filters.from === seasonStart() ? filters.from : "" })}
+              onClick={() =>
+                onChange({
+                  ...EMPTY_FILTERS,
+                  view: filters.view,
+                  sort: filters.sort,
+                  // The season switch above isn't a filter: keep it.
+                  ...(seasonOf(filters) !== null ? { from: filters.from, to: filters.to } : {}),
+                })
+              }
               className="text-sm font-medium text-accent underline-offset-2 hover:underline"
             >
               Zrušit všechny filtry

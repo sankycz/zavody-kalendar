@@ -42,6 +42,8 @@ export interface EventsResponse {
   events: EventListItem[];
   /** Latest successful fetch of any source (ISO), null before the first run. */
   last_ingest_at: string | null;
+  /** Seasons (years) that have races in the calendar, ascending – for the season switch (absent from older API versions). */
+  seasons?: number[];
 }
 
 export interface EventSourceLink {

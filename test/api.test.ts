@@ -32,6 +32,13 @@ describe("listEvents", () => {
     expect(r.events[0]!.source_count).toBe(1);
   });
 
+  it("lists the seasons that have races in CZ, whatever the filter", async () => {
+    const { d1, raw } = await seeded();
+    raw.exec("UPDATE events SET date_from = '2027-03-01', date_to = NULL WHERE name = 'Cross'");
+    raw.exec("UPDATE events SET date_from = '2028-03-01', date_to = NULL, country = 'AT' WHERE name = 'Hill'");
+    expect((await listEvents(d1, { discipline: ["rally"] }, "2026-05-02")).seasons).toEqual([2026, 2027]);
+  });
+
   it("lists only races in the Czech Republic", async () => {
     const { d1, raw } = await seeded();
     raw.exec("UPDATE events SET country = 'DE' WHERE name = 'Hill'");

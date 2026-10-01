@@ -1,0 +1,31 @@
+import { describe, expect, it } from "vitest";
+import { EMPTY_FILTERS, activeFilterCount, listHref, parseFilters, seasonOf, seasonRange } from "../web/src/filters.ts";
+import { distanceKm, formatDistance } from "../web/src/distance.ts";
+
+describe("season switch", () => {
+  it("recognizes a whole season and doesn't count it as a filter", () => {
+    const f = { ...EMPTY_FILTERS, ...seasonRange(2027) };
+    expect(seasonOf(f)).toBe(2027);
+    expect(activeFilterCount(f)).toBe(0);
+    expect(activeFilterCount({ ...f, discipline: ["rally"] })).toBe(1);
+    expect(seasonOf({ from: "2026-01-01", to: "" })).toBe(2026);
+    expect(seasonOf({ from: "2026-03-01", to: "2026-12-31" })).toBeNull();
+    expect(activeFilterCount({ ...EMPTY_FILTERS, from: "2026-03-01" })).toBe(1);
+  });
+
+  it("keeps the near-me sort in the URL, not the position", () => {
+    const href = listHref({ ...EMPTY_FILTERS, sort: "near", view: "map" });
+    expect(href).toBe("/?view=map&sort=near");
+    expect(parseFilters(new URL(`https://x.cz${href}`).searchParams)).toMatchObject({ sort: "near", view: "map" });
+  });
+});
+
+describe("distance", () => {
+  it("measures Prague – Brno and formats it", () => {
+    const km = distanceKm({ lat: 50.08, lng: 14.42 }, { lat: 49.2, lng: 16.61 });
+    expect(km).toBeGreaterThan(180);
+    expect(km).toBeLessThan(190);
+    expect(formatDistance(km)).toMatch(/^18\d km$/);
+    expect(formatDistance(0.83)).toBe("850 m");
+  });
+});

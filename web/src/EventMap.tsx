@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type { EventListItem } from "../../src/shared/types.ts";
 import { dateRange } from "./format.ts";
+import type { Position } from "./distance.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL } from "./labels.ts";
 
 type MapEvent = Pick<
@@ -37,7 +38,18 @@ function popupHtml(events: MapEvent[], linkToDetail: boolean): string {
  * Leaflet + OSM map of events. Events at the same point share one marker with
  * a popup listing all of them. `single` = detail page (one event, no links).
  */
-export default function EventMap({ events, single = false, className = "" }: { events: MapEvent[]; single?: boolean; className?: string }) {
+export default function EventMap({
+  events,
+  single = false,
+  me = null,
+  className = "",
+}: {
+  events: MapEvent[];
+  single?: boolean;
+  /** The visitor's position ("near me"): shown and kept in view. */
+  me?: Position | null;
+  className?: string;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -87,9 +99,16 @@ export default function EventMap({ events, single = false, className = "" }: { e
         .addTo(g);
     }
 
-    if (points.length === 1) m.setView(points[0]!, single ? 12 : 10);
+    if (me) {
+      L.circleMarker([me.lat, me.lng], { radius: 8, weight: 3, fillOpacity: 1, className: "marker-me" })
+        .bindTooltip("Vy", { direction: "top", offset: [0, -8] })
+        .addTo(g);
+      // Around the visitor: the nearest races rather than the whole country.
+      const nearest = [...points].sort((a, b) => Math.hypot(a[0] - me.lat, a[1] - me.lng) - Math.hypot(b[0] - me.lat, b[1] - me.lng));
+      m.fitBounds([[me.lat, me.lng], ...nearest.slice(0, 5)], { padding: [32, 32], maxZoom: 10 });
+    } else if (points.length === 1) m.setView(points[0]!, single ? 12 : 10);
     else if (points.length > 1) m.fitBounds(points, { padding: [24, 24], maxZoom: 11 });
-  }, [events, single]);
+  }, [events, single, me]);
 
   return <div ref={el} className={`glass z-0 overflow-hidden rounded-2xl ${className}`} />;
 }

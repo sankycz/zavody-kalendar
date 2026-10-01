@@ -56,7 +56,7 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
     params.push(q.region);
   }
 
-  const [events, meta] = await Promise.all([
+  const [events, meta, seasons] = await Promise.all([
     db
       .prepare(
         `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
@@ -72,9 +72,12 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
       .bind(...params)
       .all<EventListItem>(),
     db.prepare("SELECT MAX(last_fetched_at) AS last FROM sources").first<{ last: string | null }>(),
+    db
+      .prepare("SELECT DISTINCT CAST(substr(date_from, 1, 4) AS INTEGER) AS year FROM events WHERE country = 'CZ' ORDER BY year")
+      .all<{ year: number }>(),
   ]);
 
-  return { events: events.results, last_ingest_at: meta?.last ?? null };
+  return { events: events.results, last_ingest_at: meta?.last ?? null, seasons: seasons.results.map((r) => r.year) };
 }
 
 export async function getEvent(db: D1Database, id: string): Promise<EventDetail | null> {
