@@ -142,9 +142,10 @@ export function EventDetailPage({ id }: { id: string }) {
     <article className="pt-4">
       {back}
 
-      {/* The place on the map, the race's glass card over it. */}
+      {/* The place on the map, fading out at the bottom into the race's glass card –
+          no hard map edge running through the card. */}
       {hasPoint && (
-        <div className="relative mt-2 h-60 sm:h-72">
+        <div className="relative mt-2 h-64 [mask-image:linear-gradient(to_bottom,black_50%,transparent_96%)] sm:h-80">
           <Suspense fallback={<div className="glass h-full rounded-3xl" />}>
             <EventMap events={[e]} single className="h-full w-full rounded-3xl" />
           </Suspense>
@@ -152,7 +153,7 @@ export function EventDetailPage({ id }: { id: string }) {
       )}
       <header
         style={{ ...disciplineStyle(e.discipline), viewTransitionName: `event-${e.id}` }}
-        className={`glass-strong card-glow relative z-10 rounded-3xl p-5 sm:p-6 ${hasPoint ? "mx-2 -mt-16 sm:mx-5" : "mt-2"}`}
+        className={`glass-strong card-glow relative z-10 rounded-3xl p-5 sm:p-6 ${hasPoint ? "mx-2 -mt-14 sm:mx-5" : "mt-2"}`}
       >
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <DisciplineBadge d={e.discipline} />
