@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect } from "react";
-import type { EventDetail as Detail, EventLink, LinkKind } from "../../src/shared/types.ts";
+import type { EventDetail as Detail, EventLink, LinkKind, StagesInfo } from "../../src/shared/types.ts";
 import { placeLabel, LEVEL_CLASS } from "./EventList.tsx";
-import { formatDate, formatTimestamp, longDateRange, relativeDay } from "./format.ts";
+import { dateRange, formatDate, formatTimestamp, longDateRange, relativeDay, weekdays } from "./format.ts";
 import { googleCalendarUrl } from "../../src/shared/calendar.ts";
 import { DisciplineBadge, disciplineStyle } from "./Badges.tsx";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
@@ -15,6 +15,7 @@ import { docUrl, todayInPrague } from "./offline/plan.ts";
 import { liveParts, liveWindow } from "./live.ts";
 import { RaceSteps, SwipeCard } from "./Swipe.tsx";
 import { useJson } from "./useJson.ts";
+import { closesRoads, closureDoc, shortTime, stageDays } from "./closures.ts";
 
 const EventMap = lazy(() => import("./EventMap.tsx"));
 
@@ -68,11 +69,113 @@ const LINK_ICON: Record<LinkKind, string> = {
   jine: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1m2 5a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
 };
 
-/** Documents for spectators from the organizer: schedule, maps, regulations, poster. */
-function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
+/** Link props for an organizer's document: without a signal a stored one opens from the phone (our copy, src/docs.ts). */
+function useDocLink(eventId: string) {
   const offline = useOfflineState();
   const online = useOnline();
   const saved = new Set(offline?.state.races[eventId]?.docs ?? []);
+  return (url: string) =>
+    !online && saved.has(url)
+      ? { href: docUrl(eventId, url), "data-native": "" }
+      : { href: url, target: "_blank", rel: "noopener noreferrer" };
+}
+
+/** Rally stages and hill climbs close public roads for hours; navigation apps don't know. */
+function ClosuresBox({ e }: { e: Detail }) {
+  const docLink = useDocLink(e.id);
+  if (!closesRoads(e)) return null;
+  if (e.stages) return <StagesBox e={e} stages={e.stages} docLink={docLink} />;
+  const doc = closureDoc(e.links ?? []);
+  const stages = e.discipline === "vrch" ? "Silnice s tratí je" : "Silnice na rychlostních zkouškách jsou";
+  return (
+    <section aria-labelledby="closures-title" className={closuresBoxClass}>
+      <h2 id="closures-title" className="font-semibold text-accent">
+        <span aria-hidden>⚠ </span>Uzavřené silnice
+      </h2>
+      <p className="mt-1 text-sm">
+        {stages} uzavřené často už několik hodin před startem a až do konce, i mezi průjezdy. Navigace o uzavírkách obvykle neví
+        a vede jen do obce závodu. Na místo dorazte s rezervou a počítejte s tím, že mezi průjezdy z uzavřeného úseku neodjedete.
+      </p>
+      {doc ? (
+        <a {...docLink(doc.url)} className={closuresLinkClass}>
+          Uzavírky a příjezd podle pořadatele: <span className="first-letter:uppercase">{doc.label}</span> ↗
+        </a>
+      ) : e.website_url ? (
+        <a href={e.website_url} target="_blank" rel="noopener noreferrer" className={closuresLinkClass}>
+          Časy uzavírek hledejte na webu pořadatele ↗
+        </a>
+      ) : (
+        <p className="mt-2 text-sm text-muted">Časy uzavírek zveřejňuje pořadatel v informacích pro diváky.</p>
+      )}
+    </section>
+  );
+}
+
+const closuresBoxClass = "mt-5 rounded-2xl border border-accent/60 bg-accent/10 p-4 backdrop-blur";
+const closuresLinkClass = "mt-2 inline-block text-sm font-semibold text-pohar underline underline-offset-2";
+
+/** Stages (RZ) with start of the first car and closure times, read from the organizer's document. */
+function StagesBox({ e, stages, docLink }: { e: Detail; stages: StagesInfo; docLink: (url: string) => React.AnchorHTMLAttributes<HTMLAnchorElement> }) {
+  const withClosures = stages.items.some((s) => s.closed_from);
+  const days = stageDays(stages.items);
+  const docLabel = e.links?.find((l) => l.url === stages.doc_url)?.label ?? hostOf(stages.doc_url);
+  return (
+    <section aria-labelledby="closures-title" className={closuresBoxClass}>
+      <h2 id="closures-title" className="font-semibold text-accent">
+        <span aria-hidden>⚠ </span>
+        {e.discipline === "vrch" ? "Trať a uzavírka silnice" : "Rychlostní zkoušky a uzavírky"}
+      </h2>
+      <p className="mt-1 text-sm">
+        {withClosures
+          ? "V uvedených časech je silnice zavřená, i mezi průjezdy. "
+          : "Silnice se zavírá s předstihem před startem prvního vozu a otevírá až po posledním průjezdu. "}
+        Navigace o uzavírkách neví, cestu plánujte podle tohoto přehledu.
+      </p>
+      {days.map((d) => (
+        <div key={d.date ?? "?"} className="mt-3">
+          {(days.length > 1 || d.date !== e.date_from || e.date_to) && d.date && (
+            <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">
+              {weekdays(d.date, null)} {dateRange(d.date, null)}
+            </h3>
+          )}
+          <ul className="mt-1 divide-y divide-border">
+            {d.items.map((s, i) => (
+              <li key={i} className="flex items-baseline gap-3 py-1.5 text-sm">
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold">{s.name}</span>
+                  {s.length_km != null && <span className="text-muted"> · {s.length_km.toLocaleString("cs-CZ")} km</span>}
+                  {s.closed_from && (
+                    <span className="block text-xs">
+                      uzavřeno {shortTime(s.closed_from)}
+                      {s.closed_to ? `–${shortTime(s.closed_to)}` : ""}
+                    </span>
+                  )}
+                </span>
+                {s.first_car && (
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className="block font-semibold">{shortTime(s.first_car)}</span>
+                    <span className="block text-xs text-muted">1. vůz</span>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <p className="mt-2 text-xs text-muted">
+        Automaticky přečteno {formatTimestamp(stages.checked_at)} z dokumentu{" "}
+        <a {...docLink(stages.doc_url)} className="underline underline-offset-2">
+          {docLabel}
+        </a>
+        . Rozhoduje vždy informace pořadatele.
+      </p>
+    </section>
+  );
+}
+
+/** Documents for spectators from the organizer: schedule, maps, regulations, poster. */
+function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
+  const docLink = useDocLink(eventId);
   if (links.length === 0) return null;
   return (
     <section aria-labelledby="links-title" className="glass mt-5 rounded-2xl p-4">
@@ -82,10 +185,8 @@ function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
       <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {links.map((l) => (
           <li key={l.url} className="flex">
-            {/* Without a signal a stored document opens from the phone (our copy, src/docs.ts). */}
             <a
-              href={!online && saved.has(l.url) ? docUrl(eventId, l.url) : l.url}
-              {...(!online && saved.has(l.url) ? { "data-native": "" } : { target: "_blank", rel: "noopener noreferrer" })}
+              {...docLink(l.url)}
               className="press flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-glass-border transition-all ring-inset hover:brightness-110"
             >
               <span aria-hidden className="bg-racing grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white shadow-md shadow-accent/25">
@@ -302,6 +403,8 @@ export function EventDetailPage({ id }: { id: string }) {
       ) : (
         <p className="mt-2 px-3 text-xs text-muted">Poloha závodu zatím není známá.</p>
       )}
+
+      <ClosuresBox e={e} />
 
       <LinksBox eventId={e.id} links={e.links ?? []} />
 

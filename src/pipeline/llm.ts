@@ -7,7 +7,12 @@ import { z } from "zod";
  * `schema` out. Two backends, picked by EXTRACTOR in wrangler.jsonc:
  * Claude API (claude) and Cloudflare Workers AI (workers-ai).
  */
-export type ContentPart = { type: "text"; text: string } | { type: "pdf"; data: Uint8Array };
+export type ImageType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+export type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "pdf"; data: Uint8Array }
+  /** Both backends read images (Workers AI: vision models such as Llama 4 Scout). */
+  | { type: "image"; data: Uint8Array; mediaType: ImageType };
 
 export interface JsonRequest<S extends z.ZodType> {
   system: string;
@@ -66,7 +71,9 @@ export function claudeModel(client: MessagesClient, model: string): JsonModel {
             content: req.content.map((c): Anthropic.ContentBlockParam =>
               c.type === "pdf"
                 ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: toBase64(c.data) } }
-                : { type: "text", text: c.text },
+                : c.type === "image"
+                  ? { type: "image", source: { type: "base64", media_type: c.mediaType, data: toBase64(c.data) } }
+                  : { type: "text", text: c.text },
             ),
           },
         ],
@@ -129,9 +136,12 @@ export function workersAiModel(ai: AiBinding, model: string): JsonModel {
     pdfToText,
     async json(req) {
       const parts: string[] = [];
+      const images: { type: "image_url"; image_url: { url: string } }[] = [];
       for (const c of req.content) {
-        parts.push(c.type === "text" ? c.text : `<source>\n${await pdfToText(c.data)}\n</source>`);
+        if (c.type === "image") images.push({ type: "image_url", image_url: { url: `data:${c.mediaType};base64,${toBase64(c.data)}` } });
+        else parts.push(c.type === "text" ? c.text : `<source>\n${await pdfToText(c.data)}\n</source>`);
       }
+      const text = parts.join("\n\n");
       let out: WorkersAiOutput;
       try {
         out = (await ai.run(model, {
@@ -139,7 +149,7 @@ export function workersAiModel(ai: AiBinding, model: string): JsonModel {
           // Workers AI is several times slower and long lists then time out (3046).
           messages: [
             { role: "system", content: `${req.system}\n\n${jsonInstruction(req.schema)}` },
-            { role: "user", content: parts.join("\n\n") },
+            { role: "user", content: images.length ? [...images, { type: "text", text }] : text },
           ],
           // Workers AI models have far smaller context windows than Claude.
           max_tokens: Math.min(req.maxTokens, 16_000),

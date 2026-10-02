@@ -71,6 +71,25 @@ export interface EventDetail extends EventListItem {
   organizer_check: OrganizerCheckInfo | null;
   /** Race-day view: where to follow the race (absent from older API versions). */
   live?: LiveLinks;
+  /** Stages and road closures from the organizer's documents; null when no document gives them (absent from older API versions). */
+  stages?: StagesInfo | null;
+}
+
+/** One run of a stage (RZ). Times HH:MM local; closure only when the document states it. */
+export interface StageInfo {
+  name: string;
+  date: string | null;
+  first_car: string | null;
+  closed_from: string | null;
+  closed_to: string | null;
+  length_km: number | null;
+}
+
+export interface StagesInfo {
+  /** The organizer's document the stages were read from. */
+  doc_url: string;
+  checked_at: string;
+  items: StageInfo[];
 }
 
 /** A link for following a race live. We only point there, results stay on that site. */
