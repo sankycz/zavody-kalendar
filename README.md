@@ -25,6 +25,10 @@ Web je PWA: jde nainstalovat na plochu a service worker (`web/sw/sw.ts`, jen v p
 
 ## Nasazení stahovacího Workeru
 
+Web i Worker se nasazují samy: Cloudflare Workers Builds je propojený s GitHubem a po každé změně ve větvi `main` spustí `npm run deploy`. Změnu schématu databáze (nová migrace) je potřeba aplikovat zvlášť, před sloučením: `npm run db:migrate`.
+
+Ruční nasazení a první nastavení:
+
 ```bash
 npx wrangler login
 # Extrakce běží ve výchozím stavu přes Workers AI (EXTRACTOR v wrangler.jsonc), klíč netřeba.
