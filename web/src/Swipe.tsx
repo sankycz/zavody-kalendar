@@ -58,7 +58,7 @@ export function SwipeCard({ prev, next, children }: { prev: RaceRef | null; next
       const t = e.target as Element;
       // The whole screen of the detail swipes (also the margins beside the card), except the
       // map, form fields and the app header.
-      if (t.closest(".leaflet-container, input, select, textarea, [data-app-header]")) return;
+      if (t.closest(".maplibregl-map, input, select, textarea, [data-app-header]")) return;
       start = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
       mode = "undecided";
       dx = 0;

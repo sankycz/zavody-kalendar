@@ -1,17 +1,16 @@
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EventListItem } from "../../src/shared/types.ts";
 import { dateRange } from "./format.ts";
 import type { Position } from "./distance.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, ORGANIZER_FLAG_LABEL } from "./labels.ts";
+import { createMap, maplibregl } from "./maplibre.ts";
 
 type MapEvent = Pick<
   EventListItem,
   "id" | "name" | "date_from" | "date_to" | "discipline" | "level" | "status" | "lat" | "lng" | "organizer_flag"
 >;
 
-const CZ_CENTER: L.LatLngTuple = [49.8, 15.5];
+const CZ_CENTER: [number, number] = [15.5, 49.8];
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -34,9 +33,19 @@ function popupHtml(events: MapEvent[], linkToDetail: boolean): string {
     .join("");
 }
 
+/** Round marker (HTML, so it survives a style switch light ↔ dark); colour by level. */
+function markerEl(className: string, size: number, label: string): HTMLElement {
+  const el = document.createElement("div");
+  el.className = `map-marker ${className}`;
+  el.style.setProperty("--size", `${size}px`);
+  el.setAttribute("aria-label", label);
+  return el;
+}
+
 /**
- * Leaflet + OSM map of events. Events at the same point share one marker with
- * a popup listing all of them. `single` = detail page (one event, no links).
+ * Vector map of events (MapLibre GL, OpenFreeMap). Events at the same point
+ * share one marker with a popup listing all of them. `single` = detail page
+ * (one event, no links).
  */
 export default function EventMap({
   events,
@@ -72,44 +81,42 @@ export default function EventMap({
   className?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const layer = useRef<L.LayerGroup | null>(null);
-  const markers = useRef(new Map<string, L.CircleMarker>());
+  const map = useRef<maplibregl.Map | null>(null);
+  const markers = useRef(new Map<string, maplibregl.Marker>());
+  const all = useRef<maplibregl.Marker[]>([]);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!el.current) return;
-    const m = L.map(el.current, {
-      scrollWheelZoom: interactive && !single,
-      zoomControl: interactive,
-      dragging: interactive,
-      touchZoom: interactive,
-      doubleClickZoom: interactive,
-      boxZoom: interactive,
-      keyboard: interactive,
-      attributionControl: true,
-    }).setView(CZ_CENTER, 7);
-    if (interactive && fullscreen) m.zoomControl.setPosition("topright");
-    // Detail header: the race's card covers the map's bottom edge; keep the OSM credit visible.
-    if (single) m.attributionControl.setPosition("topright");
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-    }).addTo(m);
+    const created = createMap(el.current, {
+      center: CZ_CENTER,
+      zoom: 6,
+      interactive,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      cooperativeGestures: false,
+      scrollZoom: interactive && !single,
+    });
+    if (!created) return setFailed(true);
+    const m = created.map;
+    m.touchZoomRotate.disableRotation();
+    m.addControl(new maplibregl.AttributionControl({ compact: true }), single || fullscreen ? "top-right" : "bottom-right");
+    if (interactive) m.addControl(new maplibregl.NavigationControl({ showCompass: false }), fullscreen ? "top-right" : "top-left");
     map.current = m;
-    layer.current = L.layerGroup().addTo(m);
     return () => {
-      m.remove();
+      created.dispose();
       map.current = null;
     };
   }, [single, interactive, fullscreen]);
 
   useEffect(() => {
     const m = map.current;
-    const g = layer.current;
-    if (!m || !g) return;
-    g.clearLayers();
+    if (!m) return;
+    for (const mk of all.current) mk.remove();
+    all.current = [];
     markers.current.clear();
 
     const byPoint = new Map<string, MapEvent[]>();
@@ -119,53 +126,62 @@ export default function EventMap({
       byPoint.set(k, [...(byPoint.get(k) ?? []), e]);
     }
 
-    const points: L.LatLngTuple[] = [];
+    const points: [number, number][] = [];
     for (const group of byPoint.values()) {
       const first = group[0]!;
-      const pt: L.LatLngTuple = [first.lat!, first.lng!];
+      const pt: [number, number] = [first.lng!, first.lat!];
       points.push(pt);
-      const marker = L.circleMarker(pt, {
-        radius: single ? 10 : group.length > 1 ? 9 : 7,
-        weight: 2,
-        fillOpacity: 0.85,
-        interactive,
-        className: `marker-${first.level}${
-          group.every((e) => e.status === "cancelled") ? " marker-cancelled" : group.every((e) => e.status === "finished") ? " marker-finished" : ""
-        }`,
-      });
-      if (onSelectRef.current) marker.on("click", () => onSelectRef.current?.(first.id));
-      else if (interactive) marker.bindPopup(popupHtml(group, !single), { maxWidth: 280 });
-      marker.addTo(g);
+      const state = group.every((e) => e.status === "cancelled") ? " marker-cancelled" : group.every((e) => e.status === "finished") ? " marker-finished" : "";
+      const size = single ? 20 : group.length > 1 ? 18 : 14;
+      const node = markerEl(`marker-${first.level}${state}${interactive ? " is-interactive" : ""}`, size, group.map((e) => e.name).join(", "));
+      const marker = new maplibregl.Marker({ element: node }).setLngLat(pt).addTo(m);
+      if (onSelectRef.current) {
+        node.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          onSelectRef.current?.(first.id);
+        });
+      } else if (interactive) {
+        marker.setPopup(new maplibregl.Popup({ offset: size / 2 + 4, maxWidth: "280px", closeButton: true }).setHTML(popupHtml(group, !single)));
+      }
+      all.current.push(marker);
       for (const e of group) markers.current.set(e.id, marker);
     }
 
-    const pad = { paddingTopLeft: [32, padding.top] as L.PointTuple, paddingBottomRight: [32, padding.bottom] as L.PointTuple };
+    const pad = { top: padding.top, bottom: padding.bottom, left: 32, right: 32 };
     if (me) {
-      L.circleMarker([me.lat, me.lng], { radius: 8, weight: 3, fillOpacity: 1, className: "marker-me" })
-        .bindTooltip("Vy", { direction: "top", offset: [0, -8] })
-        .addTo(g);
+      const node = markerEl("marker-me", 16, "Vaše poloha");
+      all.current.push(new maplibregl.Marker({ element: node }).setLngLat([me.lng, me.lat]).addTo(m));
       // Around the visitor: the nearest races rather than the whole country.
-      const nearest = [...points].sort((a, b) => Math.hypot(a[0] - me.lat, a[1] - me.lng) - Math.hypot(b[0] - me.lat, b[1] - me.lng));
-      m.fitBounds([[me.lat, me.lng], ...nearest.slice(0, 5)], { ...pad, maxZoom: 10 });
-    } else if (points.length === 1) m.setView(points[0]!, single ? 11 : 10);
-    else if (points.length > 1) m.fitBounds(points, { ...pad, maxZoom: 11 });
+      const nearest = [...points].sort((a, b) => Math.hypot(a[1] - me.lat, a[0] - me.lng) - Math.hypot(b[1] - me.lat, b[0] - me.lng));
+      fit(m, [[me.lng, me.lat], ...nearest.slice(0, 5)], pad, 10);
+    } else if (points.length === 1) m.jumpTo({ center: points[0]!, zoom: single ? 11 : 10 });
+    else if (points.length > 1) fit(m, points, pad, 11);
   }, [events, single, me, interactive, padding.top, padding.bottom]);
 
-  // Selected race: bigger, ringed marker, map flies there (centered in the area left free by the floating UI).
+  // Selected race: bigger, ringed marker; the map flies there, centred in the area left free by the floating UI.
   useEffect(() => {
     const m = map.current;
     if (!m) return;
-    for (const mk of markers.current.values()) mk.getElement()?.classList.remove("marker-selected");
+    for (const mk of markers.current.values()) mk.getElement().classList.remove("marker-selected");
     const mk = selectedId ? markers.current.get(selectedId) : undefined;
     if (!mk) return;
-    mk.getElement()?.classList.add("marker-selected");
-    mk.bringToFront();
+    mk.getElement().classList.add("marker-selected");
     if (!follow) return;
-    const zoom = Math.max(m.getZoom(), 9);
-    const target = m.unproject(m.project(mk.getLatLng(), zoom).add([0, (padding.bottom - padding.top) / 2]), zoom);
-    m.flyTo(target, zoom, { duration: 0.6 });
+    m.flyTo({
+      center: mk.getLngLat(),
+      zoom: Math.max(m.getZoom(), 9),
+      padding: { top: padding.top, bottom: padding.bottom, left: 0, right: 0 },
+      duration: 600,
+    });
   }, [selectedId, follow, padding.top, padding.bottom]);
 
+  if (failed) {
+    return (
+      <div className={`grid place-items-center bg-surface-2 p-4 text-center text-sm text-muted ${framed && !fullscreen ? "rounded-2xl" : ""} ${className}`}>
+        Mapu tento prohlížeč neumí zobrazit (chybí WebGL).
+      </div>
+    );
+  }
   return (
     <div
       ref={el}
@@ -173,4 +189,10 @@ export default function EventMap({
       style={fullscreen ? ({ "--map-top": `${padding.top}px`, "--map-bottom": `${padding.bottom}px` } as React.CSSProperties) : undefined}
     />
   );
+}
+
+function fit(m: maplibregl.Map, points: [number, number][], padding: maplibregl.PaddingOptions, maxZoom: number) {
+  const b = new maplibregl.LngLatBounds(points[0], points[0]);
+  for (const p of points) b.extend(p);
+  m.fitBounds(b, { padding, maxZoom, duration: 0 });
 }

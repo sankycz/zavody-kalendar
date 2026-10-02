@@ -5,7 +5,7 @@ Kalendář amatérských i mistrovských automobilových závodů v Česku (rall
 - Zadání: [`docs/SPEC.md`](docs/SPEC.md)
 - Pravidla pro AI asistenta: [`CLAUDE.md`](CLAUDE.md)
 
-Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Open-Meteo Geocoding · Vite + React + TypeScript + Tailwind + Leaflet.
+Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Open-Meteo Geocoding · Vite + React + TypeScript + Tailwind + MapLibre GL (OpenFreeMap).
 
 ## Vývoj
 
@@ -21,6 +21,8 @@ npm run dev         # frontend na :5173 (proxy /api na :8787)
 
 Web (`web/`) je Vite + React + Tailwind a nasazuje se spolu s Workerem jako jeho statické soubory: `/api/*` a `/admin/*` obslouží Worker, všechno ostatní je aplikace.
 
+Web je PWA: jde nainstalovat na plochu a service worker (`web/sw/sw.ts`, jen v produkčním buildu) uloží do telefonu závody nadcházejícího víkendu včetně mapy okolí a PDF harmonogramů, takže aplikace funguje i bez signálu u trati. Podrobnosti v `docs/SPEC.md` (PWA a offline režim).
+
 ## Nasazení stahovacího Workeru
 
 ```bash
@@ -28,7 +30,7 @@ npx wrangler login
 # Extrakce běží ve výchozím stavu přes Workers AI (EXTRACTOR v wrangler.jsonc), klíč netřeba.
 # Pro Claude API: EXTRACTOR="claude" a  npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put ADMIN_TOKEN          # libovolný dlouhý náhodný řetězec
-npm run deploy                               # build webu + Worker + Cron Trigger (pondělí 5:00 našeho času)
+npm run deploy                               # build webu + Worker + Cron Trigger (denně 5:00 našeho času, kalendáře v pondělí)
 
 # ruční spuštění (jen Autoklub, i když se obsah nezměnil):
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \

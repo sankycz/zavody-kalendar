@@ -3,7 +3,7 @@
 Kompletní zadání je v `docs/SPEC.md`. Čti ho před každou změnou.
 
 ## Nemenná pravidla
-- Jen automobilové disciplíny, žádné moto. Bez uživatelských účtů, výsledků, přihlášek a notifikací ve v1.
+- Jen automobilové disciplíny, žádné moto. Bez uživatelských účtů, výsledků, přihlášek a notifikací ve v1. Výsledky nestahujeme ani neukládáme; v živém přehledu („Živě ze závodu“) jen odkaz na výsledkový servis nebo web pořadatele.
 - Extrakce dat přes LLM s pevným JSON schématem, žádné ruční parsery pro jednotlivé weby. Backend podle env `EXTRACTOR`: `workers-ai` (výchozí, Cloudflare Workers AI, model z `WORKERS_AI_MODEL`) nebo `claude` (Claude API, model z `CLAUDE_MODEL`). Oba jdou přes `src/pipeline/llm.ts`.
 - `ANTHROPIC_API_KEY` (jen pro `EXTRACTOR=claude`) jen ve Worker secrets, nikdy ve frontendu.
 - Výstup modelu validuj zod; nevalidní položky zaloguj a přeskoč.
@@ -14,7 +14,7 @@ Kompletní zadání je v `docs/SPEC.md`. Čti ho před každou změnou.
 - Vše na Cloudflare: D1 (`zavody-kalendar`, binding `DB`, `wrangler.jsonc`), jeden Worker = stahování (Cron Trigger) + read-only API `/api/*` + frontend jako static assets (`dist/`, build z `web/`).
 - Schéma měň jen novou migrací v `migrations/NNNN_*.sql` (`wrangler d1 migrations apply`), aplikované migrace neupravuj. Data jako ISO text `YYYY-MM-DD`.
 - D1 není veřejná: frontend jen přes read-only API, zapisuje jen ingest Worker; admin endpoint chráněný tokenem ze secrets.
-- Frontend: Vite + React + TypeScript strict + Tailwind + Leaflet/OSM. Česky, mobile-first, světlý/tmavý režim, filtry v URL.
+- Frontend: Vite + React + TypeScript strict + Tailwind + MapLibre GL (vektorové dlaždice OpenFreeMap, `web/src/basemap.ts`). Česky, mobile-first, světlý/tmavý režim, filtry v URL.
 - Pro každý zdroj fixture v `fixtures/` a test normalizace + deduplikace bez volání API.
 
 ## Příkazy

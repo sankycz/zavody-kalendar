@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { fold } from "./pipeline/normalize.ts";
+import { eventToIcs } from "./shared/calendar.ts";
 import { DISCIPLINES, LEVELS } from "./pipeline/schema.ts";
 import type {
   EventDetail,
   EventLink,
   EventListItem,
   EventSourceLink,
+  LiveLink,
+  LiveLinks,
   EventsResponse,
   OrganizerCheckInfo,
   RegionsResponse,
@@ -130,11 +133,11 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
   if (!event) return null;
   const check = await db
     .prepare(
-      `SELECT url, checked_at, outcome, status, date_from, date_to, notice, error, changed_at
+      `SELECT url, checked_at, outcome, status, date_from, date_to, notice, error, changed_at, results_url, stream_url
          FROM organizer_checks WHERE event_id = ?`,
     )
     .bind(id)
-    .first<OrganizerCheckInfo>();
+    .first<OrganizerCheckInfo & { results_url: string | null; stream_url: string | null }>();
   const { results } = await db
     .prepare(
       `SELECT s.name, es.source_url AS url, es.last_seen_at
@@ -151,7 +154,58 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
     )
     .bind(id)
     .all<EventLink>();
-  return { ...event, sources: results, links: links.results, organizer_check: check };
+  const live = await liveLinks(db, event, check, links.results);
+  const organizer_check = check && (({ results_url: _r, stream_url: _s, ...c }) => c)(check);
+  return { ...event, sources: results, links: links.results, organizer_check, live };
+}
+
+/** Hosts whose video links can be a live stream. */
+const STREAM_HOST = /(^|\.)(youtube\.com|youtu\.be|facebook\.com|fb\.watch|twitch\.tv)$/;
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where to follow a race: results / live timing (the organizer's own link first,
+ * then services for its discipline and series, from live_services) and live
+ * streams (organizer's link, video links from sources on video sites).
+ */
+export async function liveLinks(
+  db: D1Database,
+  e: Pick<EventDetail, "name" | "date_from" | "discipline" | "series">,
+  check: (Pick<OrganizerCheckInfo, "outcome"> & { results_url?: string | null; stream_url?: string | null }) | null,
+  links: EventLink[],
+): Promise<LiveLinks> {
+  const { results: services } = await db
+    .prepare(
+      `SELECT label, url FROM live_services
+        WHERE enabled = 1
+          AND (disciplines IS NULL OR ',' || disciplines || ',' LIKE '%,' || ? || ',%')
+          AND (name_like IS NULL OR COALESCE(?, '') LIKE name_like OR ? LIKE name_like)
+        ORDER BY position, id`,
+    )
+    .bind(e.discipline, e.series, e.name)
+    .all<{ label: string; url: string }>();
+  const q = encodeURIComponent(`${e.name} ${e.date_from.slice(0, 4)}`);
+
+  const results: LiveLink[] = [];
+  const streams: LiveLink[] = [];
+  const add = (list: LiveLink[], l: LiveLink) => {
+    if (!list.some((x) => x.url === l.url)) list.push(l);
+  };
+  if (check?.results_url) add(results, { label: "Výsledky od pořadatele", url: check.results_url, from: "organizer" });
+  for (const s of services) add(results, { label: s.label, url: s.url.replaceAll("{q}", q), from: "service" });
+  if (check?.stream_url) add(streams, { label: "Přenos od pořadatele", url: check.stream_url, from: "organizer" });
+  for (const l of links) {
+    const host = hostOf(l.url);
+    if (l.kind === "video" && host && STREAM_HOST.test(host)) add(streams, { label: l.label, url: l.url, from: "source" });
+  }
+  return { results, streams };
 }
 
 export async function listRegions(db: D1Database, today = todayInPrague()): Promise<RegionsResponse> {
@@ -186,6 +240,20 @@ export async function handleApi(request: Request, db: D1Database): Promise<Respo
     return event
       ? Response.json(event, { headers: CACHE })
       : Response.json({ error: "not found" }, { status: 404 });
+  }
+
+  // Calendar entry (Apple Calendar, Outlook…): a link opens it, iPhone offers "Add to Calendar".
+  const ics = /^\/api\/events\/([0-9a-f]{32})\/ics$/.exec(url.pathname);
+  if (ics) {
+    const event = await getEvent(db, ics[1]!);
+    if (!event) return Response.json({ error: "not found" }, { status: 404 });
+    return new Response(eventToIcs(event, `${url.origin}/zavod/${event.id}`), {
+      headers: {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": `inline; filename="zavod-${event.date_from}.ics"`,
+        ...CACHE,
+      },
+    });
   }
 
   if (url.pathname === "/api/regions") {

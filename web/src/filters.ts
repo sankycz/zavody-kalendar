@@ -15,6 +15,8 @@ export interface Filters {
   sort: Sort;
   /** Full-text search: null = search bar closed, "" = open and empty. */
   q: string | null;
+  /** Only the visitor's favourite races (kept in the browser, see prefs.ts). */
+  fav: boolean;
 }
 
 export const DISCIPLINES = Object.keys(DISCIPLINE_LABEL) as Discipline[];
@@ -41,6 +43,7 @@ export function parseFilters(params: URLSearchParams): Filters {
     view: params.get("view") === "map" ? "map" : "list",
     sort: params.get("sort") === "near" ? "near" : "date",
     q: params.has("q") ? params.get("q")!.slice(0, 100) : null,
+    fav: params.get("fav") === "1",
   };
 }
 
@@ -53,6 +56,7 @@ function toParams(f: Filters, withView: boolean): URLSearchParams {
   if (f.to) p.set("to", f.to);
   if (withView && f.view === "map") p.set("view", "map");
   if (withView && f.sort === "near") p.set("sort", "near");
+  if (withView && f.fav) p.set("fav", "1");
   // The page keeps an open, empty search bar; the API only gets real words.
   if (f.q !== null && (withView || f.q.trim())) p.set("q", withView ? f.q : f.q.trim());
   return p;
@@ -89,4 +93,13 @@ export function activeFilterCount(f: Filters): number {
   return f.discipline.length + f.level.length + (f.region ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0);
 }
 
-export const EMPTY_FILTERS: Filters = { discipline: [], level: [], region: "", from: "", to: "", view: "list", sort: "date", q: null };
+export const EMPTY_FILTERS: Filters = { discipline: [], level: [], region: "", from: "", to: "", view: "list", sort: "date", q: null, fav: false };
+
+/**
+ * What the list remembers for the next visit (prefs.ts): disciplines, levels,
+ * region, map or list, favourites. Not dates, search or "near me" – those are
+ * for the moment.
+ */
+export function rememberedQuery(f: Filters): string {
+  return listHref({ ...EMPTY_FILTERS, discipline: f.discipline, level: f.level, region: f.region, view: f.view, fav: f.fav }).replace(/^\/\??/, "");
+}

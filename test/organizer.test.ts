@@ -23,7 +23,7 @@ const item = (name: string, date_from: string, loc: string, website_url: string 
 });
 
 const ok = (c: Partial<OrganizerCheck>): OrganizerCheck => ({
-  mentions_event: true, status: "planned", date_from: null, date_to: null, notice: null, ...c,
+  mentions_event: true, status: "planned", date_from: null, date_to: null, notice: null, results_url: null, stream_url: null, ...c,
 });
 
 describe("interpret", () => {
@@ -33,7 +33,7 @@ describe("interpret", () => {
   });
   it("same dates -> confirmed, notice dropped", () => {
     expect(interpret(e, ok({ date_from: "16.5.2026", date_to: "2026-05-17", notice: "vše platí" }))).toEqual({
-      outcome: "confirmed", status: "planned", date_from: null, date_to: null, notice: null,
+      outcome: "confirmed", status: "planned", date_from: null, date_to: null, notice: null, results_url: null, stream_url: null,
     });
   });
   it("cancelled keeps the notice", () => {
@@ -77,7 +77,7 @@ function setup() {
   return {
     d1, raw, pages, fetched, prompts,
     answer: (a: OrganizerCheck) => { answer = a; },
-    run: (today = TODAY) => checkOrganizers({ db: d1, http, llm: claudeModel(claude, "m") }, today),
+    run: (today = TODAY, windowDays?: number) => checkOrganizers({ db: d1, http, llm: claudeModel(claude, "m") }, today, 10, windowDays),
     seed: async (items: ReturnType<typeof item>[]) =>
       upsertEvents(d1, AUTOKLUB, processExtraction(items, Number(TODAY.slice(0, 4))).events, new Map()),
   };
@@ -152,6 +152,39 @@ describe("checkOrganizers", () => {
     expect(await t.run(addDays(TODAY, 1))).toEqual([{ event_id: expect.any(String), result: "error", error: "HTTP 503" }]);
     const row = t.raw.prepare("SELECT status, notice, error FROM organizer_checks").get();
     expect(row).toEqual({ status: "cancelled", notice: "Zrušeno.", error: "HTTP 503" });
+  });
+
+  it("race-day links: results and an embedded stream, only URLs really on the page", async () => {
+    const t = setup();
+    await t.seed([{ ...item("Rallye Klatovy", SOON, "Klatovy", "https://soon.example/"), discipline: "rally" }]);
+    t.pages.set(
+      "https://soon.example/",
+      '<main>Rallye Klatovy <a href="/vysledky">Online výsledky</a> <iframe src="https://www.youtube.com/embed/live_stream?channel=UCabc123"></iframe></main>',
+    );
+    t.answer(ok({ results_url: "https://soon.example/vysledky", stream_url: "https://www.youtube.com/channel/UCabc123/live" }));
+    await t.run();
+    expect(t.prompts[0]).toContain("Vložené video (https://www.youtube.com/channel/UCabc123/live)");
+    const id = (await listEvents(t.d1, {}, TODAY)).events[0]!.id;
+    const live = (await getEvent(t.d1, id))!.live!;
+    expect(live.results[0]).toEqual({ label: "Výsledky od pořadatele", url: "https://soon.example/vysledky", from: "organizer" });
+    expect(live.results.map((l) => l.from).slice(1)).toEqual(["service", "service"]); // rally services from live_services
+    expect(live.streams).toEqual([{ label: "Přenos od pořadatele", url: "https://www.youtube.com/channel/UCabc123/live", from: "organizer" }]);
+
+    // Made-up URLs are dropped.
+    t.pages.set("https://soon.example/", "<main>Rallye Klatovy, nic nového</main>");
+    t.answer(ok({ results_url: "https://invented.example/results", stream_url: null }));
+    await t.run(addDays(TODAY, 1));
+    expect((await getEvent(t.d1, id))!.live!.results[0]!.from).toBe("service");
+  });
+
+  it("daily run looks at today and tomorrow only", async () => {
+    const t = setup();
+    await t.seed([
+      item("Tomorrow", addDays(TODAY, 1), "Klatovy", "https://tomorrow.example/"),
+      item("Soon", SOON, "Brno", "https://soon.example/"),
+    ]);
+    await t.run(TODAY, 1);
+    expect(t.fetched).toEqual(["https://tomorrow.example/"]);
   });
 
   it("skips non-HTML pages without calling the model", async () => {

@@ -75,7 +75,7 @@ export function canGoBack(): boolean {
   return entryState().inApp === true;
 }
 
-// Intercept clicks on same-origin links (capture phase, so Leaflet popups that
+// Intercept clicks on same-origin links (capture phase, so map popups that
 // stop propagation still work). Modifier clicks keep the browser default;
 // links with `data-native` handle their own clicks.
 document.addEventListener(

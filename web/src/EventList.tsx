@@ -3,6 +3,7 @@ import type { EventListItem, Level } from "../../src/shared/types.ts";
 import { dateRange, dayNumber, daysUntil, monthHeading, monthKey, relativeDay, weekdays } from "./format.ts";
 import { DisciplineBadge, disciplineStyle } from "./Badges.tsx";
 import { formatDistance } from "./distance.ts";
+import { FavoriteStar } from "./Favorite.tsx";
 import { LEVEL_LABEL, ORGANIZER_FLAG_LABEL, countryLabel } from "./labels.ts";
 
 export const LEVEL_CLASS: Record<Level, string> = {
@@ -27,11 +28,11 @@ function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
   // Date badge: full racing color within two weeks, a warm tint for later races, grey for past/cancelled.
   const hot = upcoming && soon != null;
   return (
-    <li>
+    <li className="relative">
       <a
         href={`/zavod/${e.id}`}
         style={{ ...disciplineStyle(e.discipline), viewTransitionName: `event-${e.id}` }}
-        className={`glass card-glow press shine group flex gap-3.5 rounded-2xl p-3 transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent sm:p-4 ${
+        className={`glass card-glow press shine group flex gap-3.5 rounded-2xl p-3 pr-12 transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent sm:p-4 sm:pr-12 ${
           finished || cancelled ? "opacity-70 hover:opacity-100" : ""
         }`}
       >
@@ -82,18 +83,9 @@ function EventCard({ e, km }: { e: EventListItem; km?: number | undefined }) {
             )}
           </div>
         </div>
-        <svg
-          aria-hidden
-          viewBox="0 0 24 24"
-          className="h-5 w-5 shrink-0 self-center text-muted transition-transform group-hover:translate-x-0.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="m9 6 6 6-6 6" />
-        </svg>
       </a>
+      {/* Outside the link (no button inside an <a>), where the chevron used to be. */}
+      <FavoriteStar e={e} className="absolute top-1/2 right-1.5 -translate-y-1/2" />
     </li>
   );
 }

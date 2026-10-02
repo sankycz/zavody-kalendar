@@ -37,10 +37,10 @@ Další sezónu přidává každý týdenní běh sám (`src/pipeline/rollover.t
 ## Architektura
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
-- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně (pondělí 5:00 českého času) a ručně přes admin endpoint chráněný tokenem.
+- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně (pondělí 5:00 českého času; ostatní dny v 5:00 jen kontrola webů pořadatelů závodů na dnes a zítra) a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** LLM s pevným JSON schématem – Cloudflare Workers AI (výchozí, zdarma v denním limitu, `EXTRACTOR=workers-ai`, model z `WORKERS_AI_MODEL`) nebo Claude API (`EXTRACTOR=claude`, model z `CLAUDE_MODEL`). Stažený HTML text nebo text z PDF pošli modelu a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní.
 - **Geokódování:** Open-Meteo Geocoding API (data GeoNames, bez klíče), maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`. Místo, které v dané zemi není, se hledá v sousedních (CZ, SK, DE, AT, PL). Nominatim nepoužíváme: jeho robots.txt zakazuje `/search` robotům.
-- **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
+- **Frontend:** Vite, React, TypeScript strict, Tailwind. Vektorová mapa přes MapLibre GL s dlaždicemi OpenFreeMap (data OpenStreetMap, zdarma, bez klíče a limitu), světlý styl Liberty a tmavý Dark nativně, bez CSS filtrů. Poskytovatel je na jednom místě (`web/src/basemap.ts`), přechod např. na vlastní Protomaps v R2 je výměna adres.
 - **Hosting frontendu:** Cloudflare Workers static assets — stejný Worker jako API a stahování (Cloudflare pro nové projekty doporučuje místo Pages). Auto-deploy z GitHubu přes Workers Builds.
 
 Klíče patří do Cloudflare Worker secrets (`wrangler secret put`). `ANTHROPIC_API_KEY` nikdy nesmí skončit ve frontendu.
@@ -122,7 +122,7 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
-- Maximálně jeden požadavek za pár sekund na doménu, stahuj jednou týdně (pondělí 5:00). Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
+- Maximálně jeden požadavek za pár sekund na doménu, kalendáře stahuj jednou týdně (pondělí 5:00); weby pořadatelů závodů na dnes a zítra denně v 5:00. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 
@@ -133,8 +133,39 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 - Fulltextové hledání (lupa v hlavičce, `?q=` v URL i v `/api/events`): všechna slova musí být v názvu, obci, kraji, seriálu, pořadateli nebo disciplíně, bez ohledu na diakritiku.
 - Mapa ukazuje stejnou množinu jako seznam.
 - Detail: všechna pole, odkazy na pořadatele a na všechny zdroje, čas poslední aktualizace.
+- Přidání do kalendáře bez stahování souboru (`src/shared/calendar.ts`): „Google Kalendář“ otevře předvyplněnou celodenní událost (`calendar.google.com/calendar/render?action=TEMPLATE…`), „Apple Kalendář“ odkazuje na `GET /api/events/<id>/ics` (text/calendar), takže iPhone nabídne „Přidat do kalendáře“ a Mac otevře Kalendář. Na zařízeních Apple je Apple první.
 - Musí fungovat na mobilu, uživatel se na to bude dívat hlavně venku u trati. Světlý a tmavý režim.
 - Rozhraní česky.
+
+### Uložení bez účtu
+
+Uživatelské účty nejsou (ani osobní údaje, GDPR). Co si návštěvník nastaví, zůstává jen v jeho prohlížeči, v `localStorage` (`web/src/prefs.ts`, klíč `prefs-v1`). U nainstalované aplikace je to úložiště aplikace v telefonu. Na server se nic neposílá. Po první oblíbené požádá aplikace prohlížeč o trvalé úložiště (`navigator.storage.persist()`, nainstalovaným aplikacím ho prohlížeč dá bez dotazu), aby data při nedostatku místa nesmazal.
+
+- **Oblíbené závody:** hvězdička na kartě v seznamu a „Do oblíbených“ v detailu. Přepínač „Oblíbené“ nad seznamem (`?fav=1`, filtruje se v prohlížeči, API ho nedostane) funguje i na mapě. Oblíbené se zapomenou 60 dní po závodě. Oblíbené závody nejbližšího víkendu ukládá service worker pro offline přednostně (limit 8 je nevytlačí).
+- **Domovský kraj:** ve filtrech „Uložit jako můj kraj“, pak přepínač „Můj kraj“ nad seznamem.
+- **Filtry:** disciplína, úroveň, kraj, seznam/mapa a oblíbené se pamatují. Otevření aplikace na `/` bez parametrů vrátí seznam, jak ho návštěvník opustil. Odkaz s vlastními filtry má přednost a klik na logo filtry vynuluje. Datum, hledání a „blízko mě“ se nepamatují.
+
+### Živě ze závodu
+
+Den před závodem a během něj (podle data v Praze, ne u zrušených a odložených) je v detailu velké tlačítko „Živě ze závodu“ → stránka `/zavod/<id>/zive` (`web/src/LivePage.tsx`):
+
+- **Počasí v místě:** předpověď Open-Meteo (zdarma pro nekomerční použití, CC BY 4.0, volá ji prohlížeč): teď a dalších 12 hodin, den předem denní hodiny dne závodu. Předpověď uložených závodů drží service worker i offline.
+- **Dešťový radar:** RainViewer (zdarma, bez klíče, poslední 2 h po 10 min, dlaždice do zoomu 7) přes vektorovou mapu okolí (rastrová vrstva v MapLibre). Ukazuje poslední snímek, animace načte ostatní snímky až po ťuknutí (limit 100 požadavků za minutu na IP).
+- **Výsledky a live timing:** jen odkazy, výsledky nestahujeme ani neukládáme. Nejdřív odkaz z webu pořadatele (`organizer_checks.results_url`), pak výsledkové servisy podle disciplíny a seriálu z tabulky `live_services` (migrace `0013`: eWRC-results, Rally-výsledky.com, ČMPR, Barum, Rallycross.cz; další se přidají řádkem, `{q}` v URL = název a rok).
+- **Přenos:** odkaz na přenos z webu pořadatele (`organizer_checks.stream_url`, i vložený YouTube/Facebook přehrávač, `htmlToText` ho převede na odkaz), video odkazy zdrojů na YouTube / Facebooku / Twitchi. Facebook live automaticky zjistit nejde (FB API).
+- Sekce výsledků a přenosu se ukazují jen s aspoň jedním odkazem (žádné obecné hledání). Tlačítko v detailu vyjmenuje, co stránka má („Počasí a radar · výsledky“), a bez čehokoli se neukáže.
+- Kontrola webů pořadatelů vrací navíc `results_url` a `stream_url`; uloží se jen URL, které na stránce opravdu jsou. Kromě pondělní kontroly (14 dní dopředu) běží denně v 5:00 kontrola závodů na dnes a zítra (stejná pravidla: max. jednou denně na závod, model jen při změně stránky).
+
+### PWA a offline režim u trati
+
+Na rychlostní zkoušce v lese často není signál. Aplikace je proto PWA: manifest (`web/public/manifest.webmanifest`), service worker `web/sw/sw.ts` (build ho přidá jako `dist/sw.js` se seznamem souborů k předcachování, `vite.config.ts`).
+
+- **Instalace jedním klikem:** karta „Kalendář do mobilu“ na seznamu. Chrome, Edge a Samsung Internet nabídnou vlastní instalaci (`beforeinstallprompt`), na iPhonu karta ukáže kroky „Sdílet → Přidat na plochu“. Karta jde skrýt. Nainstalovaná aplikace ji nezobrazí (`display-mode: standalone`); Chrome po instalaci nabídku instalace v prohlížeči nevyvolá, takže se karta neukáže ani tam. Safari na iPhonu nainstalovanou aplikaci nepozná (plocha má vlastní úložiště), proto karta zmizí natrvalo po „Rozumím“ nebo křížku.
+- **Co se ukládá samo:** při každém otevření s připojením (nejvýš jednou za 6 h), po návratu signálu a v nainstalované aplikaci v Chromu i na pozadí (Periodic Background Sync) uloží service worker závody od dneška do neděle (max. 8, bez zrušených): detail závodu, mapové dlaždice okolí (obec ± 25 km v přehledu až ± 2,5 km v detailu, ~95 dlaždic) a dokumenty pro diváky (harmonogram, mapa, divácká místa, propozice, plakát). Navíc výchozí seznam nadcházejících závodů, kraje a dlaždice celé ČR pro mapu (zoom 6–8). Pravidla jsou v `web/src/offline/plan.ts`.
+- **Uložit ručně:** v detailu tlačítko „Uložit offline“ pro libovolný jiný závod, stejné tlačítko ho zase odebere. Proběhlé závody i jejich dlaždice a dokumenty se při další synchronizaci smažou.
+- **Bez signálu:** API jde nejdřív na síť s limitem 4 s (slabý signál je horší než žádný), jinak vrací uloženou odpověď. Stránky jdou ze shellu, dlaždice a dokumenty z cache. V hlavičce je štítek „Bez signálu · uložená data z …“, na seznamu pruh „V telefonu i bez signálu“ s uloženými závody a v detailu u dokumentu tlačítko „Offline“ s uloženou kopií.
+- **Mapa offline:** service worker uloží oba styly mapy, jejich ikony a písma pro české popisky (rozsahy 0–255 a 256–511) a vektorové dlaždice (OpenFreeMap má data do zoomu 14, bližší pohled dopočítá MapLibre). Jeden závod má kolem 95 dlaždic a už uložené se znovu nestahují. Adresy dlaždic obsahují verzi mapy, která se mění s každým týdenním sestavením. Synchronizace proto vždy zjistí aktuální verzi (TileJSON) a při změně dlaždice uložených závodů stáhne znovu. Když telefon bez signálu chce dlaždici novější verze, dostane tutéž dlaždici z uložené verze.
+- **Dokumenty** (`GET /api/events/<id>/doc?url=…`, `src/docs.ts`): Worker vydá z naší domény jen dokument, na který závod v `event_links` odkazuje (žádný otevřený proxy), jen PDF a rastrové obrázky do 15 MB (HTML ani SVG ne, mohly by na naší doméně spustit skript). Stahuje se jako zdroje (robots.txt, User-Agent), na hraně se cachuje 6 h. Odkaz na HTML stránku offline k dispozici není.
 
 ## Pořadí práce
 
