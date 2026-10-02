@@ -12,6 +12,8 @@ export const CACHES = {
   tiles: "zk-tiles",
   docs: "zk-docs",
   meta: "zk-meta",
+  /** Map styles, TileJSON, fonts and icons of the base map. */
+  map: "zk-map",
 } as const;
 export const SHELL_PREFIX = "zk-shell-";
 export const STATE_KEY = "/__offline/state";
@@ -41,6 +43,8 @@ export interface OfflineState {
   races: Record<string, OfflineRace>;
   /** The visitor's favourite races, as the page last sent them. */
   favorites?: string[];
+  /** Vector tile URL template the stored tiles were fetched with (changes with each map build). */
+  tileTemplate?: string;
 }
 
 export const EMPTY_STATE: OfflineState = { syncedAt: null, races: {} };
@@ -86,10 +90,9 @@ export function isCurrent(r: Pick<OfflineRace, "date_from" | "date_to">, today: 
   return (r.date_to ?? r.date_from) >= today;
 }
 
-// Map tiles. OSM's tile policy forbids bulk downloads (over 250 tiles at zoom 13+
-// for one area); a race takes ~30 there and tiles already stored are not fetched again.
-export const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-
+// Map tiles: vector tiles of the base map (web/src/basemap.ts), URL template from its
+// TileJSON. A race takes ~95 tiles (~30 at zoom 13–14) and tiles already stored
+// are not fetched again.
 /** Radius in km stored around a race per zoom: the area at a glance, the village in detail. */
 const AROUND_RACE: [zoom: number, km: number][] = [
   [9, 25],
@@ -111,32 +114,32 @@ function tileY(lat: number, z: number): number {
   return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z);
 }
 
-function tileUrl(z: number, x: number, y: number): string {
-  return TILE_URL.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y));
+function tileUrl(template: string, z: number, x: number, y: number): string {
+  return template.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y));
 }
 
-function tilesInBox(b: typeof CZ_BOUNDS, z: number): string[] {
+function tilesInBox(template: string, b: typeof CZ_BOUNDS, z: number): string[] {
   const urls: string[] = [];
   for (let x = tileX(b.west, z); x <= tileX(b.east, z); x++) {
-    for (let y = tileY(b.north, z); y <= tileY(b.south, z); y++) urls.push(tileUrl(z, x, y));
+    for (let y = tileY(b.north, z); y <= tileY(b.south, z); y++) urls.push(tileUrl(template, z, x, y));
   }
   return urls;
 }
 
-/** Tile URLs around a point (see AROUND_RACE). */
-export function tilesAround(lat: number, lng: number): string[] {
+/** Tile URLs around a point (see AROUND_RACE); `template` like "https://…/{z}/{x}/{y}.pbf". */
+export function tilesAround(template: string, lat: number, lng: number): string[] {
   const urls: string[] = [];
   for (const [z, km] of AROUND_RACE) {
     const dLat = km / 111.32;
     const dLng = km / (111.32 * Math.cos((lat * Math.PI) / 180));
-    urls.push(...tilesInBox({ south: lat - dLat, north: lat + dLat, west: lng - dLng, east: lng + dLng }, z));
+    urls.push(...tilesInBox(template, { south: lat - dLat, north: lat + dLat, west: lng - dLng, east: lng + dLng }, z));
   }
   return urls;
 }
 
 /** Tile URLs of the whole country at low zooms (the map view's starting picture). */
-export function overviewTiles(): string[] {
-  return CZ_ZOOMS.flatMap((z) => tilesInBox(CZ_BOUNDS, z));
+export function overviewTiles(template: string): string[] {
+  return CZ_ZOOMS.flatMap((z) => tilesInBox(template, CZ_BOUNDS, z));
 }
 
 // Documents for spectators: PDFs and images the Worker hands out from our origin

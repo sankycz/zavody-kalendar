@@ -53,19 +53,19 @@ describe("coming weekend", () => {
 });
 
 describe("map tiles", () => {
-  it("stays well within OSM's tile policy around a race", () => {
-    const tiles = tilesAround(49.39, 13.29);
-    const zoom = (u: string) => Number(/org\/(\d+)\//.exec(u)![1]);
-    // Policy: no more than 250 tiles at zoom 13+ for one area.
+  it("a race takes about a hundred tiles, few in detail", () => {
+    const T = "https://tiles.openfreemap.org/planet/20260930_001001_pt/{z}/{x}/{y}.pbf";
+    const tiles = tilesAround(T, 49.39, 13.29);
+    const zoom = (u: string) => Number(/_pt\/(\d+)\//.exec(u)![1]);
     expect(tiles.filter((u) => zoom(u) >= 13).length).toBeLessThan(60);
     expect(tiles.length).toBeLessThan(150);
     expect(new Set(tiles).size).toBe(tiles.length);
-    expect(tiles).toContain("https://tile.openstreetmap.org/11/1099/701.png");
+    expect(tiles).toContain("https://tiles.openfreemap.org/planet/20260930_001001_pt/11/1099/701.pbf");
   });
 
   it("covers the whole country at low zooms", () => {
-    const tiles = overviewTiles();
-    expect(tiles).toContain("https://tile.openstreetmap.org/7/69/43.png"); // Prague
+    const tiles = overviewTiles("https://t.example/{z}/{x}/{y}.pbf");
+    expect(tiles).toContain("https://t.example/7/69/43.pbf"); // Prague
     expect(tiles.length).toBeLessThan(50);
   });
 });

@@ -25,6 +25,7 @@ import {
   type OfflineState,
   type ToWorker,
 } from "../src/offline/plan.ts";
+import { MAP_HOST, MAP_STYLES, OFFLINE_GLYPH_RANGES, TILEJSON_URL } from "../src/basemap.ts";
 import { forecastUrl } from "../src/live.ts";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -39,7 +40,7 @@ const PAGE_TIMEOUT_MS = 3000;
 const SYNC_EVERY_MS = 6 * 3600_000;
 const MAX_API_ENTRIES = 80;
 const MAX_VIEWED_TILES = 1500;
-const TILE_HOST = "tile.openstreetmap.org";
+const MAX_MAP_ASSETS = 300;
 const WEATHER_HOST = "api.open-meteo.com";
 
 // ---------- install / activate ----------
@@ -80,7 +81,14 @@ self.addEventListener("fetch", (event) => {
     if (req.mode === "navigate") return event.respondWith(page(req));
     return event.respondWith(staticAsset(req));
   }
-  if (url.host === TILE_HOST) return event.respondWith(tile(req));
+  if (url.host === MAP_HOST) {
+    // Styles and the TileJSON change with the weekly map build: network first.
+    if (url.pathname.startsWith("/styles/") || url.pathname === "/planet") {
+      return event.respondWith(networkFirst(req, API_TIMEOUT_MS, (res) => putMap(req.url, res), () => caches.match(req.url, { cacheName: CACHES.map })).catch(() => Response.error()));
+    }
+    if (url.pathname.startsWith("/fonts/") || url.pathname.startsWith("/sprites/")) return event.respondWith(mapAsset(req));
+    if (url.pathname.endsWith(".pbf")) return event.respondWith(tile(req));
+  }
   // Forecast on the race-day page: the last one stays readable without a signal.
   if (url.host === WEATHER_HOST) return event.respondWith(apiNetworkFirst(req));
 });
@@ -178,21 +186,91 @@ async function cacheFirst(req: Request, cacheName: string, store: boolean): Prom
   return res;
 }
 
-/** Map tiles: saved or viewed ones from the cache; new ones fetched with CORS so they can be stored. */
+/** Vector tiles: saved or viewed ones from the cache, new ones stored (capped). */
 async function tile(req: Request): Promise<Response> {
-  const cached = (await caches.match(req.url, { cacheName: CACHES.tilesSaved })) ?? (await caches.match(req.url, { cacheName: CACHES.tiles }));
+  const cached = await storedTile(req.url);
   if (cached) return cached;
+  let res: Response;
   try {
-    const res = await fetch(req.url, { mode: "cors", credentials: "omit" });
-    if (res.ok) {
-      const cache = await caches.open(CACHES.tiles);
-      await cache.put(req.url, res.clone());
-      if (Math.random() < 0.05) void trim(cache, MAX_VIEWED_TILES);
-    }
-    return res;
-  } catch {
-    return fetch(req);
+    res = await fetch(req.url, { mode: "cors", credentials: "omit" });
+  } catch (err) {
+    // No signal and a newer map build than the stored tiles: the same tile from the stored build.
+    const older = await olderBuildTile(req.url);
+    if (older) return older;
+    throw err;
   }
+  if (res.ok) {
+    const cache = await caches.open(CACHES.tiles);
+    await cache.put(req.url, res.clone());
+    if (Math.random() < 0.05) void trim(cache, MAX_VIEWED_TILES);
+  }
+  return res;
+}
+
+async function storedTile(url: string): Promise<Response | undefined> {
+  return (await caches.match(url, { cacheName: CACHES.tilesSaved })) ?? (await caches.match(url, { cacheName: CACHES.tiles }));
+}
+
+async function olderBuildTile(url: string): Promise<Response | undefined> {
+  const m = /\/(\d+)\/(\d+)\/(\d+)\.pbf$/.exec(url);
+  const template = (await readState()).tileTemplate;
+  if (!m || !template) return undefined;
+  const older = template.replace("{z}", m[1]!).replace("{x}", m[2]!).replace("{y}", m[3]!);
+  return older === url ? undefined : storedTile(older);
+}
+
+async function putMap(url: string, res: Response): Promise<void> {
+  const cache = await caches.open(CACHES.map);
+  await cache.put(url, res);
+}
+
+/** Fonts and icons of the map style: they don't change under the same URL. */
+async function mapAsset(req: Request): Promise<Response> {
+  const cached = await caches.match(req.url, { cacheName: CACHES.map });
+  if (cached) return cached;
+  const res = await fetch(req.url, { mode: "cors", credentials: "omit" });
+  if (res.ok) {
+    const cache = await caches.open(CACHES.map);
+    await cache.put(req.url, res.clone());
+    if (Math.random() < 0.05) void trim(cache, MAX_MAP_ASSETS, (k) => !k.url.includes("/styles/") && !k.url.endsWith("/planet"));
+  }
+  return res;
+}
+
+const CORS: RequestInit = { mode: "cors", credentials: "omit" };
+
+/** Current vector tile URL template (TileJSON), stored for offline use. */
+async function tileTemplate(): Promise<string> {
+  const res = await fetch(TILEJSON_URL, { ...CORS, cache: "no-cache" });
+  if (!res.ok) throw new Error(`TileJSON: ${res.status}`);
+  await putMap(TILEJSON_URL, res.clone());
+  const tj = (await res.json()) as { tiles?: string[] };
+  const t = tj.tiles?.[0];
+  if (!t || !t.includes("{z}")) throw new Error("TileJSON without tiles");
+  return t;
+}
+
+/** Both styles with their icons and the fonts for Czech labels, so the map draws without a signal. */
+async function storeMapStyles(): Promise<void> {
+  const cache = await caches.open(CACHES.map);
+  const assets = new Set<string>();
+  for (const url of Object.values(MAP_STYLES)) {
+    const res = await fetch(url, { ...CORS, cache: "no-cache" });
+    if (!res.ok) continue;
+    await cache.put(url, res.clone());
+    const style = (await res.json()) as { sprite?: string | { url: string }[]; glyphs?: string; layers?: { layout?: { "text-font"?: unknown } }[] };
+    const sprites = typeof style.sprite === "string" ? [style.sprite] : (style.sprite ?? []).map((s) => s.url);
+    for (const sp of sprites) for (const suffix of [".json", ".png", "@2x.json", "@2x.png"]) assets.add(sp + suffix);
+    const fonts = new Set<string>();
+    for (const l of style.layers ?? []) {
+      const f = l.layout?.["text-font"];
+      if (Array.isArray(f) && f.every((x) => typeof x === "string")) fonts.add(f.join(","));
+    }
+    if (style.glyphs) {
+      for (const f of fonts) for (const r of OFFLINE_GLYPH_RANGES) assets.add(style.glyphs.replace("{fontstack}", encodeURIComponent(f)).replace("{range}", r));
+    }
+  }
+  await fill(CACHES.map, [...assets], CORS, 3);
 }
 
 // ---------- offline state ----------
@@ -262,12 +340,12 @@ async function fill(cacheName: string, urls: string[], init: RequestInit, parall
 }
 
 /** Store one race whole: detail, tiles around it, its documents. */
-async function saveRace(id: string, pinned: boolean): Promise<OfflineRace> {
+async function saveRace(id: string, pinned: boolean, template: string | undefined): Promise<OfflineRace> {
   busy.add(id);
   void broadcast();
   try {
     const e = await fetchApi<EventDetail>(`/api/events/${id}`);
-    const tiles = e.lat != null && e.lng != null ? await fill(CACHES.tilesSaved, tilesAround(e.lat, e.lng), { mode: "cors", credentials: "omit" }, 3) : [];
+    const tiles = template && e.lat != null && e.lng != null ? await fill(CACHES.tilesSaved, tilesAround(template, e.lat, e.lng), CORS, 3) : [];
     const forecast = e.lat != null && e.lng != null ? forecastUrl(e.lat, e.lng) : null;
     if (forecast) await fetchApi(forecast).catch(() => {});
     const docs = offlineDocs(e);
@@ -295,14 +373,16 @@ async function prune(state: OfflineState): Promise<void> {
     const res = await caches.match(`/api/events/${id}`, { cacheName: CACHES.api });
     if (res) races.push((await res.json()) as EventDetail);
   }
-  const tiles = new Set(overviewTiles());
+  const template = state.tileTemplate;
+  const tiles = new Set(template ? overviewTiles(template) : []);
   const docs = new Set<string>();
   for (const e of races) {
-    if (e.lat != null && e.lng != null) for (const t of tilesAround(e.lat, e.lng)) tiles.add(t);
+    if (template && e.lat != null && e.lng != null) for (const t of tilesAround(template, e.lat, e.lng)) tiles.add(t);
     for (const l of offlineDocs(e)) docs.add(new URL(docUrl(e.id, l.url), self.location.origin).href);
   }
+  // Without a known template (TileJSON never fetched) keep what is there.
   const tileCache = await caches.open(CACHES.tilesSaved);
-  for (const k of await tileCache.keys()) if (!tiles.has(k.url)) await tileCache.delete(k);
+  if (template) for (const k of await tileCache.keys()) if (!tiles.has(k.url)) await tileCache.delete(k);
   const docCache = await caches.open(CACHES.docs);
   for (const k of await docCache.keys()) if (!docs.has(k.url)) await docCache.delete(k);
 }
@@ -311,11 +391,19 @@ async function sync(force: boolean, favorites?: string[]): Promise<void> {
   const state = await readState();
   const favChanged = !!favorites && [...favorites].sort().join() !== [...(state.favorites ?? [])].sort().join();
   if (favorites) state.favorites = favorites;
-  if (!force && !favChanged && state.syncedAt && Date.now() - Date.parse(state.syncedAt) < SYNC_EVERY_MS) return;
+  // A new map build changes every tile URL: the stored tiles must follow, whatever the schedule.
+  const template = await tileTemplate().catch(() => state.tileTemplate);
+  const mapChanged = !!template && template !== state.tileTemplate;
+  if (template) state.tileTemplate = template;
+  if (!force && !favChanged && !mapChanged && state.syncedAt && Date.now() - Date.parse(state.syncedAt) < SYNC_EVERY_MS) {
+    if (favorites) await writeState(state);
+    return;
+  }
   const today = todayInPrague();
   const list = await fetchApi<EventsResponse>("/api/events");
   await fetchApi("/api/regions").catch(() => {});
-  await fill(CACHES.tilesSaved, overviewTiles(), { mode: "cors", credentials: "omit" }, 3);
+  await storeMapStyles().catch((err: unknown) => console.warn("offline: map styles", err));
+  if (template) await fill(CACHES.tilesSaved, overviewTiles(template), CORS, 3);
 
   const pinned = Object.values(state.races).filter((r) => r.pinned && isCurrent(r, today));
   const wanted = new Map<string, boolean>(weekendRaces(list.events, today, undefined, state.favorites).map((e) => [e.id, false]));
@@ -324,7 +412,7 @@ async function sync(force: boolean, favorites?: string[]): Promise<void> {
   const races: Record<string, OfflineRace> = {};
   for (const [id, pin] of wanted) {
     try {
-      races[id] = await saveRace(id, pin);
+      races[id] = await saveRace(id, pin, template);
     } catch (err) {
       // Not reachable now: keep what an earlier sync stored.
       if (state.races[id]) races[id] = { ...state.races[id]!, pinned: pin };
@@ -334,14 +422,20 @@ async function sync(force: boolean, favorites?: string[]): Promise<void> {
     void broadcast();
   }
 
-  const next: OfflineState = { syncedAt: new Date().toISOString(), races, ...(state.favorites ? { favorites: state.favorites } : {}) };
+  const next: OfflineState = {
+    syncedAt: new Date().toISOString(),
+    races,
+    ...(state.favorites ? { favorites: state.favorites } : {}),
+    ...(template ? { tileTemplate: template } : {}),
+  };
   await writeState(next);
   await prune(next);
   await broadcast();
 }
 
 async function save(id: string): Promise<void> {
-  const r = await saveRace(id, true);
+  const template = await tileTemplate().catch(async () => (await readState()).tileTemplate);
+  const r = await saveRace(id, true, template);
   const state = await readState();
   await writeState({ ...state, races: { ...state.races, [id]: r } });
   await broadcast();

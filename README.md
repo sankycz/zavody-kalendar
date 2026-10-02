@@ -5,7 +5,7 @@ Kalendář amatérských i mistrovských automobilových závodů v Česku (rall
 - Zadání: [`docs/SPEC.md`](docs/SPEC.md)
 - Pravidla pro AI asistenta: [`CLAUDE.md`](CLAUDE.md)
 
-Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Open-Meteo Geocoding · Vite + React + TypeScript + Tailwind + Leaflet.
+Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Open-Meteo Geocoding · Vite + React + TypeScript + Tailwind + MapLibre GL (OpenFreeMap).
 
 ## Vývoj
 

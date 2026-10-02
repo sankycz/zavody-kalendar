@@ -275,57 +275,58 @@
 }
 
 /*
- * Leaflet map: theme colors, dark tiles in dark mode. Not in a @layer on purpose:
- * leaflet.css is unlayered (and loads later, with the map), and unlayered rules
- * always beat layered ones – e.g. its `.leaflet-tile { filter: inherit }` wiped
- * out the dark-mode filter. `:root` lifts these above Leaflet's equal selectors.
+ * MapLibre maps (EventMap, RadarMap): the base map has its own light and dark
+ * style (web/src/basemap.ts), nothing is filtered. Here: glass popups and
+ * controls, round HTML markers coloured by level. Not in a @layer: maplibre-gl.css
+ * is unlayered and loads later, with the map; `:root` lifts these above it.
  */
-:root .leaflet-container {
+:root .maplibregl-map {
   font: inherit;
   background: var(--color-surface-2);
 }
-:root.dark .leaflet-container {
-  background: #1b1d24;
-}
-:root.dark .leaflet-tile {
-  /* OSM tiles inverted to a dark map; hue turned back so water stays blue-ish. */
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55);
-}
-:root.dark .radar-layer .leaflet-tile {
-  /* Radar colours mean rain intensity: never invert them. */
-  filter: none;
-}
-:root .leaflet-popup-content-wrapper,
-:root .leaflet-popup-tip {
+:root .maplibregl-popup-content {
   background: var(--color-glass-strong);
   color: var(--color-fg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-glass-border);
-  box-shadow: 0 10px 30px -12px var(--color-glass-edge);
-}
-:root .leaflet-popup-content-wrapper {
   border-radius: 14px;
+  box-shadow: 0 10px 30px -12px var(--color-glass-edge);
+  padding: 10px 28px 10px 12px;
 }
-:root .leaflet-container a.leaflet-popup-close-button {
+:root .maplibregl-popup-tip {
+  border-top-color: var(--color-glass-strong);
+  border-bottom-color: var(--color-glass-strong);
+}
+:root .maplibregl-popup-close-button {
+  color: var(--color-muted);
+  font-size: 18px;
+  padding: 2px 8px;
+}
+:root .maplibregl-ctrl-group {
+  background: var(--color-glass-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px -12px var(--color-glass-edge);
+}
+:root.dark .maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-border);
+}
+:root.dark .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+:root .maplibregl-ctrl-attrib {
+  background: var(--color-glass-strong);
   color: var(--color-muted);
 }
-:root .leaflet-bar a {
-  background: var(--color-glass-strong);
-  color: var(--color-fg);
-  border-color: var(--color-border);
-}
-:root .leaflet-bar a:hover {
-  background: var(--color-surface-2);
-}
-:root .leaflet-control-attribution {
-  background: var(--color-glass-strong);
-  color: var(--color-muted);
-}
-:root .leaflet-control-attribution a {
+:root .maplibregl-ctrl-attrib a {
   color: var(--color-fg);
 }
-:root .leaflet-container a.map-popup-link {
+:root.dark .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+:root .maplibregl-map a.map-popup-link {
   color: var(--color-fg);
   font-weight: 600;
   text-decoration: underline;
@@ -335,18 +336,35 @@
   padding-top: 0.5rem;
   border-top: 1px solid var(--color-border);
 }
-.marker-mcr { stroke: #fff; fill: var(--color-mcr); }
-.marker-pohar { stroke: #fff; fill: var(--color-pohar); }
-.marker-regionalni { stroke: #fff; fill: var(--color-regionalni); }
-.marker-volny { stroke: #fff; fill: var(--color-volny); }
-.marker-finished { fill-opacity: 0.45; }
-.marker-me { stroke: #fff; fill: #0ea5e9; filter: drop-shadow(0 0 6px rgb(14 165 233 / 0.8)); }
-.marker-cancelled { fill-opacity: 0.3; stroke-dasharray: 3 3; }
-.marker-selected { stroke: #fff; stroke-width: 4; fill-opacity: 1; filter: drop-shadow(0 0 8px var(--color-accent)); }
+.map-marker {
+  width: var(--size, 14px);
+  height: var(--size, 14px);
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background: var(--marker, var(--color-volny));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  /* Never `transform`: MapLibre positions the marker with it. */
+  transition: scale 0.15s ease, box-shadow 0.15s ease;
+}
+.map-marker.is-interactive { cursor: pointer; }
+.marker-mcr { --marker: var(--color-mcr); }
+.marker-pohar { --marker: var(--color-pohar); }
+.marker-regionalni { --marker: var(--color-regionalni); }
+.marker-volny { --marker: var(--color-volny); }
+.marker-finished { opacity: 0.55; }
+.marker-cancelled { opacity: 0.4; border-style: dashed; }
+.marker-me { --marker: #0ea5e9; border-width: 3px; box-shadow: 0 0 10px rgb(14 165 233 / 0.8); }
+.marker-selected {
+  z-index: 2;
+  opacity: 1;
+  scale: 1.45;
+  box-shadow: 0 0 0 3px #fff, 0 0 14px var(--color-accent);
+}
 /* Fullscreen map (MapView.tsx): controls clear of the floating header and card strip. */
-.map-fullscreen .leaflet-top { top: var(--map-top, 0); }
-.map-fullscreen .leaflet-bottom { bottom: var(--map-bottom, 0); }
-.map-fullscreen .leaflet-control-attribution { border-radius: 9999px 0 0 9999px; padding: 0 8px; }
+.map-fullscreen .maplibregl-ctrl-top-right,
+.map-fullscreen .maplibregl-ctrl-top-left { top: var(--map-top, 0); }
+.map-fullscreen .maplibregl-ctrl-bottom-right,
+.map-fullscreen .maplibregl-ctrl-bottom-left { bottom: var(--map-bottom, 0); }
 
 /* Start-lights intro (Intro.tsx): lights on 0.5–2.1 s, out at 2.7 s, logo, fade out 3.5–4 s. */
 @layer components {

@@ -14,7 +14,7 @@ Kompletní zadání je v `docs/SPEC.md`. Čti ho před každou změnou.
 - Vše na Cloudflare: D1 (`zavody-kalendar`, binding `DB`, `wrangler.jsonc`), jeden Worker = stahování (Cron Trigger) + read-only API `/api/*` + frontend jako static assets (`dist/`, build z `web/`).
 - Schéma měň jen novou migrací v `migrations/NNNN_*.sql` (`wrangler d1 migrations apply`), aplikované migrace neupravuj. Data jako ISO text `YYYY-MM-DD`.
 - D1 není veřejná: frontend jen přes read-only API, zapisuje jen ingest Worker; admin endpoint chráněný tokenem ze secrets.
-- Frontend: Vite + React + TypeScript strict + Tailwind + Leaflet/OSM. Česky, mobile-first, světlý/tmavý režim, filtry v URL.
+- Frontend: Vite + React + TypeScript strict + Tailwind + MapLibre GL (vektorové dlaždice OpenFreeMap, `web/src/basemap.ts`). Česky, mobile-first, světlý/tmavý režim, filtry v URL.
 - Pro každý zdroj fixture v `fixtures/` a test normalizace + deduplikace bez volání API.
 
 ## Příkazy
