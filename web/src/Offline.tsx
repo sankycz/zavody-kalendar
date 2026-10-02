@@ -87,7 +87,13 @@ export function InstallCard() {
             <span>Aplikaci jednou otevřete s připojením, závody víkendu se uloží do telefonu.</span>
           </li>
         </ol>
-        <button type="button" onClick={() => setSteps(false)} className="bg-racing press mt-6 min-h-12 w-full rounded-2xl font-bold text-white shadow-lg shadow-accent/30">
+        <button
+          type="button"
+          onClick={() => {
+            setSteps(false);
+            dismiss();
+          }}
+          className="bg-racing press mt-6 min-h-12 w-full rounded-2xl font-bold text-white shadow-lg shadow-accent/30">
           Rozumím
         </button>
     </Sheet>

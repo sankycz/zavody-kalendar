@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { liveLinks } from "../src/api.ts";
 import { embeddedVideoUrl } from "../src/pipeline/htmlToText.ts";
 import { pageLink } from "../src/pipeline/organizer.ts";
-import { forecastHours, forecastUrl, liveWindow, resultsSearchUrl, weatherLabel, youtubeLiveSearchUrl, type Forecast } from "../web/src/live.ts";
+import { forecastHours, forecastUrl, liveParts, liveWindow, weatherLabel, type Forecast } from "../web/src/live.ts";
 import { createTestDb } from "./d1shim.ts";
 
 const race = { date_from: "2026-10-03", date_to: "2026-10-04", status: "planned" as const, organizer_flag: null };
@@ -24,10 +24,11 @@ describe("race-day window", () => {
 });
 
 describe("links out", () => {
-  const e = { name: "Rallye Šumava Klatovy", date_from: "2026-10-03" };
-  it("search for results and live broadcasts", () => {
-    expect(resultsSearchUrl(e)).toBe("https://www.google.com/search?q=Rallye%20%C5%A0umava%20Klatovy%202026%20v%C3%BDsledky");
-    expect(youtubeLiveSearchUrl(e)).toMatch(/^https:\/\/www\.youtube\.com\/results\?search_query=Rallye.*live&sp=/);
+  it("the race-day button names only what there is", () => {
+    const link = { label: "x", url: "https://x.cz", from: "organizer" as const };
+    expect(liveParts({ lat: 49.4, lng: 13.3, live: { results: [], streams: [] } })).toEqual(["počasí a radar"]);
+    expect(liveParts({ lat: null, lng: null, live: { results: [link], streams: [link] } })).toEqual(["výsledky", "přenos"]);
+    expect(liveParts({ lat: null, lng: null, live: { results: [], streams: [] } })).toEqual([]);
   });
 
   it("embedded players become watch links", () => {

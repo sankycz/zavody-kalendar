@@ -1,5 +1,5 @@
 // Race-day view ("Živě ze závodu"): when it shows, and the outside services it points to.
-import type { EventListItem } from "../../src/shared/types.ts";
+import type { EventDetail, EventListItem } from "../../src/shared/types.ts";
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -18,16 +18,13 @@ export function liveWindow(
   return null;
 }
 
-const query = (e: Pick<EventListItem, "name" | "date_from">, extra: string) => encodeURIComponent(`${e.name} ${e.date_from.slice(0, 4)} ${extra}`);
-
-/** Web search for the race's results, when no service is known (or as a last resort). */
-export function resultsSearchUrl(e: Pick<EventListItem, "name" | "date_from">): string {
-  return `https://www.google.com/search?q=${query(e, "výsledky")}`;
-}
-
-/** YouTube search for the race, filtered to live broadcasts. */
-export function youtubeLiveSearchUrl(e: Pick<EventListItem, "name" | "date_from">): string {
-  return `https://www.youtube.com/results?search_query=${query(e, "live")}&sp=EgJAAQ%253D%253D`;
+/** What the race-day view can show for a race; empty = no button. */
+export function liveParts(e: Pick<EventDetail, "lat" | "lng" | "live">): string[] {
+  const parts: string[] = [];
+  if (e.lat != null && e.lng != null) parts.push("počasí a radar");
+  if (e.live?.results.length) parts.push("výsledky");
+  if (e.live?.streams.length) parts.push("přenos");
+  return parts;
 }
 
 // Weather: Open-Meteo forecast (free for non-commercial use, CC BY 4.0), called from the browser.

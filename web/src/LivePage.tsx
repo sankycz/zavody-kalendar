@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect } from "react";
 import type { EventDetail, LiveLink } from "../../src/shared/types.ts";
 import { placeLabel } from "./EventList.tsx";
 import { longDateRange } from "./format.ts";
-import { forecastHours, forecastUrl, liveWindow, resultsSearchUrl, weatherLabel, youtubeLiveSearchUrl, type Forecast } from "./live.ts";
+import { forecastHours, forecastUrl, liveParts, liveWindow, weatherLabel, type Forecast } from "./live.ts";
 import { todayInPrague } from "./offline/plan.ts";
 import { useOnline } from "./offline/client.ts";
 import { canGoBack, navigate } from "./router.ts";
@@ -173,7 +173,12 @@ export function LivePage({ id }: { id: string }) {
           {placeLabel(e) && <> · {placeLabel(e)}</>}
         </p>
       </header>
-      {!mode && <p className="glass mt-4 rounded-2xl p-4 text-sm text-muted">Živý přehled je k dispozici den před závodem a během něj. Odkazy níže ale fungují i teď.</p>}
+      {!mode && <p className="glass mt-4 rounded-2xl p-4 text-sm text-muted">Živý přehled je k dispozici den před závodem a během něj.</p>}
+      {liveParts(e).length === 0 && (
+        <p className="glass mt-4 rounded-2xl p-4 text-sm text-muted">
+          K tomuto závodu zatím nemáme počasí, výsledky ani přenos. Odkazy pořadatele hledáme každé ráno, zkuste to později.
+        </p>
+      )}
       {!online && <p className="glass mt-4 rounded-2xl p-4 text-sm">Jste bez signálu: radar a odkazy potřebují připojení, předpověď je z poslední synchronizace.</p>}
 
       {hasPoint && (
@@ -194,31 +199,29 @@ export function LivePage({ id }: { id: string }) {
         </Section>
       )}
 
-      <Section
-        title="Výsledky a live timing"
-        icon="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"
-        note="Výsledky vedou přímo pořadatelé a výsledkové servisy, my na ně jen odkazujeme."
-      >
-        <ul className="space-y-2">
-          {live.results.map((l) => (
-            <LinkRow key={l.url} l={l} badge={l.from === "organizer" ? "pořadatel" : undefined} />
-          ))}
-          <LinkRow l={{ label: live.results.length ? "Hledat výsledky jinde" : "Hledat výsledky závodu", url: resultsSearchUrl(e) }} />
-        </ul>
-      </Section>
+      {live.results.length > 0 && (
+        <Section
+          title="Výsledky a live timing"
+          icon="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"
+          note="Výsledky vedou přímo pořadatelé a výsledkové servisy, my na ně jen odkazujeme."
+        >
+          <ul className="space-y-2">
+            {live.results.map((l) => (
+              <LinkRow key={l.url} l={l} badge={l.from === "organizer" ? "pořadatel" : undefined} />
+            ))}
+          </ul>
+        </Section>
+      )}
 
-      <Section
-        title="Přenos"
-        icon="M2 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8Zm16 2 4-2v8l-4-2"
-        note={live.streams.length ? undefined : "Pořadatel zatím žádný přenos neuvádí. Pokud se vysílá, najdete ho nejspíš na YouTube nebo na Facebooku pořadatele."}
-      >
-        <ul className="space-y-2">
-          {live.streams.map((l) => (
-            <LinkRow key={l.url} l={l} badge={l.from === "organizer" ? "pořadatel" : undefined} />
-          ))}
-          <LinkRow l={{ label: "Hledat živé vysílání na YouTube", url: youtubeLiveSearchUrl(e) }} />
-        </ul>
-      </Section>
+      {live.streams.length > 0 && (
+        <Section title="Přenos" icon="M2 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8Zm16 2 4-2v8l-4-2">
+          <ul className="space-y-2">
+            {live.streams.map((l) => (
+              <LinkRow key={l.url} l={l} badge={l.from === "organizer" ? "pořadatel" : undefined} />
+            ))}
+          </ul>
+        </Section>
+      )}
     </article>
   );
 }

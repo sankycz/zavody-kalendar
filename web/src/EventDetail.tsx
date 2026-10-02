@@ -11,7 +11,7 @@ import { canGoBack, navigate } from "./router.ts";
 import { SaveOfflineButton } from "./Offline.tsx";
 import { useOfflineState } from "./offline/client.ts";
 import { docUrl, todayInPrague } from "./offline/plan.ts";
-import { liveWindow } from "./live.ts";
+import { liveParts, liveWindow } from "./live.ts";
 import { RaceSteps, SwipeCard } from "./Swipe.tsx";
 import { useJson } from "./useJson.ts";
 
@@ -207,7 +207,8 @@ export function EventDetailPage({ id }: { id: string }) {
   const soon = e.status === "planned" ? relativeDay(e.date_from, e.date_to) : null;
   const hasPoint = e.lat != null && e.lng != null;
   const place = placeLabel(e);
-  const live = liveWindow(e, todayInPrague());
+  const liveInfo = liveParts(e);
+  const live = liveWindow(e, todayInPrague()) && liveInfo.length > 0;
 
   return (
     <article className="pt-4">
@@ -257,7 +258,7 @@ export function EventDetailPage({ id }: { id: string }) {
             <span className="live-dot" aria-hidden />
             <span className="min-w-0 flex-1">
               <span className="block text-lg leading-tight font-extrabold">Živě ze závodu</span>
-              <span className="block text-sm font-medium opacity-90">Počasí a radar · výsledky · přenos</span>
+              <span className="block text-sm font-medium opacity-90 first-letter:uppercase">{liveInfo.join(" · ")}</span>
             </span>
             <span aria-hidden className="text-xl">→</span>
           </a>
