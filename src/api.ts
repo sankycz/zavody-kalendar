@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fold } from "./pipeline/normalize.ts";
+import { eventToIcs } from "./shared/calendar.ts";
 import { DISCIPLINES, LEVELS } from "./pipeline/schema.ts";
 import type {
   EventDetail,
@@ -239,6 +240,20 @@ export async function handleApi(request: Request, db: D1Database): Promise<Respo
     return event
       ? Response.json(event, { headers: CACHE })
       : Response.json({ error: "not found" }, { status: 404 });
+  }
+
+  // Calendar entry (Apple Calendar, Outlook…): a link opens it, iPhone offers "Add to Calendar".
+  const ics = /^\/api\/events\/([0-9a-f]{32})\/ics$/.exec(url.pathname);
+  if (ics) {
+    const event = await getEvent(db, ics[1]!);
+    if (!event) return Response.json({ error: "not found" }, { status: 404 });
+    return new Response(eventToIcs(event, `${url.origin}/zavod/${event.id}`), {
+      headers: {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": `inline; filename="zavod-${event.date_from}.ics"`,
+        ...CACHE,
+      },
+    });
   }
 
   if (url.pathname === "/api/regions") {

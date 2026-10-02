@@ -133,6 +133,7 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 - Fulltextové hledání (lupa v hlavičce, `?q=` v URL i v `/api/events`): všechna slova musí být v názvu, obci, kraji, seriálu, pořadateli nebo disciplíně, bez ohledu na diakritiku.
 - Mapa ukazuje stejnou množinu jako seznam.
 - Detail: všechna pole, odkazy na pořadatele a na všechny zdroje, čas poslední aktualizace.
+- Přidání do kalendáře bez stahování souboru (`src/shared/calendar.ts`): „Google Kalendář“ otevře předvyplněnou celodenní událost (`calendar.google.com/calendar/render?action=TEMPLATE…`), „Apple Kalendář“ odkazuje na `GET /api/events/<id>/ics` (text/calendar), takže iPhone nabídne „Přidat do kalendáře“ a Mac otevře Kalendář. Na zařízeních Apple je Apple první.
 - Musí fungovat na mobilu, uživatel se na to bude dívat hlavně venku u trati. Světlý a tmavý režim.
 - Rozhraní česky.
 

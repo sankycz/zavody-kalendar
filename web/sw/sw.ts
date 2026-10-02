@@ -75,6 +75,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin === self.location.origin) {
     if (url.pathname.startsWith("/admin/")) return;
     if (/^\/api\/events\/[0-9a-f]{32}\/doc$/.test(url.pathname)) return event.respondWith(cacheFirst(req, CACHES.docs, false));
+    if (url.pathname.endsWith("/ics")) return; // calendar entry: straight to the network, not worth storing
     if (url.pathname.startsWith("/api/")) return event.respondWith(apiNetworkFirst(req));
     if (req.mode === "navigate") return event.respondWith(page(req));
     return event.respondWith(staticAsset(req));

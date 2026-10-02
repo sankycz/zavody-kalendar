@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect } from "react";
 import type { EventDetail as Detail, EventLink, LinkKind } from "../../src/shared/types.ts";
 import { placeLabel, LEVEL_CLASS } from "./EventList.tsx";
 import { formatDate, formatTimestamp, longDateRange, relativeDay } from "./format.ts";
-import { eventToIcs } from "./ics.ts";
+import { googleCalendarUrl } from "../../src/shared/calendar.ts";
 import { DisciplineBadge, disciplineStyle } from "./Badges.tsx";
 import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
 import { Countdown } from "./NextRace.tsx";
@@ -132,13 +132,30 @@ const btnBase = "inline-flex min-h-10 items-center justify-center gap-1.5 rounde
 const btnClass = `${btnBase} glass press hover:brightness-110`;
 const btnPrimary = `${btnBase} bg-racing press text-white shadow-lg shadow-accent/30 hover:brightness-110`;
 
-function downloadIcs(e: Detail) {
-  const blob = new Blob([eventToIcs(e, window.location.href)], { type: "text/calendar;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${e.date_from}-${e.name.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\w]+/g, "-").toLowerCase()}.ics`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+/** iPhone, iPad, Mac: Apple Calendar first. */
+const applePlatform = /iphone|ipad|ipod|macintosh/i.test(navigator.userAgent);
+
+function CalendarButtons({ e }: { e: Detail }) {
+  const page = `${window.location.origin}/zavod/${e.id}`;
+  const icon = (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM12 12v5M9.5 14.5h5" />
+    </svg>
+  );
+  const google = (
+    <a key="google" href={googleCalendarUrl(e, page)} target="_blank" rel="noopener noreferrer" className={btnClass} title="Otevře Google Kalendář s vyplněnou událostí">
+      {icon}
+      Google Kalendář
+    </a>
+  );
+  // Served as text/calendar: iPhone shows "Add to Calendar", a Mac opens Calendar; no file to keep.
+  const apple = (
+    <a key="apple" href={`/api/events/${e.id}/ics`} target="_blank" rel="noopener" data-native className={btnClass} title="Přidá závod do Kalendáře na iPhonu nebo Macu">
+      {icon}
+      Apple Kalendář
+    </a>
+  );
+  return <>{applePlatform ? [apple, google] : [google, apple]}</>;
 }
 
 async function share(e: Detail) {
@@ -281,9 +298,7 @@ export function EventDetailPage({ id }: { id: string }) {
             </a>
           )}
           {e.status !== "finished" && (
-            <button type="button" className={btnClass} onClick={() => downloadIcs(e)}>
-              Do kalendáře
-            </button>
+            <CalendarButtons e={e} />
           )}
           <button type="button" className={btnClass} onClick={() => void share(e)}>
             Sdílet
