@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { getPrefs, subscribePrefs } from "../prefs.ts";
 import { CACHES, EMPTY_STATE, STATE_KEY, type FromWorker, type OfflineState, type ToWorker } from "./plan.ts";
 
 // Page side of the service worker (web/sw/sw.ts): registration, what is saved
@@ -19,14 +20,29 @@ export function registerServiceWorker(): void {
       .register("/sw.js")
       .then(async (reg) => {
         await navigator.serviceWorker.ready;
-        post({ type: "sync" });
+        post(syncMessage());
         // Chrome, installed app: refresh in the background twice a day (best effort).
         const periodic = (reg as ServiceWorkerRegistration & { periodicSync?: { register(tag: string, o: { minInterval: number }): Promise<void> } }).periodicSync;
         await periodic?.register("weekend-races", { minInterval: 12 * 3600_000 }).catch(() => {});
       })
       .catch((err: unknown) => console.warn("service worker:", err));
   });
-  window.addEventListener("online", () => post({ type: "sync" }));
+  window.addEventListener("online", () => post(syncMessage()));
+  // A new favourite on the coming weekend gets saved for offline use right away.
+  let favorites = favoriteIds();
+  subscribePrefs(() => {
+    if (favoriteIds() === favorites) return;
+    favorites = favoriteIds();
+    post(syncMessage());
+  });
+}
+
+function favoriteIds(): string {
+  return Object.keys(getPrefs().favorites).sort().join();
+}
+
+function syncMessage(): ToWorker {
+  return { type: "sync", favorites: Object.keys(getPrefs().favorites) };
 }
 
 export const saveOffline = (id: string) => post({ type: "save", id });

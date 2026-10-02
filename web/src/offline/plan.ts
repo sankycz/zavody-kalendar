@@ -39,12 +39,14 @@ export interface OfflineState {
   /** Last finished sync (ISO), null before the first. */
   syncedAt: string | null;
   races: Record<string, OfflineRace>;
+  /** The visitor's favourite races, as the page last sent them. */
+  favorites?: string[];
 }
 
 export const EMPTY_STATE: OfflineState = { syncedAt: null, races: {} };
 
-/** Messages from the page to the service worker. */
-export type ToWorker = { type: "sync"; force?: boolean } | { type: "save"; id: string } | { type: "unsave"; id: string };
+/** Messages from the page to the service worker (favourites: ids from the browser's prefs). */
+export type ToWorker = { type: "sync"; force?: boolean; favorites?: string[] } | { type: "save"; id: string } | { type: "unsave"; id: string };
 /** Message from the service worker: the offline state changed (busy = a save is running). */
 export interface FromWorker {
   type: "offline-state";
@@ -69,11 +71,13 @@ export function weekendWindow(today: string): { from: string; to: string } {
 }
 
 /** Races running or starting between today and Sunday, not cancelled, by date. */
-export function weekendRaces(events: EventListItem[], today: string, max = MAX_WEEKEND_RACES): EventListItem[] {
+export function weekendRaces(events: EventListItem[], today: string, max = MAX_WEEKEND_RACES, favorites: readonly string[] = []): EventListItem[] {
   const { from, to } = weekendWindow(today);
+  const fav = new Set(favorites);
   return events
     .filter((e) => e.status === "planned" && e.organizer_flag !== "cancelled" && (e.date_to ?? e.date_from) >= from && e.date_from <= to)
-    .sort((a, b) => a.date_from.localeCompare(b.date_from))
+    // The visitor's favourites first, so a busy weekend can't push them out.
+    .sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id)) || a.date_from.localeCompare(b.date_from))
     .slice(0, max);
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_FILTERS, activeFilterCount, eventsApiUrl, listHref, parseFilters, seasonOf, seasonRange } from "../web/src/filters.ts";
+import { EMPTY_FILTERS, activeFilterCount, eventsApiUrl, listHref, parseFilters, rememberedQuery, seasonOf, seasonRange } from "../web/src/filters.ts";
 import { distanceKm, formatDistance } from "../web/src/distance.ts";
 
 describe("season switch", () => {
@@ -48,5 +48,21 @@ describe("swiping between races", () => {
     expect(neighboursIn(races, "b")).toEqual({ prev: races[0], next: races[2] });
     expect(neighboursIn(races, "a")).toEqual({ prev: null, next: races[1] });
     expect(neighboursIn(races, "x")).toEqual({ prev: null, next: null });
+  });
+});
+
+describe("kept in the browser", () => {
+  it("favourites are a page flag, not an API filter", () => {
+    const f = parseFilters(new URLSearchParams("fav=1&discipline=rally"));
+    expect(f.fav).toBe(true);
+    expect(listHref(f)).toBe("/?discipline=rally&fav=1");
+    expect(eventsApiUrl(f)).toBe("/api/events?discipline=rally");
+    expect(activeFilterCount(f)).toBe(1);
+  });
+
+  it("remembers disciplines, levels, region, view and favourites – not dates, search or near me", () => {
+    const f = { ...EMPTY_FILTERS, discipline: ["vrch" as const], region: "Zlínský kraj", view: "map" as const, fav: true, from: "2026-10-01", q: "Ecce", sort: "near" as const };
+    expect(rememberedQuery(f)).toBe("discipline=vrch&region=Zl%C3%ADnsk%C3%BD+kraj&view=map&fav=1");
+    expect(rememberedQuery(EMPTY_FILTERS)).toBe("");
   });
 });

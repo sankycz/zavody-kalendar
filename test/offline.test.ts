@@ -40,6 +40,13 @@ describe("coming weekend", () => {
     expect(weekendRaces(many, "2026-10-02")).toHaveLength(8);
   });
 
+  it("a busy weekend keeps the visitor's favourites", () => {
+    const many = Array.from({ length: 20 }, (_, i) => race(`r${i}`, i < 10 ? "2026-10-03" : "2026-10-04"));
+    const picked = weekendRaces(many, "2026-10-02", 8, ["r19", "r15"]).map((e) => e.id);
+    expect(picked).toHaveLength(8);
+    expect(picked.slice(0, 2)).toEqual(["r15", "r19"]);
+  });
+
   it("knows today in Czech time", () => {
     expect(todayInPrague(new Date("2026-10-02T22:30:00Z"))).toBe("2026-10-03");
   });

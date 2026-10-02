@@ -8,6 +8,7 @@ import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
 import { Countdown } from "./NextRace.tsx";
 import { useNeighbours } from "./raceOrder.ts";
 import { canGoBack, navigate } from "./router.ts";
+import { FavoriteButton } from "./Favorite.tsx";
 import { SaveOfflineButton } from "./Offline.tsx";
 import { useOfflineState } from "./offline/client.ts";
 import { docUrl, todayInPrague } from "./offline/plan.ts";
@@ -300,6 +301,7 @@ export function EventDetailPage({ id }: { id: string }) {
           {e.status !== "finished" && (
             <CalendarButtons e={e} />
           )}
+          <FavoriteButton e={e} className={btnClass} />
           <button type="button" className={btnClass} onClick={() => void share(e)}>
             Sdílet
           </button>

@@ -307,16 +307,18 @@ async function prune(state: OfflineState): Promise<void> {
   for (const k of await docCache.keys()) if (!docs.has(k.url)) await docCache.delete(k);
 }
 
-async function sync(force: boolean): Promise<void> {
+async function sync(force: boolean, favorites?: string[]): Promise<void> {
   const state = await readState();
-  if (!force && state.syncedAt && Date.now() - Date.parse(state.syncedAt) < SYNC_EVERY_MS) return;
+  const favChanged = !!favorites && [...favorites].sort().join() !== [...(state.favorites ?? [])].sort().join();
+  if (favorites) state.favorites = favorites;
+  if (!force && !favChanged && state.syncedAt && Date.now() - Date.parse(state.syncedAt) < SYNC_EVERY_MS) return;
   const today = todayInPrague();
   const list = await fetchApi<EventsResponse>("/api/events");
   await fetchApi("/api/regions").catch(() => {});
   await fill(CACHES.tilesSaved, overviewTiles(), { mode: "cors", credentials: "omit" }, 3);
 
   const pinned = Object.values(state.races).filter((r) => r.pinned && isCurrent(r, today));
-  const wanted = new Map<string, boolean>(weekendRaces(list.events, today).map((e) => [e.id, false]));
+  const wanted = new Map<string, boolean>(weekendRaces(list.events, today, undefined, state.favorites).map((e) => [e.id, false]));
   for (const r of pinned) wanted.set(r.id, true);
 
   const races: Record<string, OfflineRace> = {};
@@ -332,7 +334,7 @@ async function sync(force: boolean): Promise<void> {
     void broadcast();
   }
 
-  const next: OfflineState = { syncedAt: new Date().toISOString(), races };
+  const next: OfflineState = { syncedAt: new Date().toISOString(), races, ...(state.favorites ? { favorites: state.favorites } : {}) };
   await writeState(next);
   await prune(next);
   await broadcast();
@@ -353,7 +355,7 @@ async function unsave(id: string): Promise<void> {
   const weekend = await caches
     .match("/api/events", { cacheName: CACHES.api })
     .then((res) => res?.json() as Promise<EventsResponse> | undefined)
-    .then((l) => (l ? weekendRaces(l.events, todayInPrague()).some((e) => e.id === id) : false))
+    .then((l) => (l ? weekendRaces(l.events, todayInPrague(), undefined, state.favorites).some((e) => e.id === id) : false))
     .catch(() => false);
   const races = { ...state.races };
   if (weekend) races[id] = { ...r, pinned: false };
@@ -370,7 +372,7 @@ self.addEventListener("message", (event) => {
   const id = "id" in msg && /^[0-9a-f]{32}$/.test(msg.id) ? msg.id : null;
   const job =
     msg.type === "sync"
-      ? enqueue(() => sync(msg.force === true))
+      ? enqueue(() => sync(msg.force === true, Array.isArray(msg.favorites) ? msg.favorites.filter((f) => /^[0-9a-f]{32}$/.test(f)) : undefined))
       : msg.type === "save" && id
         ? enqueue(() => save(id))
         : msg.type === "unsave" && id

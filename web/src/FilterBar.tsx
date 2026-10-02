@@ -2,6 +2,7 @@ import type { RegionsResponse } from "../../src/shared/types.ts";
 import { DISCIPLINES, EMPTY_FILTERS, LEVELS, activeFilterCount, seasonOf, type Filters } from "./filters.ts";
 import { DisciplineIcon } from "./Badges.tsx";
 import { DISCIPLINE_LABEL, LEVEL_LABEL } from "./labels.ts";
+import { setHomeRegion, usePrefs } from "./prefs.ts";
 import { useJson } from "./useJson.ts";
 
 function toggle<T>(list: T[], v: T): T[] {
@@ -34,6 +35,7 @@ export function FilterPanel({ filters, onChange }: { filters: Filters; onChange:
   const count = activeFilterCount(filters);
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const regionOptions = regions.kind === "ready" ? regions.data.regions : [];
+  const { homeRegion } = usePrefs();
 
   return (
     <div id="filters" className="space-y-5">
@@ -76,6 +78,19 @@ export function FilterPanel({ filters, onChange }: { filters: Filters; onChange:
             </option>
           ))}
         </select>
+        {filters.region && filters.region !== homeRegion && (
+          <button type="button" onClick={() => setHomeRegion(filters.region)} className="mt-1.5 text-xs font-semibold text-accent">
+            Uložit jako můj kraj
+          </button>
+        )}
+        {homeRegion && filters.region === homeRegion && (
+          <span className="mt-1.5 flex items-center gap-2 text-xs text-muted">
+            ✓ Můj kraj
+            <button type="button" onClick={() => setHomeRegion(null)} className="font-semibold text-accent">
+              Zapomenout
+            </button>
+          </span>
+        )}
       </label>
       <label className="block">
         <span className="mb-1.5 block text-xs font-semibold tracking-wide text-muted uppercase">Od</span>
@@ -102,6 +117,7 @@ export function FilterPanel({ filters, onChange }: { filters: Filters; onChange:
             view: filters.view,
             sort: filters.sort,
             q: filters.q,
+            fav: filters.fav,
             // The season switch above isn't a filter: keep it.
             ...(seasonOf(filters) !== null ? { from: filters.from, to: filters.to } : {}),
           })

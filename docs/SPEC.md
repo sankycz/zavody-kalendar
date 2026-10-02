@@ -137,6 +137,14 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 - Musí fungovat na mobilu, uživatel se na to bude dívat hlavně venku u trati. Světlý a tmavý režim.
 - Rozhraní česky.
 
+### Uložení bez účtu
+
+Uživatelské účty nejsou (ani osobní údaje, GDPR). Co si návštěvník nastaví, zůstává jen v jeho prohlížeči, v `localStorage` (`web/src/prefs.ts`, klíč `prefs-v1`). U nainstalované aplikace je to úložiště aplikace v telefonu. Na server se nic neposílá. Po první oblíbené požádá aplikace prohlížeč o trvalé úložiště (`navigator.storage.persist()`, nainstalovaným aplikacím ho prohlížeč dá bez dotazu), aby data při nedostatku místa nesmazal.
+
+- **Oblíbené závody:** hvězdička na kartě v seznamu a „Do oblíbených“ v detailu. Přepínač „Oblíbené“ nad seznamem (`?fav=1`, filtruje se v prohlížeči, API ho nedostane) funguje i na mapě. Oblíbené se zapomenou 60 dní po závodě. Oblíbené závody nejbližšího víkendu ukládá service worker pro offline přednostně (limit 8 je nevytlačí).
+- **Domovský kraj:** ve filtrech „Uložit jako můj kraj“, pak přepínač „Můj kraj“ nad seznamem.
+- **Filtry:** disciplína, úroveň, kraj, seznam/mapa a oblíbené se pamatují. Otevření aplikace na `/` bez parametrů vrátí seznam, jak ho návštěvník opustil. Odkaz s vlastními filtry má přednost a klik na logo filtry vynuluje. Datum, hledání a „blízko mě“ se nepamatují.
+
 ### Živě ze závodu
 
 Den před závodem a během něj (podle data v Praze, ne u zrušených a odložených) je v detailu velké tlačítko „Živě ze závodu“ → stránka `/zavod/<id>/zive` (`web/src/LivePage.tsx`):

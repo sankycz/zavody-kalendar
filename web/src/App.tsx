@@ -4,7 +4,9 @@ import { EventDetailPage } from "./EventDetail.tsx";
 import { EventList } from "./EventList.tsx";
 import { Dock } from "./Dock.tsx";
 import { FilterBar, FilterPanel } from "./FilterBar.tsx";
-import { activeFilterCount, eventsApiUrl, listHref, parseFilters, seasonOf, seasonRange, type Filters } from "./filters.ts";
+import { activeFilterCount, eventsApiUrl, listHref, parseFilters, rememberedQuery, seasonOf, seasonRange, type Filters } from "./filters.ts";
+import { StarIcon } from "./Favorite.tsx";
+import { rememberList, usePrefs } from "./prefs.ts";
 import { formatTimestamp } from "./format.ts";
 import { distanceKm } from "./distance.ts";
 import { usePosition } from "./geo.ts";
@@ -54,6 +56,37 @@ function ScopeToggle({ filters, seasons, onChange }: { filters: Filters; seasons
   );
 }
 
+/** Favourites and home region: one tap, kept in this browser (prefs.ts). */
+function QuickChips({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
+  const { favorites, homeRegion } = usePrefs();
+  const favCount = Object.keys(favorites).length;
+  const chip = (on: boolean) =>
+    `press flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-all ${
+      on ? "bg-racing text-white shadow-md shadow-accent/30" : "glass text-muted hover:text-fg"
+    }`;
+  if (!favCount && !homeRegion && !filters.fav) return null;
+  const home = !!homeRegion && filters.region === homeRegion;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(favCount > 0 || filters.fav) && (
+        <button type="button" aria-pressed={filters.fav} onClick={() => onChange({ ...filters, fav: !filters.fav })} className={chip(filters.fav)}>
+          <StarIcon on={filters.fav} className="h-4 w-4" />
+          Oblíbené
+          <span className={filters.fav ? "opacity-85" : ""}>{favCount}</span>
+        </button>
+      )}
+      {homeRegion && (
+        <button type="button" aria-pressed={home} onClick={() => onChange({ ...filters, region: home ? "" : homeRegion })} className={chip(home)} title={homeRegion}>
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z" />
+          </svg>
+          Můj kraj
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ListPage({ filters }: { filters: Filters }) {
   const state = useJson<EventsResponse>(eventsApiUrl(filters));
   const onChange = (f: Filters) => navigate(listHref(f), { replace: true });
@@ -82,8 +115,13 @@ function ListPage({ filters }: { filters: Filters }) {
     else setGeoMessage("Polohu se nepodařilo zjistit. Povolte prosím přístup k poloze v prohlížeči.");
   };
 
+  // Remember the list's filters for the next visit (restored in main.tsx).
+  useEffect(() => rememberList(rememberedQuery(filters)), [filters]);
+
+  const { favorites } = usePrefs();
   const near = filters.sort === "near" ? geo.pos : null;
-  const all = state.kind === "ready" ? state.data.events : [];
+  const loaded = state.kind === "ready" ? state.data.events : [];
+  const all = useMemo(() => (filters.fav ? loaded.filter((e) => favorites[e.id]) : loaded), [loaded, filters.fav, favorites]);
   const distances = useMemo(() => {
     if (!near) return undefined;
     const m = new Map<string, number>();
@@ -109,7 +147,7 @@ function ListPage({ filters }: { filters: Filters }) {
   }, [state.kind]);
 
   const highlight =
-    state.kind === "ready" && filters.view === "list" && !near && !filters.from && !filters.to && activeFilterCount(filters) === 0 && !filters.q?.trim()
+    state.kind === "ready" && filters.view === "list" && !near && !filters.fav && !filters.from && !filters.to && activeFilterCount(filters) === 0 && !filters.q?.trim()
       ? nextRace(all)
       : null;
 
@@ -120,7 +158,7 @@ function ListPage({ filters }: { filters: Filters }) {
     <Sheet open={sheetOpen} title="Filtry" onClose={closeSheet}>
       <FilterPanel filters={filters} onChange={onChange} />
       <button type="button" onClick={closeSheet} className="bg-racing press mt-6 min-h-12 w-full rounded-2xl font-bold text-white shadow-lg shadow-accent/30">
-        {state.kind === "ready" ? `Zobrazit ${count(state.data.events.length)}` : "Hotovo"}
+        {state.kind === "ready" ? `Zobrazit ${count(events.length)}` : "Hotovo"}
       </button>
     </Sheet>
   );
@@ -164,6 +202,7 @@ function ListPage({ filters }: { filters: Filters }) {
                   </span>
                 )}
               </div>
+              <QuickChips filters={filters} onChange={onChange} />
               {bar}
               {geoNote}
             </>
@@ -187,7 +226,8 @@ function ListPage({ filters }: { filters: Filters }) {
           <ScopeToggle filters={filters} seasons={seasons} onChange={onChange} />
           {state.kind === "ready" && (
             <span className="text-sm text-muted" aria-live="polite">
-              {count(state.data.events.length)}
+              {count(events.length)}
+              {filters.fav ? " v oblíbených" : ""}
               {query ? ` pro „${query}“` : ""}
               {filterCount > 0 ? " podle filtrů" : ""}
             </span>
@@ -197,6 +237,9 @@ function ListPage({ filters }: { filters: Filters }) {
 
       <InstallCard />
       <SavedRaces />
+      <div className="mb-4 empty:hidden">
+        <QuickChips filters={filters} onChange={onChange} />
+      </div>
 
       {highlight && <NextRace event={highlight} />}
 
@@ -231,7 +274,11 @@ function ListPage({ filters }: { filters: Filters }) {
         <div className="mt-5">
           {events.length === 0 ? (
             <div className="glass rounded-2xl px-4 py-10 text-center text-muted">
-              {query
+              {filters.fav
+                ? Object.keys(favorites).length
+                  ? "Žádný z oblíbených závodů tomuto výběru neodpovídá."
+                  : "Zatím nemáte oblíbené závody. Přidáte je hvězdičkou u závodu."
+                : query
                 ? `Pro „${query}“ jsme nic nenašli${filterCount > 0 ? " (platí i filtry)" : ""}.`
                 : filterCount > 0
                   ? "Filtrům neodpovídá žádný závod."
@@ -243,6 +290,11 @@ function ListPage({ filters }: { filters: Filters }) {
                   className="mt-3 block w-full text-sm font-semibold text-accent"
                 >
                   Hledat i v proběhlých závodech sezóny
+                </button>
+              )}
+              {filters.fav && (
+                <button type="button" onClick={() => onChange({ ...filters, fav: false })} className="mt-3 block w-full text-sm font-semibold text-accent">
+                  Zobrazit všechny závody
                 </button>
               )}
               {!state.data.last_ingest_at && " Data se objeví po prvním stažení zdrojů."}
