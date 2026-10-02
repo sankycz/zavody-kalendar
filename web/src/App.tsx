@@ -14,7 +14,7 @@ import { Intro } from "./Intro.tsx";
 import { LivePage } from "./LivePage.tsx";
 import { MapView } from "./MapView.tsx";
 import { NextRace, nextRace } from "./NextRace.tsx";
-import { InstallCard, OfflineNotice, SavedRaces } from "./Offline.tsx";
+import { InstallCard, OfflineNotice } from "./Offline.tsx";
 import { setRaceOrder } from "./raceOrder.ts";
 import { navigate, savedScroll, useLocation } from "./router.ts";
 import { SearchBar, SearchButton } from "./Search.tsx";
@@ -236,7 +236,6 @@ function ListPage({ filters }: { filters: Filters }) {
       </section>
 
       <InstallCard />
-      <SavedRaces />
       <div className="mb-4 empty:hidden">
         <QuickChips filters={filters} onChange={onChange} />
       </div>
