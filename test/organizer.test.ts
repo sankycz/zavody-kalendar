@@ -167,14 +167,13 @@ describe("checkOrganizers", () => {
     const id = (await listEvents(t.d1, {}, TODAY)).events[0]!.id;
     const live = (await getEvent(t.d1, id))!.live!;
     expect(live.results[0]).toEqual({ label: "Výsledky od pořadatele", url: "https://soon.example/vysledky", from: "organizer" });
-    expect(live.results.map((l) => l.from).slice(1)).toEqual(["service", "service"]); // rally services from live_services
     expect(live.streams).toEqual([{ label: "Přenos od pořadatele", url: "https://www.youtube.com/channel/UCabc123/live", from: "organizer" }]);
 
     // Made-up URLs are dropped.
     t.pages.set("https://soon.example/", "<main>Rallye Klatovy, nic nového</main>");
     t.answer(ok({ results_url: "https://invented.example/results", stream_url: null }));
     await t.run(addDays(TODAY, 1));
-    expect((await getEvent(t.d1, id))!.live!.results[0]!.from).toBe("service");
+    expect((await getEvent(t.d1, id))!.live!.results).toEqual([]);
   });
 
   it("daily run looks at today and tomorrow only", async () => {
