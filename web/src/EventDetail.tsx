@@ -10,7 +10,7 @@ import { useNeighbours } from "./raceOrder.ts";
 import { canGoBack, navigate } from "./router.ts";
 import { FavoriteButton } from "./Favorite.tsx";
 import { SaveOfflineButton } from "./Offline.tsx";
-import { useOfflineState } from "./offline/client.ts";
+import { useOfflineState, useOnline } from "./offline/client.ts";
 import { docUrl, todayInPrague } from "./offline/plan.ts";
 import { liveParts, liveWindow } from "./live.ts";
 import { RaceSteps, SwipeCard } from "./Swipe.tsx";
@@ -71,6 +71,7 @@ const LINK_ICON: Record<LinkKind, string> = {
 /** Documents for spectators from the organizer: schedule, maps, regulations, poster. */
 function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
   const offline = useOfflineState();
+  const online = useOnline();
   const saved = new Set(offline?.state.races[eventId]?.docs ?? []);
   if (links.length === 0) return null;
   return (
@@ -80,11 +81,11 @@ function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
       </h2>
       <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {links.map((l) => (
-          <li key={l.url} className="flex gap-2">
+          <li key={l.url} className="flex">
+            {/* Without a signal a stored document opens from the phone (our copy, src/docs.ts). */}
             <a
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={!online && saved.has(l.url) ? docUrl(eventId, l.url) : l.url}
+              {...(!online && saved.has(l.url) ? { "data-native": "" } : { target: "_blank", rel: "noopener noreferrer" })}
               className="press flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-glass-border transition-all ring-inset hover:brightness-110"
             >
               <span aria-hidden className="bg-racing grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white shadow-md shadow-accent/25">
@@ -98,21 +99,6 @@ function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
               </span>
               <span aria-hidden className="text-muted">↗</span>
             </a>
-            {saved.has(l.url) && (
-              // Our stored copy (src/docs.ts), served by the service worker without a signal.
-              <a
-                href={docUrl(eventId, l.url)}
-                data-native
-                aria-label={`${l.label} – kopie v telefonu`}
-                title="Kopie uložená v telefonu, funguje i bez signálu"
-                className="press flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl bg-regionalni/12 text-[0.65rem] font-semibold text-regionalni ring-1 ring-regionalni/30 ring-inset"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-                Offline
-              </a>
-            )}
           </li>
         ))}
       </ul>
@@ -180,6 +166,7 @@ function hostOf(url: string): string {
 export function EventDetailPage({ id }: { id: string }) {
   const state = useJson<Detail>(`/api/events/${id}`);
   const { prev, next } = useNeighbours(id);
+  const offlineState = useOfflineState();
 
   useEffect(() => {
     if (state.kind === "ready") document.title = `${state.data.name} – Závody aut v ČR`;
@@ -227,6 +214,7 @@ export function EventDetailPage({ id }: { id: string }) {
   const place = placeLabel(e);
   const liveInfo = liveParts(e);
   const live = liveWindow(e, todayInPrague()) && liveInfo.length > 0;
+  const savedOffline = !!offlineState?.state.races[e.id];
 
   return (
     <article className="pt-4">
@@ -305,7 +293,7 @@ export function EventDetailPage({ id }: { id: string }) {
           <button type="button" className={btnClass} onClick={() => void share(e)}>
             Sdílet
           </button>
-          {e.status !== "finished" && <SaveOfflineButton id={e.id} className={btnClass} />}
+          {e.status !== "finished" && !savedOffline && <SaveOfflineButton id={e.id} className={btnClass} />}
         </div>
         </div>
       </header>
@@ -339,6 +327,9 @@ export function EventDetailPage({ id }: { id: string }) {
           </Row>
         )}
         {e.description && <Row label="Poznámka">{e.description}</Row>}
+        {savedOffline && (
+          <Row label="Bez signálu">Závod je uložený v telefonu: detail, mapu okolí i dokumenty si prohlédnete i bez signálu.</Row>
+        )}
       </dl>
 
       <section className="glass mt-6 rounded-2xl p-4">

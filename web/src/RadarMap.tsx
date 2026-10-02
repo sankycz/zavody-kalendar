@@ -42,7 +42,7 @@ export default function RadarMap({ lat, lng }: { lat: number; lng: number }) {
     const m = created.map;
     m.touchZoomRotate.disableRotation();
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
-    m.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '<a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>' }), "bottom-right");
+    m.addControl(new maplibregl.AttributionControl({ compact: false, customAttribution: '<a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>' }), "bottom-right");
     const dot = document.createElement("div");
     dot.className = "map-marker marker-mcr";
     dot.style.setProperty("--size", "16px");

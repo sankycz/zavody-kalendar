@@ -103,7 +103,7 @@ export default function EventMap({
     if (!created) return setFailed(true);
     const m = created.map;
     m.touchZoomRotate.disableRotation();
-    m.addControl(new maplibregl.AttributionControl({ compact: true }), single || fullscreen ? "top-right" : "bottom-right");
+    m.addControl(new maplibregl.AttributionControl({ compact: false }), single || fullscreen ? "top-right" : "bottom-right");
     if (interactive) m.addControl(new maplibregl.NavigationControl({ showCompass: false }), fullscreen ? "top-right" : "top-left");
     map.current = m;
     return () => {

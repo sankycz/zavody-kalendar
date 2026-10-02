@@ -316,15 +316,25 @@
 :root.dark .maplibregl-ctrl-icon {
   filter: invert(1);
 }
-:root .maplibregl-ctrl-attrib {
-  background: var(--color-glass-strong);
-  color: var(--color-muted);
+/* Map credits: one small, quiet line (required by the OSM licence), no white bar. */
+:root .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  margin: 0 4px 4px 0;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.55);
+  color: rgb(17 19 24 / 0.7);
+  font-size: 10px;
+  line-height: 1.5;
+}
+:root.dark .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background: rgb(0 0 0 / 0.4);
+  color: rgb(238 240 245 / 0.65);
 }
 :root .maplibregl-ctrl-attrib a {
-  color: var(--color-fg);
+  color: inherit;
 }
-:root.dark .maplibregl-ctrl-attrib-button {
-  filter: invert(1);
+:root .maplibregl-ctrl-top-right .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  margin: 4px 4px 0 0;
 }
 :root .maplibregl-map a.map-popup-link {
   color: var(--color-fg);
