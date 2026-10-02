@@ -119,6 +119,16 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 - Výsledek se ukládá do `organizer_checks`, ne do `events`: kalendářový import tak zrušení od pořadatele nepřepíše a změna termínu nevytvoří duplicitu. API zrušení od pořadatele promítá do stavu závodu, odklad a jiný termín ukazuje jako upozornění.
 - Neukládá se text stránky ani osobní údaje, jen hash a strukturovaný výsledek.
 
+## Rychlostní zkoušky a uzavírky
+
+Navigace neví, že jsou silnice na RZ uzavřené (často hodiny předem a i mezi průjezdy). U nadcházející rally, rallysprintu a závodu do vrchu proto model čte dokumenty pořadatele (`src/pipeline/stages.ts`):
+
+- Denně kromě pondělí (po kontrole webů pořadatelů) závody v příštích 14 dnech, max. `STAGE_CHECK_LIMIT` (výchozí 5) za běh, nikdy nečtené a nejbližší první, každý nejvýš jednou denně. Ručně přes `POST /admin/check-stages`.
+- Čtou se odkazy závodu z `event_links` (harmonogram → divácké informace → propozice → mapa), pak web pořadatele, nejvýš 3 dokumenty. PDF, HTML i obrázky (harmonogramy bývají PNG/JPG; Workers AI je čte modelem s vizí, Claude přímo). Model se volá jen když se dokumenty od minula změnily (hash).
+- Pevné schéma (zkouška, den, start 1. vozu, uzavřeno od–do, délka), výstup validovaný: časy musí být skutečné a u textových dokumentů opravdu v textu, den v termínu závodu, zkouška bez času se zahodí. Uzavírka jen když ji dokument výslovně uvádí, nedopočítává se. Z více dokumentů vyhrává ten s časy uzavírek, pak ten s víc zkouškami.
+- Ukládá se jen do `event_stages` a `stage_checks` (migrace `0015`), ne text dokumentů ani jména osob. Při chybě zůstávají dřívější zkoušky.
+- V detailu závodu se seznam RZ ukáže jen když data máme; jinak zůstává obecné upozornění „Uzavřené silnice“ s odkazem na dokument pořadatele.
+
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.

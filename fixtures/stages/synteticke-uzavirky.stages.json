@@ -1,0 +1,11 @@
+{
+  "model": "@cf/meta/llama-4-scout-17b-16e-instruct",
+  "note": "Reálný výstup Workers AI nad synteticke-uzavirky.txt, 2. 10. 2026 (model ho vrátil v ```bloku```).",
+  "stages": [
+    { "name": "RZ 1 Horní Lhota", "date": "2026-10-17", "first_car": "08:35", "closed_from": "07:30", "closed_to": "13:00", "length_km": 12.4 },
+    { "name": "RZ 2 Dolní Ves", "date": "2026-10-17", "first_car": "09:18", "closed_from": "08:15", "closed_to": "14:30", "length_km": 9.8 },
+    { "name": "RZ 3 Horní Lhota", "date": "2026-10-17", "first_car": "11:40", "closed_from": "07:30", "closed_to": "13:00", "length_km": 12.4 },
+    { "name": "RZ 4 Dolní Ves", "date": "2026-10-17", "first_car": "12:23", "closed_from": "08:15", "closed_to": "14:30", "length_km": 9.8 },
+    { "name": "RZ 5 Superzkouška Areál", "date": "2026-10-18", "first_car": "10:05", "closed_from": "09:00", "closed_to": "11:30", "length_km": 2.1 }
+  ]
+}

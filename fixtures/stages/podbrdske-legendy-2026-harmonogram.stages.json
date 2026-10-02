@@ -1,0 +1,10 @@
+{
+  "model": "@cf/meta/llama-4-scout-17b-16e-instruct",
+  "note": "Reálný výstup Workers AI nad podbrdske-legendy-2026-harmonogram.jpg (obrázek), 2. 10. 2026. Pole s null model vynechal.",
+  "stages": [
+    { "name": "RZ 1 Vrčeňská 1", "date": "2026-10-03", "first_car": "08:04", "length_km": 13.58 },
+    { "name": "RZ 2 Vrčeňská 2", "date": "2026-10-03", "first_car": "10:14", "length_km": 13.58 },
+    { "name": "RZ 3 Srbská 1", "date": "2026-10-03", "first_car": "13:14", "length_km": 13.58 },
+    { "name": "RZ 4 Srbská 2", "date": "2026-10-03", "first_car": "15:14", "length_km": 13.58 }
+  ]
+}

@@ -12,6 +12,8 @@ import type {
   EventsResponse,
   OrganizerCheckInfo,
   RegionsResponse,
+  StageInfo,
+  StagesInfo,
 } from "./shared/types.ts";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -156,7 +158,24 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
     .all<EventLink>();
   const live = await liveLinks(db, event, check, links.results);
   const organizer_check = check && (({ results_url: _r, stream_url: _s, ...c }) => c)(check);
-  return { ...event, sources: results, links: links.results, organizer_check, live };
+  return { ...event, sources: results, links: links.results, organizer_check, live, stages: await stagesOf(db, id) };
+}
+
+/** Stages read from the organizer's documents (src/pipeline/stages.ts), null without any. */
+async function stagesOf(db: D1Database, id: string): Promise<StagesInfo | null> {
+  const check = await db
+    .prepare("SELECT doc_url, checked_at FROM stage_checks WHERE event_id = ? AND doc_url IS NOT NULL")
+    .bind(id)
+    .first<{ doc_url: string; checked_at: string }>();
+  if (!check) return null;
+  const { results } = await db
+    .prepare(
+      `SELECT name, date, first_car, closed_from, closed_to, length_km
+         FROM event_stages WHERE event_id = ? ORDER BY position`,
+    )
+    .bind(id)
+    .all<StageInfo>();
+  return results.length ? { ...check, items: results } : null;
 }
 
 /** Hosts whose video links can be a live stream. */

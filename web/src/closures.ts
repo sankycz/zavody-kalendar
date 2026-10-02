@@ -1,6 +1,6 @@
 // Road closures: rally stages and hill climbs run on public roads closed for hours.
 // Navigation apps don't know, so the detail warns and points to the organizer's documents.
-import type { Discipline, EventDetail, EventLink, LinkKind } from "../../src/shared/types.ts";
+import type { Discipline, EventDetail, EventLink, LinkKind, StageInfo } from "../../src/shared/types.ts";
 
 /** Disciplines raced on public roads closed for the race. */
 const ON_CLOSED_ROADS: ReadonlySet<Discipline> = new Set(["rally", "rallysprint", "vrch"]);
@@ -21,4 +21,20 @@ export function closureDoc(links: readonly EventLink[]): EventLink | null {
     if (l) return l;
   }
   return null;
+}
+
+/** "08:04" -> "8:04" */
+export function shortTime(t: string): string {
+  return t.replace(/^0(\d)/, "$1");
+}
+
+/** Stages grouped by day, in order; `date` null when the document gives none. */
+export function stageDays(items: readonly StageInfo[]): { date: string | null; items: StageInfo[] }[] {
+  const days: { date: string | null; items: StageInfo[] }[] = [];
+  for (const s of items) {
+    const last = days[days.length - 1];
+    if (last && last.date === s.date) last.items.push(s);
+    else days.push({ date: s.date, items: [s] });
+  }
+  return days;
 }

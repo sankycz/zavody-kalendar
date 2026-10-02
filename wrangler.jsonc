@@ -14,7 +14,8 @@
   // Daily 05:00 Prague time: both UTC slots fire, the Worker runs only in the one
   // that is 05:00 in Prague (03:00 UTC in summer, 04:00 UTC in winter). Mondays:
   // full ingest (unchanged sources skipped by content hash); other days only the
-  // organizer websites of races today and tomorrow (race-day view).
+  // organizer websites of races today and tomorrow (race-day view) and the stages
+  // (RZ, road closures) of rallies and hill climbs in the next two weeks.
   "triggers": { "crons": ["0 3 * * *", "0 4 * * *"] },
   "vars": {
     // Extraction model: "workers-ai" (free 10k neurons/day) or "claude" (Claude API, needs ANTHROPIC_API_KEY).

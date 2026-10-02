@@ -8,6 +8,7 @@ import { rollover } from "./pipeline/rollover.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
 import { checkOrganizers, DEFAULT_CHECK_LIMIT, LIVE_WINDOW_DAYS } from "./pipeline/organizer.ts";
 import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
+import { checkStages, DEFAULT_STAGE_LIMIT } from "./pipeline/stages.ts";
 import { mergeEvents } from "./pipeline/upsert.ts";
 
 export interface Env {
@@ -27,6 +28,8 @@ export interface Env {
   APIFY_MAX_EVENTS?: string;
   /** Max organizer websites checked per run (default 10). */
   ORGANIZER_CHECK_LIMIT?: string;
+  /** Max races whose stage documents are read per run (default 5). */
+  STAGE_CHECK_LIMIT?: string;
 }
 
 /** Local (Prague) hour of the weekly run, see the crons in wrangler.jsonc. */
@@ -40,6 +43,11 @@ function maxEvents(env: Env): number {
 function checkLimit(env: Env, override?: string | null): number {
   const n = Number(override ?? env.ORGANIZER_CHECK_LIMIT ?? DEFAULT_CHECK_LIMIT);
   return Number.isInteger(n) && n >= 0 && n <= 50 ? n : DEFAULT_CHECK_LIMIT;
+}
+
+function stageLimit(env: Env, override?: string | null): number {
+  const n = Number(override ?? env.STAGE_CHECK_LIMIT ?? DEFAULT_STAGE_LIMIT);
+  return Number.isInteger(n) && n >= 0 && n <= 20 ? n : DEFAULT_STAGE_LIMIT;
 }
 
 function llm(env: Env): JsonModel {
@@ -93,6 +101,8 @@ export default {
     if (new Date(`${today}T00:00:00Z`).getUTCDay() !== 1) {
       // Other days: only organizer websites of races today and tomorrow (race-day view: results, stream).
       console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env), LIVE_WINDOW_DAYS)));
+      // Stages and road closures of rallies and hill climbs in the next two weeks (model only when a document changed).
+      console.log(JSON.stringify(await checkStages(d, today, stageLimit(env))));
       return;
     }
     // Next season's calendars as soon as the organizers publish them (no code change per year).
@@ -110,6 +120,7 @@ export default {
     // Admin endpoints, POST with "Authorization: Bearer <ADMIN_TOKEN>":
     //   /admin/run[?source=<id>][&force=1]   calendar ingest
     //   /admin/check-organizers[?limit=<n>]  organizer website check
+    //   /admin/check-stages[?limit=<n>]      stages and road closures from race documents
     //   /admin/rollover                      add next season's sources (also weekly)
     //   /admin/geocode[?limit=<n>]           coordinates for stored events without them
     //   /admin/merge?keep=<id>&drop=<id>     merge a duplicate race into another one
@@ -122,6 +133,10 @@ export default {
 
     if (url.pathname === "/admin/check-organizers") {
       return Response.json(await checkOrganizers(deps(env), todayInPrague(), checkLimit(env, url.searchParams.get("limit"))));
+    }
+
+    if (url.pathname === "/admin/check-stages") {
+      return Response.json(await checkStages(deps(env), todayInPrague(), stageLimit(env, url.searchParams.get("limit"))));
     }
 
     if (url.pathname === "/admin/rollover") {
