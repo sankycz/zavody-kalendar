@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { handleApi, pragueHour, todayInPrague } from "./api.ts";
+import { handleDoc } from "./docs.ts";
 import { apifyEvents } from "./pipeline/facebook.ts";
 import { backfillCoordinates } from "./pipeline/geocode.ts";
 import { PoliteClient } from "./pipeline/http.ts";
@@ -54,12 +55,18 @@ function llm(env: Env): JsonModel {
   throw new Error(`unknown EXTRACTOR '${env.EXTRACTOR}' (use "workers-ai" or "claude")`);
 }
 
-function deps(env: Env): RunDeps {
+function politeClients(env: Env): Pick<RunDeps, "http" | "geoHttp"> {
   const userAgent = `zavody-kalendar/0.1 (+https://github.com/sankycz/zavody-kalendar; ${env.CONTACT_EMAIL})`;
   return {
-    db: env.DB,
     http: new PoliteClient({ userAgent, minIntervalMs: 5000 }),
     geoHttp: new PoliteClient({ userAgent, minIntervalMs: 1100 }),
+  };
+}
+
+function deps(env: Env): RunDeps {
+  return {
+    db: env.DB,
+    ...politeClients(env),
     llm: llm(env),
     ...(env.APIFY_TOKEN ? { apify: apifyEvents(env.APIFY_TOKEN, maxEvents(env)) } : {}),
     log: (msg, data) => console.log(msg, data ?? ""),
@@ -135,6 +142,12 @@ export default {
       });
       await markFinished(env.DB, todayInPrague());
       return Response.json(reports);
+    }
+
+    const doc = /^\/api\/events\/([0-9a-f]{32})\/doc$/.exec(url.pathname);
+    if (doc && request.method === "GET") {
+      const { http } = politeClients(env);
+      return handleDoc(request, doc[1]!, { db: env.DB, get: (u) => http.get(u), cache: caches.default });
     }
 
     if (url.pathname.startsWith("/api/")) return handleApi(request, env.DB);

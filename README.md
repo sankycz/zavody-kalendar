@@ -21,6 +21,8 @@ npm run dev         # frontend na :5173 (proxy /api na :8787)
 
 Web (`web/`) je Vite + React + Tailwind a nasazuje se spolu s Workerem jako jeho statické soubory: `/api/*` a `/admin/*` obslouží Worker, všechno ostatní je aplikace.
 
+Web je PWA: jde nainstalovat na plochu a service worker (`web/sw/sw.ts`, jen v produkčním buildu) uloží do telefonu závody nadcházejícího víkendu včetně mapy okolí a PDF harmonogramů, takže aplikace funguje i bez signálu u trati. Podrobnosti v `docs/SPEC.md` (PWA a offline režim).
+
 ## Nasazení stahovacího Workeru
 
 ```bash

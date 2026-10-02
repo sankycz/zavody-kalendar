@@ -11,6 +11,7 @@ import { usePosition } from "./geo.ts";
 import { Intro } from "./Intro.tsx";
 import { MapView } from "./MapView.tsx";
 import { NextRace, nextRace } from "./NextRace.tsx";
+import { InstallCard, OfflineNotice, SavedRaces } from "./Offline.tsx";
 import { setRaceOrder } from "./raceOrder.ts";
 import { navigate, savedScroll, useLocation } from "./router.ts";
 import { SearchBar, SearchButton } from "./Search.tsx";
@@ -193,6 +194,9 @@ function ListPage({ filters }: { filters: Filters }) {
         </div>
       </section>
 
+      <InstallCard />
+      <SavedRaces />
+
       {highlight && <NextRace event={highlight} />}
 
       {bar}
@@ -209,7 +213,16 @@ function ListPage({ filters }: { filters: Filters }) {
       {state.kind === "error" && (
         <div role="alert" className="glass mt-6 rounded-2xl p-4">
           <p className="font-semibold">Závody se nepodařilo načíst.</p>
-          <p className="mt-1 text-sm text-muted">{state.message}</p>
+          {state.status === 503 && listHref(filters) !== "/" ? (
+            <>
+              <p className="mt-1 text-sm text-muted">Jste bez signálu a tento výběr v telefonu uložený není.</p>
+              <a href="/" className="mt-3 block text-sm font-semibold text-accent">
+                Zobrazit uložené nadcházející závody
+              </a>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-muted">{state.status === 503 ? "Jste bez signálu a závody zatím nejsou uložené." : state.message}</p>
+          )}
         </div>
       )}
 
@@ -290,6 +303,7 @@ export function App() {
             <ThemeToggle />
           </div>
         </div>
+        <OfflineNotice />
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.5rem))] sm:pb-10">

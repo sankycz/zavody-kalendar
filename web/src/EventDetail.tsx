@@ -8,6 +8,9 @@ import { DISCIPLINE_LABEL, LEVEL_LABEL, countryLabel } from "./labels.ts";
 import { Countdown } from "./NextRace.tsx";
 import { useNeighbours } from "./raceOrder.ts";
 import { canGoBack, navigate } from "./router.ts";
+import { SaveOfflineButton } from "./Offline.tsx";
+import { useOfflineState } from "./offline/client.ts";
+import { docUrl } from "./offline/plan.ts";
 import { RaceSteps, SwipeCard } from "./Swipe.tsx";
 import { useJson } from "./useJson.ts";
 
@@ -64,7 +67,9 @@ const LINK_ICON: Record<LinkKind, string> = {
 };
 
 /** Documents for spectators from the organizer: schedule, maps, regulations, poster. */
-function LinksBox({ links }: { links: EventLink[] }) {
+function LinksBox({ eventId, links }: { eventId: string; links: EventLink[] }) {
+  const offline = useOfflineState();
+  const saved = new Set(offline?.state.races[eventId]?.docs ?? []);
   if (links.length === 0) return null;
   return (
     <section aria-labelledby="links-title" className="glass mt-5 rounded-2xl p-4">
@@ -73,12 +78,12 @@ function LinksBox({ links }: { links: EventLink[] }) {
       </h2>
       <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {links.map((l) => (
-          <li key={l.url}>
+          <li key={l.url} className="flex gap-2">
             <a
               href={l.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="press flex min-h-12 items-center gap-3 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-glass-border transition-all ring-inset hover:brightness-110"
+              className="press flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-glass-border transition-all ring-inset hover:brightness-110"
             >
               <span aria-hidden className="bg-racing grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white shadow-md shadow-accent/25">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,6 +96,21 @@ function LinksBox({ links }: { links: EventLink[] }) {
               </span>
               <span aria-hidden className="text-muted">↗</span>
             </a>
+            {saved.has(l.url) && (
+              // Our stored copy (src/docs.ts), served by the service worker without a signal.
+              <a
+                href={docUrl(eventId, l.url)}
+                data-native
+                aria-label={`${l.label} – kopie v telefonu`}
+                title="Kopie uložená v telefonu, funguje i bez signálu"
+                className="press flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl bg-regionalni/12 text-[0.65rem] font-semibold text-regionalni ring-1 ring-regionalni/30 ring-inset"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                Offline
+              </a>
+            )}
           </li>
         ))}
       </ul>
@@ -251,6 +271,7 @@ export function EventDetailPage({ id }: { id: string }) {
           <button type="button" className={btnClass} onClick={() => void share(e)}>
             Sdílet
           </button>
+          {e.status !== "finished" && <SaveOfflineButton id={e.id} className={btnClass} />}
         </div>
         </div>
       </header>
@@ -260,7 +281,7 @@ export function EventDetailPage({ id }: { id: string }) {
         <p className="mt-2 px-3 text-xs text-muted">Poloha závodu zatím není známá.</p>
       )}
 
-      <LinksBox links={e.links ?? []} />
+      <LinksBox eventId={e.id} links={e.links ?? []} />
 
       <OrganizerBox e={e} />
 

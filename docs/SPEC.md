@@ -136,6 +136,17 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 - Musí fungovat na mobilu, uživatel se na to bude dívat hlavně venku u trati. Světlý a tmavý režim.
 - Rozhraní česky.
 
+### PWA a offline režim u trati
+
+Na rychlostní zkoušce v lese často není signál. Aplikace je proto PWA: manifest (`web/public/manifest.webmanifest`), service worker `web/sw/sw.ts` (build ho přidá jako `dist/sw.js` se seznamem souborů k předcachování, `vite.config.ts`).
+
+- **Instalace jedním klikem:** karta „Kalendář do mobilu“ na seznamu. Chrome, Edge a Samsung Internet nabídnou vlastní instalaci (`beforeinstallprompt`), na iPhonu karta ukáže kroky „Sdílet → Přidat na plochu“. Karta jde skrýt.
+- **Co se ukládá samo:** při každém otevření s připojením (nejvýš jednou za 6 h), po návratu signálu a v nainstalované aplikaci v Chromu i na pozadí (Periodic Background Sync) uloží service worker závody od dneška do neděle (max. 8, bez zrušených): detail závodu, mapové dlaždice okolí (obec ± 25 km v přehledu až ± 2,5 km v detailu, ~95 dlaždic) a dokumenty pro diváky (harmonogram, mapa, divácká místa, propozice, plakát). Navíc výchozí seznam nadcházejících závodů, kraje a dlaždice celé ČR pro mapu (zoom 6–8). Pravidla jsou v `web/src/offline/plan.ts`.
+- **Uložit ručně:** v detailu tlačítko „Uložit offline“ pro libovolný jiný závod, stejné tlačítko ho zase odebere. Proběhlé závody i jejich dlaždice a dokumenty se při další synchronizaci smažou.
+- **Bez signálu:** API jde nejdřív na síť s limitem 4 s (slabý signál je horší než žádný), jinak vrací uloženou odpověď. Stránky jdou ze shellu, dlaždice a dokumenty z cache. V hlavičce je štítek „Bez signálu · uložená data z …“, na seznamu pruh „V telefonu i bez signálu“ s uloženými závody a v detailu u dokumentu tlačítko „Offline“ s uloženou kopií.
+- **Dlaždice OSM:** podmínky tile.openstreetmap.org zakazují hromadné stahování (víc než 250 dlaždic od zoomu 13 pro jednu oblast). Jeden závod jich má od zoomu 13 kolem 30 a dlaždice, které už v cache jsou, se znovu nestahují.
+- **Dokumenty** (`GET /api/events/<id>/doc?url=…`, `src/docs.ts`): Worker vydá z naší domény jen dokument, na který závod v `event_links` odkazuje (žádný otevřený proxy), jen PDF a rastrové obrázky do 15 MB (HTML ani SVG ne, mohly by na naší doméně spustit skript). Stahuje se jako zdroje (robots.txt, User-Agent), na hraně se cachuje 6 h. Odkaz na HTML stránku offline k dispozici není.
+
 ## Pořadí práce
 
 1. Schéma a migrace D1.
