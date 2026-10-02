@@ -30,7 +30,7 @@ npx wrangler login
 # Extrakce běží ve výchozím stavu přes Workers AI (EXTRACTOR v wrangler.jsonc), klíč netřeba.
 # Pro Claude API: EXTRACTOR="claude" a  npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put ADMIN_TOKEN          # libovolný dlouhý náhodný řetězec
-npm run deploy                               # build webu + Worker + Cron Trigger (pondělí 5:00 našeho času)
+npm run deploy                               # build webu + Worker + Cron Trigger (denně 5:00 našeho času, kalendáře v pondělí)
 
 # ruční spuštění (jen Autoklub, i když se obsah nezměnil):
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \

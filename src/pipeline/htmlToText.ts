@@ -25,9 +25,36 @@ function decodeEntities(s: string): string {
  * navigation, header, footer and sidebars; keep table rows on one line and
  * keep link targets (organizer websites) as "text (url)".
  */
+/** Watch page of an embedded YouTube / Facebook player, null for anything else. */
+export function embeddedVideoUrl(src: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(src.replace(/&amp;/g, "&"), "https://x.invalid/");
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^www\./, "");
+  if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    const channel = u.searchParams.get("channel");
+    if (u.pathname === "/embed/live_stream" && channel && /^[\w-]+$/.test(channel)) return `https://www.youtube.com/channel/${channel}/live`;
+    const id = /^\/embed\/([\w-]{6,})$/.exec(u.pathname)?.[1];
+    return id ? `https://www.youtube.com/watch?v=${id}` : null;
+  }
+  if (host === "facebook.com" && u.pathname.startsWith("/plugins/video")) {
+    const href = u.searchParams.get("href");
+    return href && /^https:\/\/(www\.|m\.)?facebook\.com\//.test(href) ? href : null;
+  }
+  return null;
+}
+
 export function htmlToText(html: string, baseUrl?: string): string {
   let s = html;
   s = s.replace(/<!--[\s\S]*?-->/g, " ");
+  // Embedded YouTube / Facebook video (often the organizer's live stream) stays as a link.
+  s = s.replace(/<iframe\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi, (m, src: string) => {
+    const url = embeddedVideoUrl(src);
+    return url ? ` Vložené video (${url}) ` : m;
+  });
   s = s.replace(/<(script|style|noscript|svg|nav|header|footer|aside|form|iframe)\b[\s\S]*?<\/\1\s*>/gi, " ");
 
   const main = /<main\b[^>]*>([\s\S]*?)<\/main\s*>/i.exec(s) ?? /<article\b[^>]*>([\s\S]*?)<\/article\s*>/i.exec(s);

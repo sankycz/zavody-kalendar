@@ -8,6 +8,8 @@ import { parseDate } from "./normalize.ts";
 /** How far ahead organizer websites are checked, and how many per run. */
 export const CHECK_WINDOW_DAYS = 14;
 export const DEFAULT_CHECK_LIMIT = 10;
+/** Daily check of races in the race-day window (today and tomorrow). */
+export const LIVE_WINDOW_DAYS = 1;
 const MAX_TEXT_CHARS = 60_000;
 
 export const OrganizerCheckSchema = z.object({
@@ -19,6 +21,8 @@ export const OrganizerCheckSchema = z.object({
     .string()
     .nullable()
     .describe("Krátká věcná poznámka pro diváky (max. 1–2 věty, česky), jen když stránka hlásí zrušení, odklad, změnu termínu nebo místa; jinak null"),
+  results_url: z.string().nullable().describe("Odkaz ze stránky na online výsledky nebo live timing tohoto závodu, přesně jak je na stránce; jinak null"),
+  stream_url: z.string().nullable().describe("Odkaz ze stránky na živý přenos tohoto závodu (YouTube, Facebook live…), přesně jak je na stránce; jinak null"),
 });
 export type OrganizerCheck = z.infer<typeof OrganizerCheckSchema>;
 
@@ -30,6 +34,7 @@ Pravidla:
 - status: cancelled / postponed jen když to stránka výslovně uvádí pro tento závod. Když stránka závod zmiňuje bez problémů, planned. Když nelze určit, unknown.
 - date_from / date_to: jen termín výslovně uvedený na stránce pro tento závod, jinak null.
 - notice: jen při zrušení, odkladu nebo změně termínu či místa, krátce a věcně. Žádná jména osob, žádné kontakty.
+- results_url: odkaz (v textu ve tvaru „text (url)“) na online výsledky / live timing tohoto závodu, ne na přihlášky ani startovní listiny. stream_url: odkaz na živý přenos tohoto závodu, ne obecný kanál bez přenosu. Jen URL, které na stránce opravdu je.
 - Nic si nedomýšlej.`;
 
 export interface OrganizerDeps {
@@ -68,7 +73,7 @@ function addDays(iso: string, days: number): string {
 }
 
 /** Upcoming events with a website, soonest first, never-checked / longest-unchecked first within a day. */
-export async function dueEvents(db: D1Database, today: string, limit: number): Promise<DueEvent[]> {
+export async function dueEvents(db: D1Database, today: string, limit: number, windowDays = CHECK_WINDOW_DAYS): Promise<DueEvent[]> {
   const { results } = await db
     .prepare(
       `SELECT e.id, e.name, e.date_from, e.date_to, e.location_name, e.website_url,
@@ -82,7 +87,7 @@ export async function dueEvents(db: D1Database, today: string, limit: number): P
         ORDER BY e.date_from, oc.checked_at IS NOT NULL, oc.checked_at
         LIMIT ?`,
     )
-    .bind(today, addDays(today, CHECK_WINDOW_DAYS), today, limit)
+    .bind(today, addDays(today, windowDays), today, limit)
     .all<DueEvent>();
   return results;
 }
@@ -104,11 +109,18 @@ async function askModel(deps: OrganizerDeps, e: DueEvent, text: string): Promise
   return out.data;
 }
 
+/** A link the model reports: http(s) and really on the page (models make URLs up). */
+export function pageLink(url: string | null | undefined, pageText: string): string | null {
+  const u = url?.trim();
+  if (!u || !/^https?:\/\/[^\s]+$/i.test(u) || u.length > 500) return null;
+  return pageText.includes(u) ? u : null;
+}
+
 /** Turn the model's answer into what we store; dates must be real and near the event's season. */
-export function interpret(e: Pick<DueEvent, "date_from" | "date_to">, c: OrganizerCheck) {
+export function interpret(e: Pick<DueEvent, "date_from" | "date_to">, c: OrganizerCheck, pageText = "") {
   const season = Number(e.date_from.slice(0, 4));
   if (!c.mentions_event) {
-    return { outcome: "not_mentioned" as const, status: null, date_from: null, date_to: null, notice: null };
+    return { outcome: "not_mentioned" as const, status: null, date_from: null, date_to: null, notice: null, results_url: null, stream_url: null };
   }
   let from = parseDate(c.date_from, season);
   let to = parseDate(c.date_to, season);
@@ -124,6 +136,8 @@ export function interpret(e: Pick<DueEvent, "date_from" | "date_to">, c: Organiz
     date_from: datesDiffer ? from : null,
     date_to: datesDiffer ? to : null,
     notice: changed ? notice : null,
+    results_url: pageLink(c.results_url, pageText),
+    stream_url: pageLink(c.stream_url, pageText),
   };
 }
 
@@ -145,7 +159,7 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
       return { event_id: e.id, result: "unchanged" };
     }
 
-    const r = interpret(e, await askModel(deps, e, text));
+    const r = interpret(e, await askModel(deps, e, text), text);
     const prev = await deps.db
       .prepare("SELECT status, date_from, date_to, notice FROM organizer_checks WHERE event_id = ?")
       .bind(e.id)
@@ -155,15 +169,16 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
 
     await deps.db
       .prepare(
-        `INSERT INTO organizer_checks (event_id, url, checked_at, content_hash, outcome, status, date_from, date_to, notice, error, changed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+        `INSERT INTO organizer_checks (event_id, url, checked_at, content_hash, outcome, status, date_from, date_to, notice, error, changed_at, results_url, stream_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
          ON CONFLICT (event_id) DO UPDATE SET
            url = excluded.url, checked_at = excluded.checked_at, content_hash = excluded.content_hash,
            outcome = excluded.outcome, status = excluded.status, date_from = excluded.date_from,
            date_to = excluded.date_to, notice = excluded.notice, error = NULL,
+           results_url = excluded.results_url, stream_url = excluded.stream_url,
            changed_at = CASE WHEN ? THEN excluded.changed_at ELSE organizer_checks.changed_at END`,
       )
-      .bind(e.id, e.website_url, now, hash, r.outcome, r.status, r.date_from, r.date_to, r.notice, now, findingsChanged ? 1 : 0)
+      .bind(e.id, e.website_url, now, hash, r.outcome, r.status, r.date_from, r.date_to, r.notice, now, r.results_url, r.stream_url, findingsChanged ? 1 : 0)
       .run();
     return { event_id: e.id, result: "checked", outcome: r.outcome };
   } catch (err) {
@@ -181,9 +196,18 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
   }
 }
 
-/** Check organizer websites of upcoming events (weekly, after the calendar ingest). */
-export async function checkOrganizers(deps: OrganizerDeps, today: string, limit = DEFAULT_CHECK_LIMIT): Promise<OrganizerReport[]> {
+/**
+ * Check organizer websites of upcoming events: weekly for the next two weeks
+ * (after the calendar ingest), daily for today and tomorrow (LIVE_WINDOW_DAYS),
+ * when results and stream links tend to appear. At most once a day per race.
+ */
+export async function checkOrganizers(
+  deps: OrganizerDeps,
+  today: string,
+  limit = DEFAULT_CHECK_LIMIT,
+  windowDays = CHECK_WINDOW_DAYS,
+): Promise<OrganizerReport[]> {
   const reports: OrganizerReport[] = [];
-  for (const e of await dueEvents(deps.db, today, limit)) reports.push(await checkOne(deps, e));
+  for (const e of await dueEvents(deps.db, today, limit, windowDays)) reports.push(await checkOne(deps, e));
   return reports;
 }

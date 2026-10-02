@@ -9,6 +9,7 @@ import { formatTimestamp } from "./format.ts";
 import { distanceKm } from "./distance.ts";
 import { usePosition } from "./geo.ts";
 import { Intro } from "./Intro.tsx";
+import { LivePage } from "./LivePage.tsx";
 import { MapView } from "./MapView.tsx";
 import { NextRace, nextRace } from "./NextRace.tsx";
 import { InstallCard, OfflineNotice, SavedRaces } from "./Offline.tsx";
@@ -282,7 +283,7 @@ function Orbs() {
 
 export function App() {
   const loc = useLocation();
-  const detail = /^\/zavod\/([0-9a-f]{32})\/?$/.exec(loc.pathname);
+  const detail = /^\/zavod\/([0-9a-f]{32})(\/zive)?\/?$/.exec(loc.pathname);
 
   return (
     <div className="min-h-dvh">
@@ -307,7 +308,13 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.5rem))] sm:pb-10">
-        {detail ? <EventDetailPage key={detail[1]} id={detail[1]!} /> : <ListPage filters={parseFilters(loc.searchParams)} />}
+        {detail?.[2] ? (
+          <LivePage key={`live-${detail[1]}`} id={detail[1]!} />
+        ) : detail ? (
+          <EventDetailPage key={detail[1]} id={detail[1]!} />
+        ) : (
+          <ListPage filters={parseFilters(loc.searchParams)} />
+        )}
       </main>
     </div>
   );

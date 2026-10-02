@@ -6,7 +6,7 @@ import { backfillCoordinates } from "./pipeline/geocode.ts";
 import { PoliteClient } from "./pipeline/http.ts";
 import { rollover } from "./pipeline/rollover.ts";
 import { claudeModel, workersAiModel, type AiBinding, type JsonModel } from "./pipeline/llm.ts";
-import { checkOrganizers, DEFAULT_CHECK_LIMIT } from "./pipeline/organizer.ts";
+import { checkOrganizers, DEFAULT_CHECK_LIMIT, LIVE_WINDOW_DAYS } from "./pipeline/organizer.ts";
 import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
 import { mergeEvents } from "./pipeline/upsert.ts";
 
@@ -85,10 +85,16 @@ async function tokenMatches(given: string, expected: string): Promise<boolean> {
 
 export default {
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    // Weekly, Monday 05:00 Prague time: two UTC crons cover summer and winter time.
-    if (pragueHour(new Date(controller.scheduledTime)) !== INGEST_HOUR) return;
+    // Daily 05:00 Prague time (two UTC crons cover summer and winter time); the full ingest on Mondays.
+    const at = new Date(controller.scheduledTime);
+    if (pragueHour(at) !== INGEST_HOUR) return;
     const d = deps(env);
-    const today = todayInPrague();
+    const today = todayInPrague(at);
+    if (new Date(`${today}T00:00:00Z`).getUTCDay() !== 1) {
+      // Other days: only organizer websites of races today and tomorrow (race-day view: results, stream).
+      console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env), LIVE_WINDOW_DAYS)));
+      return;
+    }
     // Next season's calendars as soon as the organizers publish them (no code change per year).
     console.log(JSON.stringify(await rollover(env.DB, d.http, today)));
     // Sources whose content didn't change are skipped by hash (no model call).

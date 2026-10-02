@@ -37,7 +37,7 @@ Další sezónu přidává každý týdenní běh sám (`src/pipeline/rollover.t
 ## Architektura
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
-- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně (pondělí 5:00 českého času) a ručně přes admin endpoint chráněný tokenem.
+- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně (pondělí 5:00 českého času; ostatní dny v 5:00 jen kontrola webů pořadatelů závodů na dnes a zítra) a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** LLM s pevným JSON schématem – Cloudflare Workers AI (výchozí, zdarma v denním limitu, `EXTRACTOR=workers-ai`, model z `WORKERS_AI_MODEL`) nebo Claude API (`EXTRACTOR=claude`, model z `CLAUDE_MODEL`). Stažený HTML text nebo text z PDF pošli modelu a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní.
 - **Geokódování:** Open-Meteo Geocoding API (data GeoNames, bez klíče), maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`. Místo, které v dané zemi není, se hledá v sousedních (CZ, SK, DE, AT, PL). Nominatim nepoužíváme: jeho robots.txt zakazuje `/search` robotům.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Mapa přes Leaflet s OSM dlaždicemi.
@@ -122,7 +122,7 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
-- Maximálně jeden požadavek za pár sekund na doménu, stahuj jednou týdně (pondělí 5:00). Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
+- Maximálně jeden požadavek za pár sekund na doménu, kalendáře stahuj jednou týdně (pondělí 5:00); weby pořadatelů závodů na dnes a zítra denně v 5:00. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 
@@ -135,6 +135,16 @@ Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`eve
 - Detail: všechna pole, odkazy na pořadatele a na všechny zdroje, čas poslední aktualizace.
 - Musí fungovat na mobilu, uživatel se na to bude dívat hlavně venku u trati. Světlý a tmavý režim.
 - Rozhraní česky.
+
+### Živě ze závodu
+
+Den před závodem a během něj (podle data v Praze, ne u zrušených a odložených) je v detailu velké tlačítko „Živě ze závodu“ → stránka `/zavod/<id>/zive` (`web/src/LivePage.tsx`):
+
+- **Počasí v místě:** předpověď Open-Meteo (zdarma pro nekomerční použití, CC BY 4.0, volá ji prohlížeč): teď a dalších 12 hodin, den předem denní hodiny dne závodu. Předpověď uložených závodů drží service worker i offline.
+- **Dešťový radar:** RainViewer (zdarma, bez klíče, poslední 2 h po 10 min, dlaždice do zoomu 7) přes OSM mapu okolí. Ukazuje poslední snímek, animace načte ostatní snímky až po ťuknutí (limit 100 požadavků za minutu na IP).
+- **Výsledky a live timing:** jen odkazy, výsledky nestahujeme ani neukládáme. Nejdřív odkaz z webu pořadatele (`organizer_checks.results_url`), pak výsledkové servisy podle disciplíny a seriálu z tabulky `live_services` (migrace `0013`: eWRC-results, Rally-výsledky.com, ČMPR, Barum, Rallycross.cz; další se přidají řádkem, `{q}` v URL = název a rok). Nakonec hledání výsledků na webu.
+- **Přenos:** odkaz na přenos z webu pořadatele (`organizer_checks.stream_url`, i vložený YouTube/Facebook přehrávač, `htmlToText` ho převede na odkaz), video odkazy zdrojů na YouTube / Facebooku / Twitchi, jinak hledání živého vysílání na YouTube. Facebook live automaticky zjistit nejde (FB API).
+- Kontrola webů pořadatelů vrací navíc `results_url` a `stream_url`; uloží se jen URL, které na stránce opravdu jsou. Kromě pondělní kontroly (14 dní dopředu) běží denně v 5:00 kontrola závodů na dnes a zítra (stejná pravidla: max. jednou denně na závod, model jen při změně stránky).
 
 ### PWA a offline režim u trati
 

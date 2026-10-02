@@ -69,6 +69,21 @@ export interface EventDetail extends EventListItem {
   /** Absent from older API versions. */
   links?: EventLink[];
   organizer_check: OrganizerCheckInfo | null;
+  /** Race-day view: where to follow the race (absent from older API versions). */
+  live?: LiveLinks;
+}
+
+/** A link for following a race live. We only point there, results stay on that site. */
+export interface LiveLink {
+  label: string;
+  url: string;
+  /** organizer = found on the organizer's website for this race; service = results service for the discipline / series; source = a video link from a calendar source. */
+  from: "organizer" | "service" | "source";
+}
+
+export interface LiveLinks {
+  results: LiveLink[];
+  streams: LiveLink[];
 }
 
 export interface RegionsResponse {

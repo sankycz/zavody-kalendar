@@ -31,6 +31,8 @@ export interface OfflineRace {
   tiles: number;
   /** Original URLs of the documents stored for offline use. */
   docs: string[];
+  /** Weather forecast stored with the race (web/src/live.ts forecastUrl), absent in older states. */
+  forecast?: string | null;
 }
 
 export interface OfflineState {

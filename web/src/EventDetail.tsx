@@ -10,7 +10,8 @@ import { useNeighbours } from "./raceOrder.ts";
 import { canGoBack, navigate } from "./router.ts";
 import { SaveOfflineButton } from "./Offline.tsx";
 import { useOfflineState } from "./offline/client.ts";
-import { docUrl } from "./offline/plan.ts";
+import { docUrl, todayInPrague } from "./offline/plan.ts";
+import { liveWindow } from "./live.ts";
 import { RaceSteps, SwipeCard } from "./Swipe.tsx";
 import { useJson } from "./useJson.ts";
 
@@ -206,6 +207,7 @@ export function EventDetailPage({ id }: { id: string }) {
   const soon = e.status === "planned" ? relativeDay(e.date_from, e.date_to) : null;
   const hasPoint = e.lat != null && e.lng != null;
   const place = placeLabel(e);
+  const live = liveWindow(e, todayInPrague());
 
   return (
     <article className="pt-4">
@@ -245,6 +247,20 @@ export function EventDetailPage({ id }: { id: string }) {
           <div className="mt-4">
             <Countdown date={e.date_from} glass />
           </div>
+        )}
+
+        {live && (
+          <a
+            href={`/zavod/${e.id}/zive`}
+            className="bg-racing press shine mt-5 flex min-h-16 items-center gap-3.5 rounded-2xl px-5 py-2.5 text-white shadow-xl shadow-accent/35 hover:brightness-110"
+          >
+            <span className="live-dot" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-lg leading-tight font-extrabold">Živě ze závodu</span>
+              <span className="block text-sm font-medium opacity-90">Počasí a radar · výsledky · přenos</span>
+            </span>
+            <span aria-hidden className="text-xl">→</span>
+          </a>
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">

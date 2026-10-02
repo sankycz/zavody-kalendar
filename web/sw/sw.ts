@@ -25,6 +25,7 @@ import {
   type OfflineState,
   type ToWorker,
 } from "../src/offline/plan.ts";
+import { forecastUrl } from "../src/live.ts";
 
 declare const self: ServiceWorkerGlobalScope;
 /** Filled in at build time (vite.config.ts). */
@@ -39,6 +40,7 @@ const SYNC_EVERY_MS = 6 * 3600_000;
 const MAX_API_ENTRIES = 80;
 const MAX_VIEWED_TILES = 1500;
 const TILE_HOST = "tile.openstreetmap.org";
+const WEATHER_HOST = "api.open-meteo.com";
 
 // ---------- install / activate ----------
 
@@ -78,6 +80,8 @@ self.addEventListener("fetch", (event) => {
     return event.respondWith(staticAsset(req));
   }
   if (url.host === TILE_HOST) return event.respondWith(tile(req));
+  // Forecast on the race-day page: the last one stays readable without a signal.
+  if (url.host === WEATHER_HOST) return event.respondWith(apiNetworkFirst(req));
 });
 
 function timeout(ms: number): Promise<never> {
@@ -118,17 +122,19 @@ async function apiNetworkFirst(req: Request): Promise<Response> {
 async function putApi(url: string, res: Response): Promise<void> {
   const cache = await caches.open(CACHES.api);
   await cache.put(url, res);
-  const keep = savedApi ?? savedApiPaths(await readState());
-  await trim(cache, MAX_API_ENTRIES, (k) => {
-    const u = new URL(k.url);
-    return !keep.has(u.pathname + u.search);
-  });
+  const keep = savedApi ?? savedApiUrls(await readState());
+  await trim(cache, MAX_API_ENTRIES, (k) => !keep.has(k.url));
 }
 
-/** The default list and details of saved races are never trimmed away. */
+/** The default list, details and forecasts of saved races are never trimmed away. */
 let savedApi: Set<string> | null = null;
-function savedApiPaths(state: OfflineState): Set<string> {
-  savedApi = new Set(["/api/events", "/api/regions", ...Object.keys(state.races).map((id) => `/api/events/${id}`)]);
+function savedApiUrls(state: OfflineState): Set<string> {
+  const abs = (path: string) => new URL(path, self.location.origin).href;
+  savedApi = new Set([abs("/api/events"), abs("/api/regions")]);
+  for (const r of Object.values(state.races)) {
+    savedApi.add(abs(`/api/events/${r.id}`));
+    if (r.forecast) savedApi.add(r.forecast);
+  }
   return savedApi;
 }
 
@@ -202,7 +208,7 @@ async function readState(): Promise<OfflineState> {
 async function writeState(state: OfflineState): Promise<void> {
   const cache = await caches.open(CACHES.meta);
   await cache.put(STATE_KEY, Response.json(state));
-  savedApiPaths(state);
+  savedApiUrls(state);
 }
 
 const busy = new Set<string>();
@@ -261,6 +267,8 @@ async function saveRace(id: string, pinned: boolean): Promise<OfflineRace> {
   try {
     const e = await fetchApi<EventDetail>(`/api/events/${id}`);
     const tiles = e.lat != null && e.lng != null ? await fill(CACHES.tilesSaved, tilesAround(e.lat, e.lng), { mode: "cors", credentials: "omit" }, 3) : [];
+    const forecast = e.lat != null && e.lng != null ? forecastUrl(e.lat, e.lng) : null;
+    if (forecast) await fetchApi(forecast).catch(() => {});
     const docs = offlineDocs(e);
     const stored = new Set(await fill(CACHES.docs, docs.map((l) => new URL(docUrl(id, l.url), self.location.origin).href), {}, 2));
     return {
@@ -271,6 +279,7 @@ async function saveRace(id: string, pinned: boolean): Promise<OfflineRace> {
       pinned,
       savedAt: new Date().toISOString(),
       tiles: tiles.length,
+      forecast,
       docs: docs.filter((l) => stored.has(new URL(docUrl(id, l.url), self.location.origin).href)).map((l) => l.url),
     };
   } finally {

@@ -206,6 +206,33 @@
   transform: scale(0.975);
 }
 
+/* Pulsing "on air" dot (race-day view, LivePage.tsx). */
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.35);
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  animation: live-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes live-ping {
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
 /* Bottom sheet (Sheet.tsx). */
 .sheet-backdrop {
   animation: fade-in 0.2s ease-out both;
@@ -231,6 +258,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .live-dot::after,
   .orbs span,
   .sheet-panel,
   .sheet-backdrop {
@@ -262,6 +290,10 @@
 :root.dark .leaflet-tile {
   /* OSM tiles inverted to a dark map; hue turned back so water stays blue-ish. */
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55);
+}
+:root.dark .radar-layer .leaflet-tile {
+  /* Radar colours mean rain intensity: never invert them. */
+  filter: none;
 }
 :root .leaflet-popup-content-wrapper,
 :root .leaflet-popup-tip {
