@@ -56,19 +56,11 @@ describe("results services by discipline and series", () => {
   const urls = async (discipline: string, series: string | null, name = "Rallye X") =>
     (await liveLinks(d1, { name, date_from: "2026-10-03", discipline: discipline as never, series }, null, [])).results.map((l) => l.url);
 
-  it("rally: championship services, the cup's own results first", async () => {
-    expect(await urls("rally", null)).toEqual(["https://rally-vysledky.com/", "https://www.ewrc-results.com/"]);
-    expect(await urls("rally", "Českomoravský pohár rallye")).toEqual([
-      "https://cmpr.cz/vysledky/",
-      "https://rally-vysledky.com/",
-      "https://www.ewrc-results.com/",
-    ]);
-    expect((await urls("rally", null, "55. Barum Czech Rally Zlín"))[0]).toBe("https://www.czechrally.com/en/rally-results");
-  });
-
-  it("autocross and hill climbs", async () => {
-    expect(await urls("autocross", "MČR")).toEqual(["https://www.rallycross.cz/"]);
-    expect(await urls("vrch", "MČR")).toEqual([]);
+  it("only services of the race's series: a general results site is no use", async () => {
+    expect(await urls("rally", null)).toEqual([]);
+    expect(await urls("rally", "Českomoravský pohár rallye")).toEqual(["https://cmpr.cz/vysledky/"]);
+    expect(await urls("rally", null, "55. Barum Czech Rally Zlín")).toEqual(["https://www.czechrally.com/en/rally-results"]);
+    expect(await urls("autocross", "MČR")).toEqual([]);
   });
 
   it("video links from sources count as streams only on video sites", async () => {
