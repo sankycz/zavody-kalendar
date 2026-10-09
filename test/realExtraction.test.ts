@@ -120,8 +120,27 @@ describe.skipIf(real.length === 0)("real extraction fixtures", () => {
     expect(one("kdyne|2026-09-19|vrch")).toMatchObject({ discipline: "vrch", sources: "autokaleidoskop-2026,krusnohorsky-pohar-2026" });
     expect(raw.prepare("SELECT count(*) AS n FROM events WHERE discipline = 'jiny' AND location_name = 'Kdyně'").get()).toEqual({ n: 0 });
     expect(one("brno|2026-10-10|vrch")).toMatchObject({
-      sources: "autokaleidoskop-2026,autoklub-cal-html-2026,automotodrom-brno-2026",
+      sources: "autokaleidoskop-2026,autoklub-cal-html-2026,automotodrom-brno-2026,hillclimbers-2026",
     });
+  });
+
+  it("aggregators added in 0016 join known races instead of duplicating them", async () => {
+    if (real.length < 8) return;
+    const { d1, raw } = createTestDb();
+    for (const r of real) {
+      const src = { id: r.data.source_id, provider: r.provider, url: `https://${r.provider}.example/`, priority: PRIORITY[r.data.source_id]! };
+      await upsertEvents(d1, src, processExtraction(r.data.events, r.data.season).events, new Map());
+    }
+    const sourcesOf = (key: string) =>
+      (raw
+        .prepare("SELECT group_concat(source_id) AS s FROM (SELECT source_id FROM event_sources es JOIN events e ON e.id = es.event_id WHERE dedupe_key = ? ORDER BY source_id)")
+        .get(key) as { s: string | null }).s;
+    // Hillclimbers says 2.–3. 5., Autoklub 1. 5. (one day apart): one race.
+    expect(sourcesOf("namest-nad-oslavou|2026-05-01|vrch")).toContain("hillclimbers-2026");
+    expect(raw.prepare("SELECT count(*) AS n FROM events WHERE location_name LIKE 'Náměšť%' AND discipline = 'vrch'").get()).toEqual({ n: 1 });
+    expect(sourcesOf("slusovice|2026-12-05|rally")).toContain("autosport-2026");
+    // Autoklub (priority 11) wins over Autosport (74) where both know the race.
+    expect(raw.prepare("SELECT name FROM events WHERE dedupe_key = 'slusovice|2026-12-05|rally'").get()).toEqual({ name: "Mikuláš Rally Slušovice" });
   });
 
   it("stores no rider lists from Edda Cup", () => {

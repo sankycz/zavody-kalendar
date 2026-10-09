@@ -30,6 +30,10 @@ Vzorový obsah zdrojů pro testy, které běží bez volání API.
   - `podbrdske-legendy-2026-harmonogram.jpg` – harmonogram XI. Podbrdského setkání legend (originál PNG 2,3 MB zmenšen na JPG), `.stages.json` je reálný výstup Workers AI (`llama-4-scout`) nad obrázkem.
   - `podbrdske-legendy-2026-divaci.txt` (divácký průvodce z ewrc.cz, bez autora a diskuse) a `podbrdske-legendy-2026-zu.txt` (výňatek zvláštního ustanovení bez jmen činovníků, telefonů a účtu): ani jeden časy RZ neuvádí, Workers AI nad nimi vrátil `{"stages": []}`.
   - `synteticke-uzavirky.txt` – smyšlený dokument s uzavírkami, `.stages.json` je reálný výstup Workers AI.
+- Zdroje z migrace `0016`, staženy přes Firecrawl (`firecrawl_scrape`, 1 stránka) 9. 10. 2026:
+  - `hillclimbers/hillclimbers-2026.html` – hlavní obsah stránky (filtry a seznam závodů) bez CSS tříd, skriptů a menu; struktura odkazů a texty beze změny.
+  - `autosport/autosport-2026.html` – jen tabulky „Přehled závodů“ ze surové stránky (bez menu, reklam, fotogalerie a přihlašovacího formuláře). Vlajky zemí jsou na webu obrázky bez `alt`, model tedy zemi pozná jen podle názvu soutěže; zahraniční vypadnou podle `country` a geokodéru.
+  - `.extraction.json` k nim vytvořil Claude podle `SYSTEM_PROMPT` (zahraniční soutěže a „testovací RZ“ vynechány).
 - `autoklub-cal/autoklub-cal-pdf-2026.pdf` zatím chybí (binární 185 kB soubor nejde přenést přes Apify connector) – stáhni lokálně `npm run fixtures:fetch autoklub-cal-pdf-2026`.
 - `*.extraction.json` (všechny HTML zdroje) teď vytvořil Claude v Claude Code session podle `SYSTEM_PROMPT` a schématu (bez API klíče, `model: "claude-code-session"`), ne `extractEvents()`. Karting a minikáry vynechány podle promptu, nejasná data (`1ý.`, `???`) zkopírována beze změny – normalizace je zahodí.
 - Ostrá extrakce: `ANTHROPIC_API_KEY=… npm run fixtures:extract [provider|source-id]` (model z `CLAUDE_MODEL`, jinak z `wrangler.jsonc`). Syntetické `extraction.sample.json` zůstávají kvůli testům chybových případů.

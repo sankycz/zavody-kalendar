@@ -20,6 +20,8 @@ const SOURCES = [
   { id: "krusnohorsky-pohar-2026", provider: "krusnohorsky-pohar", kind: "html", url: "https://www.krusnohorskypohar.cz/index.php/2025/12/01/kalendar-2026/" },
   { id: "autodrom-most-2026", provider: "autodrom-most", kind: "html", url: "https://www.autodrom-most.cz/kalendar-zavodu-c1423/" },
   { id: "automotodrom-brno-2026", provider: "automotodrom-brno", kind: "html", url: "https://www.automotodrombrno.cz/kalendar-akci/" },
+  { id: "hillclimbers-2026", provider: "hillclimbers", kind: "html", url: "https://hillclimbers.eu/kalendar?year=2026&country=CZ" },
+  { id: "autosport-2026", provider: "autosport", kind: "html", url: "http://www.autosport.cz/souteze/vsechny.php" },
   // First page only (the source follows 7 pages of 15 events, see paging.ts).
   { id: "autoklub-podniky-2026", provider: "autoklub-podniky", kind: "html", url: "https://www.autoklub.cz/ostatni/kalendar-podniku/?id_sport=1212&termin_od=01.01.2026&termin_do=31.12.2026" },
   // The organizer's page of one race (scope 'event'), see migrations/0011.
