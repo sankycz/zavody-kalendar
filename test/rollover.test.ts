@@ -30,6 +30,7 @@ const WEB: Record<string, () => Response> = {
   // The dates are in the URL: the same address with 2027 is next season's listing.
   "https://www.autoklub.cz/ostatni/kalendar-podniku/?id_sport=1212&termin_od=01.01.2027&termin_do=31.12.2027": () =>
     page('<input name="termin_od" value="01.01.2027"> Celkem nalezeno 3 podniků.'),
+  "https://hillclimbers.eu/kalendar?year=2027&country=CZ": () => page("Sezóna 2027 · 10.–11. 4. IX. Prolog Hillclimb AMD Brno 2027"),
   "https://www.krusnohorskypohar.cz/": () =>
     links("/index.php/vysledky-2027/", "/index.php/kalendar-2027/", "/index.php/kalendar-2026/", "/index.php/kalendar-2025/"),
 };
@@ -73,6 +74,8 @@ describe("rollover", () => {
         "autoslalom\nzávod do vrchu\nrallysprint\nautokros\nhttps://www.facebook.com/podbrdskesetkanilegend.cz/events",
       ],
       "kbssped-2026": ["same-url", "https://www.kbssped.cz/?page_id=34"],
+      "hillclimbers-2026": ["year-in-url", "https://hillclimbers.eu/kalendar?year=2027&country=CZ"],
+      "autosport-2026": ["same-url", "http://www.autosport.cz/souteze/vsechny.php"],
     });
     expect(
       t.raw.prepare("SELECT id, name, kind, via, priority, enabled FROM sources WHERE season = 2027 AND provider IN ('autoklub-cal', 'cmpr', 'facebook') ORDER BY id").all(),
