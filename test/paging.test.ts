@@ -24,6 +24,12 @@ describe("nextPageUrl", () => {
     expect(nextPageUrl(PAGE1, URL1)).toBe(URL2);
   });
 
+  it("decodes &#038; in the link (Autoklub ČR since October 2026)", () => {
+    const page = PAGE1.replace(/(href="[^"]*page\/2\/[^"]*")/, (m) => m.replaceAll("&amp;", "&#038;"));
+    expect(page).toContain("&#038;termin_od");
+    expect(nextPageUrl(page, URL1)).toBe(URL2);
+  });
+
   it.each([
     ['<a rel="next" href="/p/2">dál</a>', "https://x.cz/p/2"],
     ['<a class="next page-numbers" href="/p/2"><span>Následující</span></a>', "https://x.cz/p/2"],
