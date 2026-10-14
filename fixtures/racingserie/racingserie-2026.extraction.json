@@ -1,0 +1,318 @@
+{
+  "_note": "Extrakce provedená Claude v Claude Code session podle SYSTEM_PROMPT a ExtractionSchema nad racingserie-2026.txt (bez API klíče, ne přes extractEvents()). Obec (Milovice) stránka neuvádí, je v názvu zdroje (sources.name) a v pravidlech seriálu (RacePark Milovice). Po nastavení ANTHROPIC_API_KEY ji přepíše `npm run fixtures:extract`.",
+  "source_id": "racingserie-2026",
+  "season": 2026,
+  "model": "claude-code-session",
+  "extracted_at": "2026-10-14",
+  "usage": null,
+  "events": [
+    {
+      "name": "Racing Serie 2025/26 – 1. závod",
+      "date_from": "2025-11-01",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-1",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 1.11.2025 (https://abssport.cz/ars-25-26-1)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 2. závod",
+      "date_from": "2025-12-07",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-2",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "NE 7.12.2025 (https://abssport.cz/ars-25-26-2)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 3. závod",
+      "date_from": "2026-01-17",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-3",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 17.1.2026 (https://abssport.cz/ars-25-26-3)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 4. závod",
+      "date_from": "2026-02-14",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-4",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 14.2.2026 (https://abssport.cz/ars-25-26-4)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 5. závod",
+      "date_from": "2026-03-14",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-5",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 14.3.2026 (https://abssport.cz/ars-25-26-5)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 6. závod",
+      "date_from": "2026-04-18",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-6",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 18.4.2026 (https://abssport.cz/ars-25-26-6)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 7. závod",
+      "date_from": "2026-05-16",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-7",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 16.5.2026 (https://abssport.cz/ars-25-26-7)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 8. závod",
+      "date_from": "2026-06-20",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-8",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 20.6.2026 (https://abssport.cz/ars-25-26-8)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 9. závod",
+      "date_from": "2026-09-12",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-9",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 12.9.2026 (https://abssport.cz/ars-25-26-9)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 10. závod",
+      "date_from": "2026-10-17",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-10",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "SO 17.10.2026 (https://abssport.cz/ars-25-26-10)"
+    },
+    {
+      "name": "Racing Serie 2025/26 – 11. závod",
+      "date_from": "2026-11-08",
+      "date_to": null,
+      "discipline": "okruh",
+      "series": "Racing Serie",
+      "level": "pohar",
+      "location_name": "Milovice",
+      "region": null,
+      "country": "CZ",
+      "organizer": "Autoklub Bohemia Sport",
+      "website_url": "https://abssport.cz/ars-25-26-11",
+      "description": null,
+      "status": "planned",
+      "links": [
+        {
+          "kind": "harmonogram",
+          "label": "Harmonogram závodu",
+          "url": "https://racingserie.com/download/CasovyharmonogramRS26.pdf"
+        },
+        {
+          "kind": "propozice",
+          "label": "Pravidla seriálu RS 2025/26",
+          "url": "https://racingserie.com/download/Pravidla%20ARS026.pdf"
+        }
+      ],
+      "raw_excerpt": "NE 8.11.2026 (https://abssport.cz/ars-25-26-11)"
+    }
+  ]
+}

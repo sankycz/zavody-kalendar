@@ -76,6 +76,7 @@ describe("rollover", () => {
       "kbssped-2026": ["same-url", "https://www.kbssped.cz/?page_id=34"],
       "hillclimbers-2026": ["year-in-url", "https://hillclimbers.eu/kalendar?year=2027&country=CZ"],
       "autosport-2026": ["same-url", "http://www.autosport.cz/souteze/vsechny.php"],
+      "racingserie-2026": ["same-url", "https://racingserie.com/"],
     });
     expect(
       t.raw.prepare("SELECT id, name, kind, via, priority, enabled FROM sources WHERE season = 2027 AND provider IN ('autoklub-cal', 'cmpr', 'facebook') ORDER BY id").all(),

@@ -21,6 +21,7 @@ Začni prvními třemi. Další přidávej až ve chvíli, kdy pipeline běží 
 
 5. **Hillclimbers.eu**, kalendář závodů do vrchu v ČR (MČR + Maverick Hill Climb Czech), https://hillclimbers.eu/kalendar?year=2026&country=CZ. Rok je v URL. Agregátor, priorita 72 (migrace `0016`).
 6. **Autosport.cz – přehled závodů**, MČR, RSS a menší rally (BOAS, Rallye Jizera…), http://www.autosport.cz/souteze/vsechny.php. Aktuální sezóna je vždy na stejné URL, zahraniční soutěže se vynechají. Agregátor, priorita 74 (migrace `0016`).
+7. **Racing Serie**, amatérské závody na asfaltovém okruhu RacePark Milovice (Autoklub Bohemia Sport), https://racingserie.com/ (přesměruje na aktuální sezónu, ta běží od listopadu do listopadu, např. 2025/26). Seznam termínů neuvádí místo, obec je proto v `sources.name`. FB stránka seriálu má jen události z roku 2018, do Facebook zdroje se nepřidává. Priorita 28 (migrace `0017`).
 
 Kandidáti na později: Radeč Cup, kalendáře jednotlivých autoklubů, například https://www.autoklub-pisek.cz/kalendar/.
 
@@ -136,6 +137,7 @@ Navigace neví, že jsou silnice na RZ uzavřené (často hodiny předem a i mez
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
 - Maximálně jeden požadavek za pár sekund na doménu, kalendáře stahuj jednou týdně (pondělí 5:00); weby pořadatelů závodů na dnes a zítra denně v 5:00. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
+- Pondělní běh má jako Cron Trigger limit 15 minut a všechny zdroje se do něj nemusí vejít. Zdroje proto jdou od nejdéle nestaženého (nikdy nestažené a minule neúspěšné první, při shodě podle priority), stránky pořadatelů jednoho závodu na konec. Po 9 minutách se další zdroj nezačne (`deferred`), přijde na řadu jako první příští týden. Na pořadí slučování nezáleží, rozhoduje priorita zdroje.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 
