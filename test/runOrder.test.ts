@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { runAll, type RunDeps } from "../src/pipeline/run.ts";
+import { ModelError, type JsonModel } from "../src/pipeline/llm.ts";
+import { isQuotaError, runAll, type RunDeps } from "../src/pipeline/run.ts";
 import { createTestDb } from "./d1shim.ts";
 
 // A weekly run that doesn't fit in the Cron Trigger's 15 minutes must not
@@ -27,5 +28,34 @@ describe("runAll order and deadline", () => {
       ["autoklub-cal-pdf-2026", "deferred"],
       ["kbssped-2026", "deferred"],
     ]);
+  });
+
+  it("leaves out sources fetched within the last week (the daily run)", async () => {
+    const { deps } = setup();
+    const reports = await runAll(deps, { deadline: 0, fetchedBefore: "2026-10-12T03:03:00.000Z" });
+    expect(reports.map((r) => r.source)).toEqual(["racingserie-2026", "hillclimbers-2026", "autosport-2026", "edda-2026"]);
+  });
+
+  it("stops when the model's daily allowance is used up; the source is first again tomorrow", async () => {
+    const { deps } = setup();
+    let calls = 0;
+    const quota: JsonModel = {
+      json: async () => {
+        calls++;
+        throw new ModelError("Workers AI: 4006: you have used up your daily free allocation of 10,000 neurons");
+      },
+    };
+    const page = `<html><body><main><p>17.10. Racing Serie Milovice</p><p>${"x".repeat(300)}</p></main></body></html>`;
+    const http = { get: async () => new Response(page, { headers: { "Content-Type": "text/html; charset=utf-8" } }) };
+    const reports = await runAll({ ...deps, http, geoHttp: http, llm: quota } as unknown as RunDeps, { fetchedBefore: "2026-10-12T03:03:00.000Z" });
+    expect(reports.map((r) => r.status)).toEqual(["error", "deferred", "deferred", "deferred"]);
+    expect(calls).toBe(1);
+    const again = await runAll(deps, { deadline: 0, fetchedBefore: "2026-10-12T03:03:00.000Z" });
+    expect(again[0]!.source).toBe("racingserie-2026");
+  });
+
+  it("recognises the Workers AI quota error", () => {
+    expect(isQuotaError("all 2 blocks failed: Workers AI: 4006: you have used up your daily free allocation of 10,000 neurons")).toBe(true);
+    expect(isQuotaError("HTTP 404 for https://x.cz/")).toBe(false);
   });
 });

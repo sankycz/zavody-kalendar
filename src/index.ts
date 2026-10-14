@@ -34,8 +34,10 @@ export interface Env {
 
 /** Local (Prague) hour of the weekly run, see the crons in wrangler.jsonc. */
 const INGEST_HOUR = 5;
-/** Start no new source after this long into the Monday run (Cron Triggers stop at 15 min; a source can take minutes, then checks follow). */
+/** Start no new source after this long into the daily run (Cron Triggers stop at 15 min; a source can take minutes). */
 const INGEST_BUDGET_MS = 9 * 60_000;
+/** A calendar source is fetched again after this long: about weekly, but at the same hour a week later. */
+const SOURCE_INTERVAL_MS = 6.5 * 24 * 3600_000;
 
 function maxEvents(env: Env): number {
   const n = Number(env.APIFY_MAX_EVENTS ?? 50);
@@ -95,26 +97,28 @@ async function tokenMatches(given: string, expected: string): Promise<boolean> {
 
 export default {
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    // Daily 05:00 Prague time (two UTC crons cover summer and winter time); the full ingest on Mondays.
+    // Daily 05:00 Prague time (two UTC crons cover summer and winter time).
     const at = new Date(controller.scheduledTime);
     if (pragueHour(at) !== INGEST_HOUR) return;
     const d = deps(env);
     const today = todayInPrague(at);
-    if (new Date(`${today}T00:00:00Z`).getUTCDay() !== 1) {
-      // Other days: only organizer websites of races today and tomorrow (race-day view: results, stream).
+    if (new Date(`${today}T00:00:00Z`).getUTCDay() === 1) {
+      // Mondays: next season's calendars as soon as the organizers publish them (no code change per year),
+      // organizer websites of races in the next two weeks (model only when the page changed).
+      console.log(JSON.stringify(await rollover(env.DB, d.http, today)));
+      console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env))));
+    } else {
+      // Other days: organizer websites of races today and tomorrow (race-day view: results, stream),
+      // stages and road closures of rallies and hill climbs in the next two weeks.
       console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env), LIVE_WINDOW_DAYS)));
-      // Stages and road closures of rallies and hill climbs in the next two weeks (model only when a document changed).
       console.log(JSON.stringify(await checkStages(d, today, stageLimit(env))));
-      return;
     }
-    // Next season's calendars as soon as the organizers publish them (no code change per year).
-    console.log(JSON.stringify(await rollover(env.DB, d.http, today)));
-    // Sources whose content didn't change are skipped by hash (no model call).
-    // A Cron Trigger may run 15 minutes; sources not started by then go first next week.
-    console.log(JSON.stringify(await runAll(d, { deadline: at.getTime() + INGEST_BUDGET_MS })));
+    // Calendars every day, each source about once a week: the model's daily allowance
+    // (Workers AI free plan) and the 15 minutes of a Cron Trigger don't fit all of them in one run.
+    // Unchanged sources are skipped by hash (no model call); the rest go first the next day.
+    const fetchedBefore = new Date(at.getTime() - SOURCE_INTERVAL_MS).toISOString();
+    console.log(JSON.stringify(await runAll(d, { deadline: at.getTime() + INGEST_BUDGET_MS, fetchedBefore })));
     console.log(`marked finished: ${await markFinished(env.DB, today)}`);
-    // Then organizer websites of races in the next two weeks (model only when the page changed).
-    console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env))));
   },
 
   async fetch(request: Request, env: Env): Promise<Response> {

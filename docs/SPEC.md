@@ -41,7 +41,7 @@ Další sezónu přidává každý týdenní běh sám (`src/pipeline/rollover.t
 ## Architektura
 
 - **Databáze:** Cloudflare D1 (SQLite), databáze `zavody-kalendar`, migrace v `migrations/`.
-- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem jednou týdně (pondělí 5:00 českého času; ostatní dny v 5:00 jen kontrola webů pořadatelů závodů na dnes a zítra) a ručně přes admin endpoint chráněný tokenem.
+- **Stahování:** Cloudflare Worker (TypeScript), spouštěný Cron Triggerem denně v 5:00 českého času (kalendáře rozložené do týdne, každý zdroj zhruba jednou týdně; v pondělí navíc rollover a kontrola webů pořadatelů na 14 dní, ostatní dny weby pořadatelů závodů na dnes a zítra a RZ) a ručně přes admin endpoint chráněný tokenem.
 - **Extrakce:** LLM s pevným JSON schématem – Cloudflare Workers AI (výchozí, zdarma v denním limitu, `EXTRACTOR=workers-ai`, model z `WORKERS_AI_MODEL`) nebo Claude API (`EXTRACTOR=claude`, model z `CLAUDE_MODEL`). Stažený HTML text nebo text z PDF pošli modelu a nech ho vrátit pole závodů. Parser pro každý web zvlášť nepiš, zdroje se mění a jsou nekonzistentní.
 - **Geokódování:** Open-Meteo Geocoding API (data GeoNames, bez klíče), maximálně 1 požadavek za sekundu, výsledky cachuj v tabulce `locations`. Místo, které v dané zemi není, se hledá v sousedních (CZ, SK, DE, AT, PL). Nominatim nepoužíváme: jeho robots.txt zakazuje `/search` robotům.
 - **Frontend:** Vite, React, TypeScript strict, Tailwind. Vektorová mapa přes MapLibre GL s dlaždicemi OpenFreeMap (data OpenStreetMap, zdarma, bez klíče a limitu), světlý styl Liberty a tmavý Dark nativně, bez CSS filtrů. Poskytovatel je na jednom místě (`web/src/basemap.ts`), přechod např. na vlastní Protomaps v R2 je výměna adres.
@@ -116,7 +116,7 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 
 ## Kontrola webů pořadatelů
 
-Po každém stažení kalendářů (týdně) se ověří weby pořadatelů (`events.website_url`) u závodů v příštích 14 dnech, max. `ORGANIZER_CHECK_LIMIT` (výchozí 10) za běh, nejbližší a nejdéle neověřené první. Ručně přes `POST /admin/check-organizers`.
+Každé pondělí se ověří weby pořadatelů (`events.website_url`) u závodů v příštích 14 dnech, max. `ORGANIZER_CHECK_LIMIT` (výchozí 10) za běh, nejbližší a nejdéle neověřené první. Ručně přes `POST /admin/check-organizers`.
 
 - Stránka se stahuje stejně jako zdroje (robots.txt, User-Agent, limit na doménu). Jen HTML; PDF a jiné typy se přeskočí.
 - Model se volá jen když se text stránky od minulé kontroly změnil. Vrací pevné schéma (zmiňuje závod?, stav planned/cancelled/postponed, termín, krátká poznámka), výstup se validuje.
@@ -136,8 +136,8 @@ Navigace neví, že jsou silnice na RZ uzavřené (často hodiny předem a i mez
 ## Pravidla pro stahování
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
-- Maximálně jeden požadavek za pár sekund na doménu, kalendáře stahuj jednou týdně (pondělí 5:00); weby pořadatelů závodů na dnes a zítra denně v 5:00. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
-- Pondělní běh má jako Cron Trigger limit 15 minut a všechny zdroje se do něj nemusí vejít. Zdroje proto jdou od nejdéle nestaženého (nikdy nestažené a minule neúspěšné první, při shodě podle priority), stránky pořadatelů jednoho závodu na konec. Po 9 minutách se další zdroj nezačne (`deferred`), přijde na řadu jako první příští týden. Na pořadí slučování nezáleží, rozhoduje priorita zdroje.
+- Maximálně jeden požadavek za pár sekund na doménu, každý kalendář stahuj zhruba jednou týdně; weby pořadatelů závodů na dnes a zítra denně v 5:00. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
+- Kalendáře se zpracovávají každý den v 5:00, po kontrole webů pořadatelů a RZ. Denní běh bere jen zdroje, které se nestáhly posledních 6,5 dne, takže každý zdroj jde zhruba jednou týdně a práce modelu se rozloží do dnů: Workers AI zdarma má denní limit 10 000 neuronů a Cron Trigger 15 minut. Zdroje jdou od nejdéle nestaženého (nikdy nestažené a minule neúspěšné první, při shodě podle priority), stránky pořadatelů jednoho závodu na konec. Po 9 minutách nebo po vyčerpání denního limitu modelu (chyba 4006) se další zdroj nezačne (`deferred`) a přijde na řadu jako první další den. Neúspěšný zdroj (i jen část bloků) si nechá starý čas stažení, takže se zkusí znovu další den. Na pořadí slučování nezáleží, rozhoduje priorita zdroje.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 
