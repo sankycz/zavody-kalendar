@@ -21,6 +21,7 @@ Začni prvními třemi. Další přidávej až ve chvíli, kdy pipeline běží 
 
 5. **Hillclimbers.eu**, kalendář závodů do vrchu v ČR (MČR + Maverick Hill Climb Czech), https://hillclimbers.eu/kalendar?year=2026&country=CZ. Rok je v URL. Agregátor, priorita 72 (migrace `0016`).
 6. **Autosport.cz – přehled závodů**, MČR, RSS a menší rally (BOAS, Rallye Jizera…), http://www.autosport.cz/souteze/vsechny.php. Aktuální sezóna je vždy na stejné URL, zahraniční soutěže se vynechají. Agregátor, priorita 74 (migrace `0016`).
+7. **Racing Serie**, amatérské závody na asfaltovém okruhu RacePark Milovice (Autoklub Bohemia Sport), https://racingserie.com/ (přesměruje na aktuální sezónu, ta běží od listopadu do listopadu, např. 2025/26). Seznam termínů neuvádí místo, obec je proto v `sources.name`. FB stránka seriálu má jen události z roku 2018, do Facebook zdroje se nepřidává. Priorita 28 (migrace `0017`).
 
 Kandidáti na později: Radeč Cup, kalendáře jednotlivých autoklubů, například https://www.autoklub-pisek.cz/kalendar/.
 

@@ -143,6 +143,31 @@ describe.skipIf(real.length === 0)("real extraction fixtures", () => {
     expect(raw.prepare("SELECT name FROM events WHERE dedupe_key = 'slusovice|2026-12-05|rally'").get()).toEqual({ name: "Mikuláš Rally Slušovice" });
   });
 
+  it("Racing Serie: every race at Milovice, apart from the rallycross there", async () => {
+    const r = real.find((x) => x.data.source_id === "racingserie-2026");
+    if (!r) return;
+    const batch = processExtraction(r.data.events, r.data.season);
+    expect(batch.invalid).toEqual([]);
+    expect(batch.events).toHaveLength(11);
+    expect(new Set(batch.events.map((e) => e.dedupe_key.split("|")[0]))).toEqual(new Set(["milovice"]));
+    expect(batch.events.every((e) => e.discipline === "okruh" && e.level === "pohar")).toBe(true);
+    const { d1, raw } = createTestDb();
+    for (const x of real) {
+      const src = { id: x.data.source_id, provider: x.provider, url: `https://${x.provider}.example/`, priority: PRIORITY[x.data.source_id]! };
+      await upsertEvents(d1, src, processExtraction(x.data.events, x.data.season).events, new Map());
+    }
+    const rs = raw
+      .prepare("SELECT count(*) AS n FROM events e JOIN event_sources es ON es.event_id = e.id WHERE es.source_id = 'racingserie-2026' AND e.discipline = 'okruh'")
+      .get();
+    expect(rs).toEqual({ n: 11 });
+    // Links for spectators, never the entry form.
+    const links = raw.prepare("SELECT DISTINCT url FROM event_links WHERE source_id = 'racingserie-2026' ORDER BY url").all() as { url: string }[];
+    expect(links.map((l) => l.url)).toEqual([
+      "https://racingserie.com/download/CasovyharmonogramRS26.pdf",
+      "https://racingserie.com/download/Pravidla%20ARS026.pdf",
+    ]);
+  });
+
   it("stores no rider lists from Edda Cup", () => {
     const edda = join(fixturesDir, "edda", "edda-2026.extraction.json");
     if (!existsSync(edda)) return;
