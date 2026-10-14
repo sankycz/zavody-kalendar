@@ -12,8 +12,10 @@
     "run_worker_first": ["/api/*", "/admin/*"]
   },
   // Daily 05:00 Prague time: both UTC slots fire, the Worker runs only in the one
-  // that is 05:00 in Prague (03:00 UTC in summer, 04:00 UTC in winter). Mondays:
-  // full ingest (unchanged sources skipped by content hash); other days only the
+  // that is 05:00 in Prague (03:00 UTC in summer, 04:00 UTC in winter). Every day
+  // the calendars not fetched for a week (spread over the days for the Workers AI
+  // daily allowance; unchanged sources skipped by content hash). Before them on
+  // Mondays rollover and organizer websites of the next two weeks, other days the
   // organizer websites of races today and tomorrow (race-day view) and the stages
   // (RZ, road closures) of rallies and hill climbs in the next two weeks.
   "triggers": { "crons": ["0 3 * * *", "0 4 * * *"] },

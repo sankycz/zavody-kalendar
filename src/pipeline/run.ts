@@ -51,7 +51,7 @@ export interface RunDeps {
 export type RunReport =
   | { source: string; status: "unchanged"; hash: string }
   | { source: string; status: "error"; error: string }
-  /** Not run: the scheduled run's time was up; first in line next time. */
+  /** Not run: the scheduled run's time or the model's daily allowance was up; first in line next time. */
   | { source: string; status: "deferred" }
   | {
       source: string;
@@ -182,13 +182,16 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
 
     const stats = await upsertEvents(deps.db, source, events, geo);
 
-    // Store the hash only after a complete, successful upsert, so a failed run is retried next time.
-    await deps.db
-      .prepare(
-        "UPDATE sources SET last_content_hash = ?, last_fetched_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
-      )
-      .bind(extracted.failedBlocks ? null : hash, source.id)
-      .run();
+    // Store the hash and the time only after a complete, successful upsert, so a
+    // failed run is retried next time (the next day, see runAll).
+    if (extracted.failedBlocks) {
+      await deps.db.prepare("UPDATE sources SET last_content_hash = NULL WHERE id = ?").bind(source.id).run();
+    } else {
+      await deps.db
+        .prepare("UPDATE sources SET last_content_hash = ?, last_fetched_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
+        .bind(hash, source.id)
+        .run();
+    }
 
     log(`${source.id}: ${events.length} events (${stats.inserted} new, ${stats.updated} updated), ${attached.length} attached, ${batch.invalid.length} invalid`);
     return {
@@ -213,31 +216,45 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
   }
 }
 
+/** The model's daily allowance is used up (Workers AI free plan: 10,000 neurons, error 4006). */
+export function isQuotaError(error: string): boolean {
+  return /\b4006\b|daily free allocation/i.test(error);
+}
+
 /**
- * Run every enabled source. The scheduled run has a wall-clock limit (15 min
- * for a Cron Trigger) and a full pass doesn't always fit in it, so the source
- * fetched longest ago goes first (never fetched or failed last time first) and
- * one cut off by `deadline` (epoch ms) is first next week. Merging doesn't
- * depend on the order (upsert compares source priorities); organizer pages of
- * one race (scope 'event') go last, after the calendars that know their race.
+ * Run every enabled source. The scheduled run goes every day and has a
+ * wall-clock limit (15 min for a Cron Trigger) and the model a daily
+ * allowance, so the source fetched longest ago goes first (never fetched or
+ * failed last time first); one cut off by `deadline` (epoch ms) or by the
+ * used-up allowance is first next day. `fetchedBefore` (ISO time) leaves out
+ * sources fetched since then, so each source still goes about once a week.
+ * Merging doesn't depend on the order (upsert compares source priorities);
+ * organizer pages of one race (scope 'event') go last, after the calendars
+ * that know their race.
  */
 export async function runAll(
   deps: RunDeps,
-  opts: { sourceId?: string; force?: boolean; deadline?: number } = {},
+  opts: { sourceId?: string; force?: boolean; deadline?: number; fetchedBefore?: string } = {},
 ): Promise<RunReport[]> {
   const stmt = opts.sourceId
     ? deps.db.prepare("SELECT * FROM sources WHERE id = ?").bind(opts.sourceId)
-    : deps.db.prepare(
-        "SELECT * FROM sources WHERE enabled = 1 ORDER BY scope = 'event', last_fetched_at IS NOT NULL, last_fetched_at, priority, id",
-      );
+    : deps.db
+        .prepare(
+          `SELECT * FROM sources WHERE enabled = 1 AND (?1 IS NULL OR last_fetched_at IS NULL OR last_fetched_at < ?1)
+           ORDER BY scope = 'event', last_fetched_at IS NOT NULL, last_fetched_at, priority, id`,
+        )
+        .bind(opts.fetchedBefore ?? null);
   const { results } = await stmt.all<SourceRow>();
   const reports: RunReport[] = [];
+  let quotaUsedUp = false;
   for (const s of results) {
-    if (opts.deadline != null && Date.now() >= opts.deadline) {
+    if (quotaUsedUp || (opts.deadline != null && Date.now() >= opts.deadline)) {
       reports.push({ source: s.id, status: "deferred" });
       continue;
     }
-    reports.push(await runSource(deps, s, opts));
+    const r = await runSource(deps, s, opts);
+    reports.push(r);
+    if ((r.status === "error" && isQuotaError(r.error)) || (r.status === "ok" && r.failed_blocks?.some(isQuotaError))) quotaUsedUp = true;
   }
   return reports;
 }
