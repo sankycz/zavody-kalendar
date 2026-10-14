@@ -7,10 +7,13 @@ const NEXT_TEXT = new Set(["›", "»", ">", "další", "dalsi", "next", "dalš�
 
 function decodeEntities(s: string): string {
   return s
-    .replace(/&rsaquo;|&#8250;|&#x203a;/gi, "›")
-    .replace(/&raquo;|&#187;|&#xbb;/gi, "»")
-    .replace(/&gt;|&#62;/gi, ">")
-    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&rsaquo;/gi, "›")
+    .replace(/&raquo;/gi, "»")
+    .replace(/&gt;/gi, ">")
+    .replace(/&nbsp;/gi, " ")
+    // Numeric references, e.g. WordPress writes & in URLs as &#038;.
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&amp;/gi, "&");
 }
 
