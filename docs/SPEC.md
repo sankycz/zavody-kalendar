@@ -137,6 +137,7 @@ Navigace neví, že jsou silnice na RZ uzavřené (často hodiny předem a i mez
 
 - Respektuj robots.txt. Posílej vlastní User-Agent s kontaktem.
 - Maximálně jeden požadavek za pár sekund na doménu, kalendáře stahuj jednou týdně (pondělí 5:00); weby pořadatelů závodů na dnes a zítra denně v 5:00. Když se obsah zdroje (u HTML text po očištění) od minula nezměnil, model se nevolá. Závody, které už skončily, se při každém běhu označí jako `finished`.
+- Pondělní běh má jako Cron Trigger limit 15 minut a všechny zdroje se do něj nemusí vejít. Zdroje proto jdou od nejdéle nestaženého (nikdy nestažené a minule neúspěšné první, při shodě podle priority), stránky pořadatelů jednoho závodu na konec. Po 9 minutách se další zdroj nezačne (`deferred`), přijde na řadu jako první příští týden. Na pořadí slučování nezáleží, rozhoduje priorita zdroje.
 - U každého závodu zobraz odkaz na zdroj.
 - Neukládej osobní údaje jezdců. Edda Cup má u závodů seznamy registrovaných jezdců, ty nestahuj.
 

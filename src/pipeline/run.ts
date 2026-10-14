@@ -51,6 +51,8 @@ export interface RunDeps {
 export type RunReport =
   | { source: string; status: "unchanged"; hash: string }
   | { source: string; status: "error"; error: string }
+  /** Not run: the scheduled run's time was up; first in line next time. */
+  | { source: string; status: "deferred" }
   | {
       source: string;
       status: "ok";
@@ -211,14 +213,32 @@ export async function runSource(deps: RunDeps, source: SourceRow, opts: { force?
   }
 }
 
-/** Run every enabled source, best priority first (Autoklub ČR before the rest). */
-export async function runAll(deps: RunDeps, opts: { sourceId?: string; force?: boolean } = {}): Promise<RunReport[]> {
+/**
+ * Run every enabled source. The scheduled run has a wall-clock limit (15 min
+ * for a Cron Trigger) and a full pass doesn't always fit in it, so the source
+ * fetched longest ago goes first (never fetched or failed last time first) and
+ * one cut off by `deadline` (epoch ms) is first next week. Merging doesn't
+ * depend on the order (upsert compares source priorities); organizer pages of
+ * one race (scope 'event') go last, after the calendars that know their race.
+ */
+export async function runAll(
+  deps: RunDeps,
+  opts: { sourceId?: string; force?: boolean; deadline?: number } = {},
+): Promise<RunReport[]> {
   const stmt = opts.sourceId
     ? deps.db.prepare("SELECT * FROM sources WHERE id = ?").bind(opts.sourceId)
-    : deps.db.prepare("SELECT * FROM sources WHERE enabled = 1 ORDER BY priority, id");
+    : deps.db.prepare(
+        "SELECT * FROM sources WHERE enabled = 1 ORDER BY scope = 'event', last_fetched_at IS NOT NULL, last_fetched_at, priority, id",
+      );
   const { results } = await stmt.all<SourceRow>();
   const reports: RunReport[] = [];
-  for (const s of results) reports.push(await runSource(deps, s, opts));
+  for (const s of results) {
+    if (opts.deadline != null && Date.now() >= opts.deadline) {
+      reports.push({ source: s.id, status: "deferred" });
+      continue;
+    }
+    reports.push(await runSource(deps, s, opts));
+  }
   return reports;
 }
 

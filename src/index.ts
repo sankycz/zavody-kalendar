@@ -34,6 +34,8 @@ export interface Env {
 
 /** Local (Prague) hour of the weekly run, see the crons in wrangler.jsonc. */
 const INGEST_HOUR = 5;
+/** Start no new source after this long into the Monday run (Cron Triggers stop at 15 min; a source can take minutes, then checks follow). */
+const INGEST_BUDGET_MS = 9 * 60_000;
 
 function maxEvents(env: Env): number {
   const n = Number(env.APIFY_MAX_EVENTS ?? 50);
@@ -108,7 +110,8 @@ export default {
     // Next season's calendars as soon as the organizers publish them (no code change per year).
     console.log(JSON.stringify(await rollover(env.DB, d.http, today)));
     // Sources whose content didn't change are skipped by hash (no model call).
-    console.log(JSON.stringify(await runAll(d)));
+    // A Cron Trigger may run 15 minutes; sources not started by then go first next week.
+    console.log(JSON.stringify(await runAll(d, { deadline: at.getTime() + INGEST_BUDGET_MS })));
     console.log(`marked finished: ${await markFinished(env.DB, today)}`);
     // Then organizer websites of races in the next two weeks (model only when the page changed).
     console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env))));
