@@ -13,7 +13,10 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/admin/*", "/", "/zavod/*"]
   },
-  // Own domain (zone zavody-aut.cz on Cloudflare); the workers.dev address stays for admin calls.
+  // Own domain (zone zavody-aut.cz on Cloudflare). The workers.dev address must stay on
+  // (admin calls, old links): with routes set, wrangler would otherwise turn it off.
+  "workers_dev": true,
+  "preview_urls": true,
   "routes": [
     { "pattern": "www.zavody-aut.cz", "custom_domain": true },
     { "pattern": "zavody-aut.cz", "custom_domain": true }
