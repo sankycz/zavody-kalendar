@@ -2,6 +2,7 @@ import qrcode from "qrcode-generator";
 import type { EventDetail } from "../../src/shared/types.ts";
 import { DISCIPLINE_COLOR, DISCIPLINE_ICON } from "./Badges.tsx";
 import { MAP_STYLES } from "./basemap.ts";
+import { logoDataUrl } from "./logo.ts";
 import { posterDate } from "./format.ts";
 import { DISCIPLINE_LABEL, LEVEL_LABEL } from "./labels.ts";
 import { maplibregl } from "./maplibre.ts";
@@ -75,24 +76,18 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.roundRect(x, y, w, h, r);
 }
 
-function drawLogo(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
-  const s = size / 64;
+/** The app logo, rounded like the icon on a phone's home screen. */
+function drawLogo(ctx: CanvasRenderingContext2D, logo: CanvasImageSource, x: number, y: number, size: number) {
   ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(s, s);
-  const g = ctx.createLinearGradient(0, 0, 64, 64);
-  g.addColorStop(0, RED);
-  g.addColorStop(1, ORANGE);
-  ctx.fillStyle = g;
-  roundRect(ctx, 0, 0, 64, 64, 15);
-  ctx.fill();
-  const flag = new Path2D("M19 52V13M19 13h26l-5 9.5 5 9.5H19");
-  ctx.fillStyle = ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 5.5;
-  ctx.lineCap = ctx.lineJoin = "round";
-  ctx.fill(flag);
-  ctx.stroke(flag);
+  roundRect(ctx, x, y, size, size, size * 0.23);
+  ctx.clip();
+  ctx.drawImage(logo, x, y, size, size);
   ctx.restore();
+  // The logo is dark like the picture: a faint rim keeps its shape.
+  ctx.strokeStyle = "rgb(255 255 255 / 0.22)";
+  ctx.lineWidth = 2;
+  roundRect(ctx, x + 1, y + 1, size - 2, size - 2, size * 0.23);
+  ctx.stroke();
 }
 
 function drawPin(ctx: CanvasRenderingContext2D, color: string, label: string | null) {
@@ -155,7 +150,12 @@ function drawQr(ctx: CanvasRenderingContext2D, url: string, x: number, y: number
 }
 
 /** Draws the whole picture; `map` is the rendered map (null: offline / no WebGL). */
-export function drawShareImage(ctx: CanvasRenderingContext2D, card: ShareCard, map: CanvasImageSource | null) {
+export function drawShareImage(
+  ctx: CanvasRenderingContext2D,
+  card: ShareCard,
+  map: CanvasImageSource | null,
+  logo: CanvasImageSource,
+) {
   const color = DISCIPLINE_COLOR[card.discipline];
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, SHARE_W, SHARE_H);
@@ -173,7 +173,7 @@ export function drawShareImage(ctx: CanvasRenderingContext2D, card: ShareCard, m
   drawLivery(ctx);
 
   ctx.textBaseline = "alphabetic";
-  drawLogo(ctx, PAD_X, 150, 64);
+  drawLogo(ctx, logo, PAD_X, 150, 64);
   ctx.fillStyle = "#fff";
   ctx.font = `800 34px ${FONT}`;
   ctx.fillText("Závody aut v ČR", PAD_X + 82, 194);
@@ -326,8 +326,10 @@ export async function createShareImage(card: ShareCard, point: { lat: number; ln
   canvas.height = SHARE_H;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas není k dispozici");
-  await document.fonts?.ready;
-  drawShareImage(ctx, card, map);
+  const logo = new Image();
+  logo.src = logoDataUrl();
+  await Promise.all([document.fonts?.ready, logo.decode()]);
+  drawShareImage(ctx, card, map, logo);
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Obrázek se nepodařilo vytvořit"))), "image/png"),
   );

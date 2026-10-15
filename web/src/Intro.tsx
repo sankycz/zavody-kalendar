@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logoDataUrl } from "./logo.ts";
 
 const KEY = "intro-seen";
 /** Total length; the CSS timeline in index.css (.intro-*) matches it. */
@@ -59,11 +60,7 @@ export function Intro() {
         {/* Credit under the lights, there for the whole start sequence. */}
         {!reduced && <p className="intro-credit mt-3 text-[11px] tracking-wide text-white/45">designed by JS Visuals</p>}
         <div className="intro-logo mt-8 flex flex-col items-center">
-          <span className="bg-racing grid h-16 w-16 place-items-center rounded-2xl shadow-xl shadow-accent/40">
-            <svg viewBox="0 0 24 24" className="h-9 w-9" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
-            </svg>
-          </span>
+          <img src={logoDataUrl()} alt="" className="h-16 w-16 rounded-2xl shadow-xl shadow-accent/40 ring-1 ring-white/10" />
           <p className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Závody aut <span className="text-racing">v Česku</span>
           </p>
