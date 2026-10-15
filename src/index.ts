@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { handleApi, pragueHour, todayInPrague } from "./api.ts";
+import { getEvent, handleApi, pragueHour, todayInPrague } from "./api.ts";
 import { handleDoc } from "./docs.ts";
 import { apifyEvents } from "./pipeline/facebook.ts";
 import { backfillCoordinates } from "./pipeline/geocode.ts";
@@ -11,6 +11,7 @@ import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
 import { checkStages, DEFAULT_STAGE_LIMIT } from "./pipeline/stages.ts";
 import { mergeEvents } from "./pipeline/upsert.ts";
 import { canonicalUrl } from "./canonical.ts";
+import { eventPageHtml } from "./eventMeta.ts";
 
 export interface Env {
   DB: D1Database;
@@ -100,6 +101,26 @@ async function tokenMatches(given: string, expected: string): Promise<boolean> {
   return crypto.subtle.timingSafeEqual(a, b);
 }
 
+/** The app (index.html) with the race in the title and og: tags; the plain app when anything fails. */
+async function racePage(request: Request, env: Env, id: string): Promise<Response> {
+  const app = await env.ASSETS.fetch(request);
+  if (!app.ok || !(app.headers.get("Content-Type") ?? "").includes("text/html")) return app;
+  try {
+    const event = await getEvent(env.DB, id);
+    if (!event) return app;
+    const url = new URL(request.url);
+    const pageUrl = `https://${env.CANONICAL_HOST || url.host}/zavod/${id}`;
+    const html = eventPageHtml(await app.text(), event, pageUrl);
+    const headers = new Headers(app.headers);
+    headers.delete("Content-Length");
+    headers.delete("ETag");
+    return new Response(html, { status: app.status, headers });
+  } catch (err) {
+    console.error("race page meta", err);
+    return env.ASSETS.fetch(request);
+  }
+}
+
 export default {
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     // Daily 05:00 Prague time (two UTC crons cover summer and winter time).
@@ -187,6 +208,10 @@ export default {
     }
 
     if (url.pathname.startsWith("/api/")) return handleApi(request, env.DB);
+
+    // A race page: the app with the race's name, date and place in the link preview.
+    const page = /^\/zavod\/([0-9a-f]{32})(?:\/zive)?\/?$/.exec(url.pathname);
+    if (page && request.method === "GET") return racePage(request, env, page[1]!);
 
     // Pages ("/", "/zavod/…") come here only for the redirect; other files never reach the Worker.
     if (!url.pathname.startsWith("/admin/")) return env.ASSETS.fetch(request);
