@@ -17,6 +17,8 @@ export interface EventListItem {
   status: Status;
   lat: number | null;
   lng: number | null;
+  /** Track the race is on (its point is lat/lng); null when only the town is known and lat/lng is the town centre. */
+  venue?: string | null;
   source_count: number;
   /** What the organizer's own website reports, when it differs from the calendar. */
   organizer_flag: OrganizerFlag | null;

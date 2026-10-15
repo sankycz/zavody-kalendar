@@ -89,6 +89,26 @@ describe("event detail", () => {
     expect(((await res.json()) as { name: string }).name).toBe("Hill");
   });
 
+  it("puts a race on its track when the town has one for its discipline", async () => {
+    const { d1, raw } = await seeded();
+    raw.exec("UPDATE events SET lat = 49.45, lng = 17.45 WHERE location_name IN ('Přerov', 'Brno')");
+    const ids = Object.fromEntries(
+      (raw.prepare("SELECT name, id FROM events").all() as { name: string; id: string }[]).map((r) => [r.name, r.id]),
+    );
+    // Autocross in Přerov: the track in Čekyně, not the town centre.
+    expect(await getEvent(d1, ids.Cross!)).toMatchObject({ venue: "Autokrosové závodiště Přerov", lat: 49.48438, lng: 17.43021 });
+    // A slalom in Brno is not on Masarykův okruh: the town stays.
+    expect(await getEvent(d1, ids.Past!)).toMatchObject({ venue: null, lat: 49.45, lng: 17.45 });
+
+    const listed = (await listEvents(d1, {}, "2026-05-02")).events.find((e) => e.name === "Cross");
+    expect(listed).toMatchObject({ venue: "Autokrosové závodiště Přerov", lat: 49.48438 });
+    expect((await listEvents(d1, { q: "zavodiste" }, "2026-05-02")).events.map((e) => e.name)).toEqual(["Cross"]);
+
+    const ics = await (await handleApi(new Request(`https://x/api/events/${ids.Cross}/ics`), d1)).text();
+    expect(ics).toContain("LOCATION:Autokrosové závodiště Přerov\\, Přerov");
+    expect(ics).toContain("GEO:49.48438;17.43021");
+  });
+
   it("404 for unknown or malformed id", async () => {
     const { d1 } = await seeded();
     expect((await handleApi(new Request(`https://x/api/events/${"0".repeat(32)}`), d1)).status).toBe(404);

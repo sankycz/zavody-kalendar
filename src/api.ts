@@ -29,7 +29,7 @@ export const EventsQuery = z.object({
   discipline: csvOf(DISCIPLINES).optional(),
   level: csvOf(LEVELS).optional(),
   region: z.string().max(100).optional(),
-  /** Full-text search: every word must occur in the name, place, region, series, organizer or discipline. */
+  /** Full-text search: every word must occur in the name, place, track, region, series, organizer or discipline. */
   q: z.string().max(100).optional(),
 });
 export type EventsQuery = z.infer<typeof EventsQuery>;
@@ -63,13 +63,22 @@ export function searchWords(q: string | undefined): string[] {
   return q ? fold(q).split(/[^a-z0-9]+/).filter(Boolean) : [];
 }
 
-type Searchable = Pick<EventListItem, "name" | "location_name" | "region" | "series" | "discipline"> & { organizer?: string | null };
+type Searchable = Pick<EventListItem, "name" | "location_name" | "region" | "series" | "discipline"> & { organizer?: string | null; venue?: string | null };
 
 export function matchesSearch(e: Searchable, words: string[]): boolean {
   if (words.length === 0) return true;
-  const text = fold([e.name, e.location_name, e.region, e.series, e.organizer, DISCIPLINE_WORDS[e.discipline]].filter(Boolean).join(" "));
+  const text = fold([e.name, e.location_name, e.venue, e.region, e.series, e.organizer, DISCIPLINE_WORDS[e.discipline]].filter(Boolean).join(" "));
   return words.every((w) => text.includes(w));
 }
+
+/**
+ * The track of a race (migration 0018): the venue in its town for its discipline.
+ * Its point replaces the town's, so the map, distance and navigation lead to the track.
+ */
+const VENUE_JOIN = `LEFT JOIN venues v ON v.id = (
+    SELECT id FROM venues WHERE location_name = e.location_name
+       AND ',' || disciplines || ',' LIKE '%,' || e.discipline || ',%' ORDER BY id LIMIT 1)`;
+const POINT = "COALESCE(v.lat, e.lat) AS lat, COALESCE(v.lng, e.lng) AS lng, v.name AS venue";
 
 export async function listEvents(db: D1Database, q: EventsQuery, today = todayInPrague()): Promise<EventsResponse> {
   // Races in the Czech Republic only (older rows may still hold races abroad).
@@ -96,11 +105,11 @@ export async function listEvents(db: D1Database, q: EventsQuery, today = todayIn
     db
       .prepare(
         `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
-                e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, e.lat, e.lng,
+                e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, ${POINT},
                 (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count, e.organizer,
                 CASE WHEN oc.status = 'cancelled' THEN 'cancelled' WHEN oc.status = 'postponed' THEN 'postponed'
                      WHEN oc.date_from IS NOT NULL THEN 'date_changed' END AS organizer_flag
-           FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
+           FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id ${VENUE_JOIN}
           WHERE ${where.join(" AND ")}
           ORDER BY e.date_from, e.name
           LIMIT 2000`,
@@ -123,11 +132,11 @@ export async function getEvent(db: D1Database, id: string): Promise<EventDetail 
   const event = await db
     .prepare(
       `SELECT e.id, e.name, e.date_from, e.date_to, e.discipline, e.series, e.level, e.location_name,
-              e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, e.lat, e.lng, e.organizer, e.website_url, e.description, e.updated_at,
+              e.region, e.country, CASE WHEN oc.status = 'cancelled' AND e.status = 'planned' THEN 'cancelled' ELSE e.status END AS status, ${POINT}, e.organizer, e.website_url, e.description, e.updated_at,
               (SELECT COUNT(*) FROM event_sources es WHERE es.event_id = e.id) AS source_count,
               CASE WHEN oc.status = 'cancelled' THEN 'cancelled' WHEN oc.status = 'postponed' THEN 'postponed'
                      WHEN oc.date_from IS NOT NULL THEN 'date_changed' END AS organizer_flag
-         FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
+         FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id ${VENUE_JOIN}
         WHERE e.id = ?`,
     )
     .bind(id)

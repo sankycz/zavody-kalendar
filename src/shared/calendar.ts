@@ -2,7 +2,7 @@
 // Outlook…), both all-day. Shared by the Worker (GET /api/events/<id>/ics) and the web.
 import type { EventDetail } from "./types.ts";
 
-type CalendarEvent = Pick<EventDetail, "id" | "name" | "date_from" | "date_to" | "location_name" | "region" | "series" | "organizer" | "website_url" | "lat" | "lng" | "status">;
+type CalendarEvent = Pick<EventDetail, "id" | "name" | "date_from" | "date_to" | "location_name" | "region" | "series" | "organizer" | "website_url" | "lat" | "lng" | "status" | "venue">;
 
 function compact(iso: string): string {
   return iso.replaceAll("-", "");
@@ -14,7 +14,7 @@ function nextDay(iso: string): string {
 }
 
 function place(e: CalendarEvent): string {
-  return [e.location_name, e.region].filter(Boolean).join(", ");
+  return [e.venue, e.location_name, e.region].filter(Boolean).join(", ");
 }
 
 function description(e: CalendarEvent, pageUrl: string): string {
