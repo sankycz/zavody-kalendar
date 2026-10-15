@@ -66,6 +66,7 @@ export function Intro() {
             Závody aut <span className="text-racing">v Česku</span>
           </p>
           <p className="mt-1.5 text-sm text-white/70">Rally · vrchy · okruhy · autokros · slalom</p>
+          <p className="mt-6 text-[11px] tracking-wide text-white/45">designed by JS Visuals</p>
         </div>
       </div>
       <span className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] text-xs text-white/40">Klepnutím přeskočíte</span>
