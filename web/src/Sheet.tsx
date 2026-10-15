@@ -1,8 +1,11 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Glass panel sliding up from the bottom (on wider screens centered). Closes on
  * the backdrop, Escape or the close button; focus moves in and back out.
+ * Rendered into <body>: inside a glass card (backdrop-filter) a fixed panel
+ * would be confined to the card and covered by the content after it.
  */
 export function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -23,7 +26,7 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="sheet-backdrop absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} aria-hidden />
       <div
@@ -50,6 +53,7 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
