@@ -56,6 +56,8 @@ export function Intro() {
             ))}
           </div>
         )}
+        {/* Credit under the lights, there for the whole start sequence. */}
+        {!reduced && <p className="intro-credit mt-3 text-[11px] tracking-wide text-white/45">designed by JS Visuals</p>}
         <div className="intro-logo mt-8 flex flex-col items-center">
           <span className="bg-racing grid h-16 w-16 place-items-center rounded-2xl shadow-xl shadow-accent/40">
             <svg viewBox="0 0 24 24" className="h-9 w-9" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -66,7 +68,7 @@ export function Intro() {
             Závody aut <span className="text-racing">v Česku</span>
           </p>
           <p className="mt-1.5 text-sm text-white/70">Rally · vrchy · okruhy · autokros · slalom</p>
-          <p className="mt-6 text-[11px] tracking-wide text-white/45">designed by JS Visuals</p>
+          {reduced && <p className="mt-6 text-[11px] tracking-wide text-white/45">designed by JS Visuals</p>}
         </div>
       </div>
       <span className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] text-xs text-white/40">Klepnutím přeskočíte</span>

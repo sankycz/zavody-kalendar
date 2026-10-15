@@ -392,6 +392,9 @@
     box-shadow: 0 20px 60px -20px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.06);
     animation: intro-in 0.35s ease-out both;
   }
+  .intro-credit {
+    animation: intro-in 0.35s ease-out 0.15s both;
+  }
   .intro-light {
     display: block;
     width: clamp(1.75rem, 8vw, 2.75rem);
