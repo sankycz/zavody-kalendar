@@ -10,6 +10,7 @@ import { useNeighbours } from "./raceOrder.ts";
 import { canGoBack, navigate } from "./router.ts";
 import { FavoriteButton } from "./Favorite.tsx";
 import { SaveOfflineButton } from "./Offline.tsx";
+import { ShareImageButton } from "./ShareImage.tsx";
 import { useOfflineState, useOnline } from "./offline/client.ts";
 import { docUrl, todayInPrague } from "./offline/plan.ts";
 import { liveParts, liveWindow } from "./live.ts";
@@ -394,6 +395,7 @@ export function EventDetailPage({ id }: { id: string }) {
           <button type="button" className={btnClass} onClick={() => void share(e)}>
             Sdílet
           </button>
+          <ShareImageButton e={e} className={btnClass} />
           {e.status !== "finished" && !savedOffline && <SaveOfflineButton id={e.id} className={btnClass} />}
         </div>
         </div>

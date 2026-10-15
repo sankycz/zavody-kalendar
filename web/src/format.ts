@@ -74,3 +74,14 @@ export function relativeDay(from: string, to: string | null, today = new Date())
   if (d >= 5 && d <= 14) return `za ${d} dní`;
   return null;
 }
+
+const dayMonthLong = new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "long" });
+
+/** Poster date, capitals: "16. ŘÍJNA", "16.–17. ŘÍJNA", "30. 9. – 1. 10." */
+export function posterDate(from: string, to: string | null): string {
+  const a = parse(from);
+  if (!to || to === from) return dayMonthLong.format(a).toUpperCase();
+  const b = parse(to);
+  if (a.getMonth() === b.getMonth()) return `${a.getDate()}.–${dayMonthLong.format(b)}`.toUpperCase();
+  return `${dayMonth.format(a)} – ${dayMonth.format(b)}`;
+}

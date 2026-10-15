@@ -5,12 +5,19 @@
   "compatibility_date": "2026-09-30",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
-  // Web app (Vite build) served as static assets; /api and /admin go to the Worker.
+  // Web app (Vite build) served as static assets; /api and /admin go to the Worker,
+  // pages ("/", "/zavod/…") too, for the redirect to CANONICAL_HOST.
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin/*"]
+    "run_worker_first": ["/api/*", "/admin/*", "/", "/zavod/*"]
   },
+  // Own domain (zone zavody-aut.cz on Cloudflare); the workers.dev address stays for admin calls.
+  "routes": [
+    { "pattern": "www.zavody-aut.cz", "custom_domain": true },
+    { "pattern": "zavody-aut.cz", "custom_domain": true }
+  ],
   // Daily 05:00 Prague time: both UTC slots fire, the Worker runs only in the one
   // that is 05:00 in Prague (03:00 UTC in summer, 04:00 UTC in winter). Every day
   // the calendars not fetched for a week (spread over the days for the Workers AI
@@ -24,7 +31,9 @@
     "EXTRACTOR": "workers-ai",
     "WORKERS_AI_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
     "CLAUDE_MODEL": "claude-opus-5-5",
-    "CONTACT_EMAIL": "j.sankot@gmail.com"
+    "CONTACT_EMAIL": "j.sankot@gmail.com",
+    // Main address; set to "www.zavody-aut.cz" once the domain resolves (nameservers moved to Cloudflare).
+    "CANONICAL_HOST": ""
   },
   // Secrets (wrangler secret put): ADMIN_TOKEN, ANTHROPIC_API_KEY when EXTRACTOR = "claude",
   // APIFY_TOKEN for Facebook sources (via = 'facebook' in the sources table).

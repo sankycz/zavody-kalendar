@@ -366,6 +366,12 @@ export function App() {
         ) : (
           <ListPage filters={parseFilters(loc.searchParams)} />
         )}
+        <footer className="mt-10 text-center text-xs text-muted">
+          Designed by{" "}
+          <a href="https://jsvisuals.cz" target="_blank" rel="noopener" className="font-semibold hover:text-fg">
+            Hypertext · jsvisuals.cz
+          </a>
+        </footer>
       </main>
     </div>
   );

@@ -10,9 +10,14 @@ import { checkOrganizers, DEFAULT_CHECK_LIMIT, LIVE_WINDOW_DAYS } from "./pipeli
 import { markFinished, runAll, type RunDeps } from "./pipeline/run.ts";
 import { checkStages, DEFAULT_STAGE_LIMIT } from "./pipeline/stages.ts";
 import { mergeEvents } from "./pipeline/upsert.ts";
+import { canonicalUrl } from "./canonical.ts";
 
 export interface Env {
   DB: D1Database;
+  /** Static assets (the web app); pages reach the Worker first only for the redirect below. */
+  ASSETS: Fetcher;
+  /** Main address ("www.zavody-aut.cz"); pages on workers.dev and the bare domain move there. Empty: no redirect. */
+  CANONICAL_HOST?: string;
   /** Workers AI binding (used when EXTRACTOR = "workers-ai"). */
   AI: Ai;
   /** "workers-ai" (free daily allocation) or "claude" (Claude API, needs ANTHROPIC_API_KEY). */
@@ -124,6 +129,9 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    const canonical = canonicalUrl(url, env.CANONICAL_HOST);
+    if (canonical) return Response.redirect(canonical, 301);
+
     // Admin endpoints, POST with "Authorization: Bearer <ADMIN_TOKEN>":
     //   /admin/run[?source=<id>][&force=1]   calendar ingest
     //   /admin/check-organizers[?limit=<n>]  organizer website check
@@ -180,7 +188,8 @@ export default {
 
     if (url.pathname.startsWith("/api/")) return handleApi(request, env.DB);
 
-    // Everything else is served from static assets (the web app) before reaching the Worker.
+    // Pages ("/", "/zavod/…") come here only for the redirect; other files never reach the Worker.
+    if (!url.pathname.startsWith("/admin/")) return env.ASSETS.fetch(request);
     return new Response("Not Found", { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
