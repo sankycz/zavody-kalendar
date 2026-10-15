@@ -350,7 +350,7 @@ export function EventDetailPage({ id }: { id: string }) {
           {longDateRange(e.date_from, e.date_to)}
           {soon && <span className="font-semibold text-accent"> · {soon}</span>}
         </p>
-        {place && <p className="text-muted">{place}</p>}
+        {(e.venue || place) && <p className="text-muted">{[e.venue, place].filter(Boolean).join(", ")}</p>}
 
         {e.status === "planned" && (
           <div className="mt-4">
@@ -401,7 +401,9 @@ export function EventDetailPage({ id }: { id: string }) {
         </div>
       </header>
       {hasPoint ? (
-        <p className="mt-2 px-3 text-xs text-muted">Poloha podle obce, ne přesné místo trati.</p>
+        <p className="mt-2 px-3 text-xs text-muted">
+          {e.venue ? `Navigace vede do areálu ${e.venue}.` : "Poloha podle obce, ne přesné místo trati. Navigace vede do středu obce."}
+        </p>
       ) : (
         <p className="mt-2 px-3 text-xs text-muted">Poloha závodu zatím není známá.</p>
       )}
