@@ -13,6 +13,29 @@ import { mergeEvents } from "./pipeline/upsert.ts";
 import { canonicalUrl } from "./canonical.ts";
 import { eventPageHtml } from "./eventMeta.ts";
 
+/** Home-screen icons and the manifest (wrangler.jsonc run_worker_first). */
+const ICON_PATH = /^\/(apple-touch-icon[^/]*|favicon[^/]*|icon-[^/]*|manifest\.webmanifest)$/;
+
+/** Served unchanged; the log line shows what the iPhone asks for when adding the app to the Home Screen. */
+async function iconAsset(request: Request, url: URL, env: Env): Promise<Response> {
+  const res = await env.ASSETS.fetch(request);
+  const h = request.headers;
+  console.log(
+    JSON.stringify({
+      icon: url.pathname + url.search,
+      host: url.host,
+      status: res.status,
+      type: res.headers.get("Content-Type"),
+      ua: h.get("User-Agent"),
+      accept: h.get("Accept"),
+      dest: h.get("Sec-Fetch-Dest"),
+      mode: h.get("Sec-Fetch-Mode"),
+      cookie: h.has("Cookie"),
+    }),
+  );
+  return res;
+}
+
 export interface Env {
   DB: D1Database;
   /** Static assets (the web app); pages reach the Worker first only for the redirect below. */
@@ -149,6 +172,8 @@ export default {
 
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (ICON_PATH.test(url.pathname)) return iconAsset(request, url, env);
 
     const canonical = canonicalUrl(url, env.CANONICAL_HOST);
     if (canonical) return Response.redirect(canonical, 301);
