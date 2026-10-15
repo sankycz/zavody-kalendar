@@ -1,11 +1,13 @@
 // Icons and the link preview image from the one logo (web/src/logo.ts):
-//   favicon.svg, favicon-32.png, apple-touch-icon.png (180, no transparency),
+//   favicon.svg, favicon-32.png, favicon.ico, apple-touch-icon.png (180, no transparency)
+//   and its copy apple-touch-icon-precomposed.png (iOS asks for both names at the root
+//   regardless of <link>; a missing file would get the SPA's HTML and a letter instead of the logo),
 //   icon-192/512.png, icon-maskable-512.png (drawing inside the safe circle),
 //   og-image.png (1200×630, shared link to the app).
 // Run after changing the logo: npm run icons. Needs Playwright with Chromium
 // (local or global install, e.g. npx playwright install chromium).
 import { execSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { logoDataUrl, logoSvg } from "../web/src/logo.ts";
@@ -50,6 +52,20 @@ p{font-size:32px;color:#9aa0ad;margin:0 0 36px;font-weight:500}
 <div class="chips"><div class="chip">Rally</div><div class="chip">Vrchy</div><div class="chip">Autokros</div><div class="chip">Slalom</div><div class="chip">Okruhy</div></div></div>
 <div class="url">zavody-aut.cz</div></body></html>`;
 
+/** ICO with one PNG image inside (supported everywhere favicon.ico is still asked for). */
+function ico(png: Uint8Array, size: number): Buffer {
+  const head = Buffer.alloc(22);
+  head.writeUInt16LE(1, 2); // type: icon
+  head.writeUInt16LE(1, 4); // one image
+  head.writeUInt8(size, 6);
+  head.writeUInt8(size, 7);
+  head.writeUInt16LE(1, 10); // colour planes
+  head.writeUInt16LE(32, 12); // bits per pixel
+  head.writeUInt32LE(png.length, 14);
+  head.writeUInt32LE(22, 18); // image data right after the header
+  return Buffer.concat([head, png]);
+}
+
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -62,7 +78,9 @@ async function png(file: string, size: number, svg: string) {
 
 writeFileSync(join(OUT, "favicon.svg"), `${logoSvg({ radius: 112 })}\n`);
 await png("favicon-32.png", 32, logoSvg({ radius: 7, scale: 0.9 }));
+writeFileSync(join(OUT, "favicon.ico"), ico(readFileSync(join(OUT, "favicon-32.png")), 32));
 await png("apple-touch-icon.png", 180, logoSvg());
+copyFileSync(join(OUT, "apple-touch-icon.png"), join(OUT, "apple-touch-icon-precomposed.png"));
 await png("icon-192.png", 192, logoSvg());
 await png("icon-512.png", 512, logoSvg());
 await png("icon-maskable-512.png", 512, logoSvg({ scale: 0.64 }));
