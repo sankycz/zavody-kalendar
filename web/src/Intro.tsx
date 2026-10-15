@@ -3,8 +3,8 @@ import { logoDataUrl } from "./logo.ts";
 
 const KEY = "intro-seen";
 /** Total length; the CSS timeline in index.css (.intro-*) matches it. */
-const DURATION_MS = 4000;
-const REDUCED_MS = 900;
+const DURATION_MS = 5600;
+const REDUCED_MS = 2200;
 
 function seen(): boolean {
   try {
@@ -15,9 +15,10 @@ function seen(): boolean {
 }
 
 /**
- * Start-lights intro on app launch (once per visit): five red lights come on
- * one by one, go out – lights out, away we go – and the logo appears. Tap,
- * click or any key skips it. With reduced motion only the logo, briefly.
+ * Start-lights intro on app launch (once per visit): the logo with what the app
+ * is slides in first and stays there to be read, five red lights come on one by
+ * one, go out – lights out, away we go – and the logo pulses. Tap, click or any
+ * key skips it. With reduced motion only the logo.
  */
 export function Intro() {
   const [show, setShow] = useState(() => !seen());
@@ -51,8 +52,8 @@ export function Intro() {
           <div className="intro-gantry flex gap-2.5 rounded-2xl p-3 sm:gap-3.5 sm:p-4" aria-hidden>
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="flex flex-col gap-2 rounded-xl bg-black/60 p-1.5 sm:p-2">
-                <span className="intro-light" style={{ animationDelay: `${0.5 + i * 0.4}s, 2.7s` }} />
-                <span className="intro-light" style={{ animationDelay: `${0.5 + i * 0.4}s, 2.7s` }} />
+                <span className="intro-light" style={{ animationDelay: `${0.9 + i * 0.4}s, 3.1s` }} />
+                <span className="intro-light" style={{ animationDelay: `${0.9 + i * 0.4}s, 3.1s` }} />
               </div>
             ))}
           </div>
@@ -64,7 +65,8 @@ export function Intro() {
           <p className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Závody aut <span className="text-racing">v Česku</span>
           </p>
-          <p className="mt-1.5 text-sm text-white/70">Rally · vrchy · okruhy · autokros · slalom</p>
+          <p className="mt-2 max-w-xs text-base text-white/85">Kalendář automobilových závodů v Česku</p>
+          <p className="mt-1 text-sm text-white/60">Rally · vrchy · okruhy · autokros · slalom</p>
           {reduced && <p className="mt-6 text-[11px] tracking-wide text-white/45">designed by JS Visuals</p>}
         </div>
       </div>
