@@ -15,12 +15,15 @@ const MAX_TEXT_CHARS = 60_000;
 export const OrganizerCheckSchema = z.object({
   mentions_event: z.boolean().describe("Zmiňuje stránka právě tento závod (tento ročník / termín)?"),
   status: z.enum(["planned", "cancelled", "postponed", "unknown"]),
+  program_change: z
+    .boolean()
+    .describe("Ruší nebo mění se jen část programu (etapa, den, RZ, rozjížďka, třída), ale závod jako celek se koná?"),
   date_from: z.string().nullable().describe("Termín začátku podle stránky, YYYY-MM-DD, jen když je výslovně uveden"),
   date_to: z.string().nullable().describe("Termín konce podle stránky, YYYY-MM-DD, jinak null"),
   notice: z
     .string()
     .nullable()
-    .describe("Krátká věcná poznámka pro diváky (max. 1–2 věty, česky), jen když stránka hlásí zrušení, odklad, změnu termínu nebo místa; jinak null"),
+    .describe("Krátká věcná poznámka pro diváky (max. 1–2 věty, česky), jen když stránka hlásí zrušení, odklad, změnu programu, termínu nebo místa; jinak null"),
   results_url: z.string().nullable().describe("Odkaz ze stránky na online výsledky nebo live timing tohoto závodu, přesně jak je na stránce; jinak null"),
   stream_url: z.string().nullable().describe("Odkaz ze stránky na živý přenos tohoto závodu (YouTube, Facebook live…), přesně jak je na stránce; jinak null"),
 });
@@ -31,9 +34,10 @@ Dostaneš údaje o závodu z kalendáře a text webové stránky pořadatele. Zj
 
 Pravidla:
 - mentions_event: true jen když stránka zmiňuje tento závod v této sezóně. Obecná stránka klubu bez termínu = false.
-- status: cancelled / postponed jen když to stránka výslovně uvádí pro tento závod. Když stránka závod zmiňuje bez problémů, planned. Když nelze určit, unknown.
+- status: cancelled / postponed jen když to stránka výslovně uvádí pro CELÝ tento závod. Když stránka závod zmiňuje bez problémů, planned. Když nelze určit, unknown.
+- Zrušení nebo změna jen části programu (jedna etapa, jeden den, některé RZ / rozjížďky / třídy), přičemž zbytek závodu se jede, NENÍ zrušení závodu: status planned, program_change true a do notice napiš, co odpadá a co se jede. Jinak program_change false.
 - date_from / date_to: jen termín výslovně uvedený na stránce pro tento závod, jinak null.
-- notice: jen při zrušení, odkladu nebo změně termínu či místa, krátce a věcně. Žádná jména osob, žádné kontakty.
+- notice: jen při zrušení, odkladu, změně programu nebo změně termínu či místa, krátce a věcně. Žádná jména osob, žádné kontakty.
 - results_url: odkaz (v textu ve tvaru „text (url)“) na online výsledky / live timing tohoto závodu, ne na přihlášky ani startovní listiny. stream_url: odkaz na živý přenos tohoto závodu, ne obecný kanál bez přenosu. Jen URL, které na stránce opravdu je.
 - Nic si nedomýšlej.`;
 
@@ -128,8 +132,10 @@ export function interpret(e: Pick<DueEvent, "date_from" | "date_to">, c: Organiz
   if (!from || (to && to <= from)) to = null;
   const status = c.status === "unknown" ? null : c.status;
   const datesDiffer = from != null && (from !== e.date_from || (to != null && to !== (e.date_to ?? e.date_from)));
-  const changed = status === "cancelled" || status === "postponed" || datesDiffer;
   const notice = c.notice?.replace(/\s+/g, " ").trim().slice(0, 300) || null;
+  // A partly cancelled programme (one leg, some stages) is news, but the race still runs.
+  const programChange = status !== "cancelled" && status !== "postponed" && c.program_change && notice != null;
+  const changed = status === "cancelled" || status === "postponed" || datesDiffer || programChange;
   return {
     outcome: changed ? ("changed" as const) : ("confirmed" as const),
     status,
