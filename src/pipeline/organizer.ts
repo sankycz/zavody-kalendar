@@ -173,11 +173,12 @@ export function interpret(e: Pick<DueEvent, "date_from" | "date_to">, c: Organiz
   let to = parseDate(c.date_to, season);
   if (from && Math.abs(Number(from.slice(0, 4)) - season) > 1) from = null;
   if (!from || (to && to <= from)) to = null;
-  const status = c.status === "unknown" ? null : c.status;
-  const datesDiffer = from != null && (from !== e.date_from || (to != null && to !== (e.date_to ?? e.date_from)));
   const notice = c.notice?.replace(/\s+/g, " ").trim().slice(0, 300) || null;
-  // A partly cancelled programme (one leg, some stages) is news, but the race still runs.
-  const programChange = status !== "cancelled" && status !== "postponed" && c.program_change && notice != null;
+  // A partly cancelled programme (one leg, some stages) is news, but the race still runs,
+  // whatever status the model put next to it (small models say "postponed" or "cancelled").
+  const programChange = c.program_change && notice != null;
+  const status = programChange ? "planned" : c.status === "unknown" ? null : c.status;
+  const datesDiffer = from != null && (from !== e.date_from || (to != null && to !== (e.date_to ?? e.date_from)));
   const changed = status === "cancelled" || status === "postponed" || datesDiffer || programChange;
   return {
     outcome: changed ? ("changed" as const) : ("confirmed" as const),
