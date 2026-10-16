@@ -39,6 +39,7 @@ Pravidla:
 - date_from / date_to: jen termín výslovně uvedený na stránce pro tento závod, jinak null.
 - notice: jen při zrušení, odkladu, změně programu nebo změně termínu či místa, krátce a věcně. Žádná jména osob, žádné kontakty.
 - results_url: odkaz (v textu ve tvaru „text (url)“) na online výsledky / live timing tohoto závodu, ne na přihlášky ani startovní listiny. stream_url: odkaz na živý přenos tohoto závodu, ne obecný kanál bez přenosu. Jen URL, které na stránce opravdu je.
+- Když dostaneš i to, co teď ukazuje aplikace, ověř to proti stránce a oprav, co nesedí (třeba zrušení celého závodu, když stránka ruší jen část programu). Řiď se jen stránkou.
 - Nic si nedomýšlej.`;
 
 export interface OrganizerDeps {
@@ -57,6 +58,21 @@ interface DueEvent {
   website_url: string;
   prev_url: string | null;
   prev_hash: string | null;
+  prev_outcome: string | null;
+  prev_status: string | null;
+  prev_date_from: string | null;
+  prev_date_to: string | null;
+  prev_notice: string | null;
+}
+
+export interface CheckOptions {
+  /**
+   * Re-read the page with the model even when it is unchanged and let it verify
+   * what the app shows now (race-day window: a wrong "cancelled" must not stick).
+   */
+  verify?: boolean;
+  /** Check just this event now, whatever its date or last check (admin). Implies verify. */
+  eventId?: string;
 }
 
 interface PrevFindings {
@@ -76,12 +92,15 @@ function addDays(iso: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
+const DUE_COLUMNS = `e.id, e.name, e.date_from, e.date_to, e.location_name, e.website_url,
+       oc.url AS prev_url, oc.content_hash AS prev_hash, oc.outcome AS prev_outcome, oc.status AS prev_status,
+       oc.date_from AS prev_date_from, oc.date_to AS prev_date_to, oc.notice AS prev_notice`;
+
 /** Upcoming events with a website, soonest first, never-checked / longest-unchecked first within a day. */
 export async function dueEvents(db: D1Database, today: string, limit: number, windowDays = CHECK_WINDOW_DAYS): Promise<DueEvent[]> {
   const { results } = await db
     .prepare(
-      `SELECT e.id, e.name, e.date_from, e.date_to, e.location_name, e.website_url,
-              oc.url AS prev_url, oc.content_hash AS prev_hash
+      `SELECT ${DUE_COLUMNS}
          FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
         WHERE e.website_url IS NOT NULL
           AND e.status = 'planned'
@@ -96,14 +115,38 @@ export async function dueEvents(db: D1Database, today: string, limit: number, wi
   return results;
 }
 
-async function askModel(deps: OrganizerDeps, e: DueEvent, text: string): Promise<OrganizerCheck> {
+async function oneEvent(db: D1Database, id: string): Promise<DueEvent[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${DUE_COLUMNS}
+         FROM events e LEFT JOIN organizer_checks oc ON oc.event_id = e.id
+        WHERE e.id = ? AND e.website_url IS NOT NULL AND e.status = 'planned'`,
+    )
+    .bind(id)
+    .all<DueEvent>();
+  return results;
+}
+
+/** What the race detail shows from the last check, for the model to verify; null before any finding. */
+export function shownInApp(e: Pick<DueEvent, "prev_outcome" | "prev_status" | "prev_date_from" | "prev_date_to" | "prev_notice">): string | null {
+  if (e.prev_outcome !== "changed" && e.prev_outcome !== "confirmed") return null;
+  const status =
+    e.prev_status === "cancelled" ? "závod zrušen" : e.prev_status === "postponed" ? "závod odložen" : "závod se koná";
+  const dates = e.prev_date_from ? `, jiný termín ${e.prev_date_from}${e.prev_date_to ? ` až ${e.prev_date_to}` : ""}` : "";
+  return `Aplikace teď ukazuje: ${status}${dates}${e.prev_notice ? `; poznámka: ${e.prev_notice}` : ""}`;
+}
+
+async function askModel(deps: OrganizerDeps, e: DueEvent, text: string, verify: boolean): Promise<OrganizerCheck> {
+  const shown = verify ? shownInApp(e) : null;
   const out = await deps.llm.json({
     system: ORGANIZER_PROMPT,
     content: [
       { type: "text", text: `<page url="${e.website_url}">\n${text.slice(0, MAX_TEXT_CHARS)}\n</page>` },
       {
         type: "text",
-        text: `Závod z kalendáře: ${e.name}\nTermín: ${e.date_from}${e.date_to ? ` až ${e.date_to}` : ""}\nMísto: ${e.location_name ?? "neuvedeno"}`,
+        text:
+          `Závod z kalendáře: ${e.name}\nTermín: ${e.date_from}${e.date_to ? ` až ${e.date_to}` : ""}\nMísto: ${e.location_name ?? "neuvedeno"}` +
+          (shown ? `\n${shown}` : ""),
       },
     ],
     schema: OrganizerCheckSchema,
@@ -147,7 +190,7 @@ export function interpret(e: Pick<DueEvent, "date_from" | "date_to">, c: Organiz
   };
 }
 
-async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerReport> {
+async function checkOne(deps: OrganizerDeps, e: DueEvent, verify: boolean): Promise<OrganizerReport> {
   const now = new Date().toISOString();
   try {
     const res = await deps.http.get(e.website_url);
@@ -157,7 +200,7 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
     const text = htmlToText(decodeHtml(new Uint8Array(await res.arrayBuffer()), type), e.website_url);
     const hash = await sha256Hex(new TextEncoder().encode(text));
 
-    if (hash === e.prev_hash && e.website_url === e.prev_url) {
+    if (!verify && hash === e.prev_hash && e.website_url === e.prev_url) {
       await deps.db
         .prepare("UPDATE organizer_checks SET checked_at = ?, error = NULL WHERE event_id = ?")
         .bind(now, e.id)
@@ -165,7 +208,7 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
       return { event_id: e.id, result: "unchanged" };
     }
 
-    const r = interpret(e, await askModel(deps, e, text), text);
+    const r = interpret(e, await askModel(deps, e, text, verify), text);
     const prev = await deps.db
       .prepare("SELECT status, date_from, date_to, notice FROM organizer_checks WHERE event_id = ?")
       .bind(e.id)
@@ -206,14 +249,19 @@ async function checkOne(deps: OrganizerDeps, e: DueEvent): Promise<OrganizerRepo
  * Check organizer websites of upcoming events: weekly for the next two weeks
  * (after the calendar ingest), daily for today and tomorrow (LIVE_WINDOW_DAYS),
  * when results and stream links tend to appear. At most once a day per race.
+ * With `verify` (the day before and on race day) the model re-reads the page
+ * every time and checks what the app shows against it.
  */
 export async function checkOrganizers(
   deps: OrganizerDeps,
   today: string,
   limit = DEFAULT_CHECK_LIMIT,
   windowDays = CHECK_WINDOW_DAYS,
+  opts: CheckOptions = {},
 ): Promise<OrganizerReport[]> {
+  const due = opts.eventId ? await oneEvent(deps.db, opts.eventId) : await dueEvents(deps.db, today, limit, windowDays);
+  const verify = opts.verify === true || opts.eventId != null;
   const reports: OrganizerReport[] = [];
-  for (const e of await dueEvents(deps.db, today, limit, windowDays)) reports.push(await checkOne(deps, e));
+  for (const e of due) reports.push(await checkOne(deps, e, verify));
   return reports;
 }

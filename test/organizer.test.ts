@@ -3,7 +3,7 @@ import { getEvent, listEvents, todayInPrague } from "../src/api.ts";
 import type { MessagesClient } from "../src/pipeline/extract.ts";
 import { claudeModel } from "../src/pipeline/llm.ts";
 import { PoliteClient } from "../src/pipeline/http.ts";
-import { checkOrganizers, interpret, type OrganizerCheck } from "../src/pipeline/organizer.ts";
+import { checkOrganizers, interpret, type CheckOptions, type OrganizerCheck } from "../src/pipeline/organizer.ts";
 import { processExtraction } from "../src/pipeline/run.ts";
 import { upsertEvents } from "../src/pipeline/upsert.ts";
 import { createTestDb } from "./d1shim.ts";
@@ -84,7 +84,8 @@ function setup() {
   return {
     d1, raw, pages, fetched, prompts,
     answer: (a: OrganizerCheck) => { answer = a; },
-    run: (today = TODAY, windowDays?: number) => checkOrganizers({ db: d1, http, llm: claudeModel(claude, "m") }, today, 10, windowDays),
+    run: (today = TODAY, windowDays?: number, opts?: CheckOptions) =>
+      checkOrganizers({ db: d1, http, llm: claudeModel(claude, "m") }, today, 10, windowDays, opts),
     seed: async (items: ReturnType<typeof item>[]) =>
       upsertEvents(d1, AUTOKLUB, processExtraction(items, Number(TODAY.slice(0, 4))).events, new Map()),
   };
@@ -114,6 +115,24 @@ describe("checkOrganizers", () => {
     t.pages.set("https://soon.example/", "<main>Rallye Klatovy</main><script>var n=2</script>");
     expect(await t.run(addDays(TODAY, 1))).toEqual([{ event_id: expect.any(String), result: "unchanged" }]);
     expect(t.prompts).toHaveLength(1);
+  });
+
+  it("race-day verify re-reads an unchanged page and corrects what the app shows", async () => {
+    const t = setup();
+    await t.seed([item("Miriquidi", SOON, "Cínovec", "https://soon.example/")]);
+    t.pages.set("https://soon.example/", "<main>Zrušení I. etapy, II. etapa se jede</main>");
+    t.answer(ok({ status: "cancelled", notice: "Zrušena I. etapa." }));
+    await t.run();
+
+    t.answer(ok({ program_change: true, notice: "Zrušena I. etapa, II. etapa se jede." }));
+    expect(await t.run(addDays(SOON, -1), 1, { verify: true })).toEqual([{ event_id: expect.any(String), result: "checked", outcome: "changed" }]);
+    expect(t.prompts[1]).toContain("Aplikace teď ukazuje: závod zrušen; poznámka: Zrušena I. etapa.");
+    const list = await listEvents(t.d1, {}, TODAY);
+    expect(list.events[0]).toMatchObject({ status: "planned", organizer_flag: null });
+
+    // One race on demand, even when it was checked today already.
+    expect(await t.run(addDays(SOON, -1), 1, { eventId: list.events[0]!.id })).toHaveLength(1);
+    expect(t.prompts).toHaveLength(3);
   });
 
   it("organizer cancellation shows in the API and survives the next calendar ingest", async () => {

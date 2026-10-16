@@ -135,8 +135,9 @@ export default {
       console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env))));
     } else {
       // Other days: organizer websites of races today and tomorrow (race-day view: results, stream),
+      // re-read by the model even when unchanged to verify what the app shows,
       // stages and road closures of rallies and hill climbs in the next two weeks.
-      console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env), LIVE_WINDOW_DAYS)));
+      console.log(JSON.stringify(await checkOrganizers(d, today, checkLimit(env), LIVE_WINDOW_DAYS, { verify: true })));
       console.log(JSON.stringify(await checkStages(d, today, stageLimit(env))));
     }
     // Calendars every day, each source about once a week: the model's daily allowance
@@ -156,6 +157,7 @@ export default {
     // Admin endpoints, POST with "Authorization: Bearer <ADMIN_TOKEN>":
     //   /admin/run[?source=<id>][&force=1]   calendar ingest
     //   /admin/check-organizers[?limit=<n>]  organizer website check
+    //   /admin/check-organizers?event=<id>   re-check one race now and verify what the app shows
     //   /admin/check-stages[?limit=<n>]      stages and road closures from race documents
     //   /admin/rollover                      add next season's sources (also weekly)
     //   /admin/geocode[?limit=<n>]           coordinates for stored events without them
@@ -168,7 +170,10 @@ export default {
     }
 
     if (url.pathname === "/admin/check-organizers") {
-      return Response.json(await checkOrganizers(deps(env), todayInPrague(), checkLimit(env, url.searchParams.get("limit"))));
+      const eventId = url.searchParams.get("event");
+      if (eventId != null && !/^[0-9a-f]{32}$/.test(eventId)) return Response.json({ error: "event must be an event id" }, { status: 400 });
+      const opts = eventId ? { eventId } : {};
+      return Response.json(await checkOrganizers(deps(env), todayInPrague(), checkLimit(env, url.searchParams.get("limit")), undefined, opts));
     }
 
     if (url.pathname === "/admin/check-stages") {
