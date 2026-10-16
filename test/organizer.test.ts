@@ -47,6 +47,9 @@ describe("interpret", () => {
       notice: "Zrušena I. etapa v Německu, II. etapa v sobotu se jede.", results_url: null, stream_url: null,
     });
     expect(interpret(e, ok({ program_change: true }))).toMatchObject({ outcome: "confirmed", notice: null });
+    expect(interpret(e, ok({ status: "postponed", program_change: true, notice: "Jede se jen II. etapa." }))).toMatchObject({
+      outcome: "changed", status: "planned", notice: "Jede se jen II. etapa.",
+    });
   });
   it("different dates are reported, nonsense dates ignored", () => {
     expect(interpret(e, ok({ date_from: "2026-06-13", date_to: "2026-06-14" }))).toMatchObject({
