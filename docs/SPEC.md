@@ -120,7 +120,9 @@ Pro každý zdroj ulož vzorový stažený obsah do `fixtures/` a napiš test, k
 Každé pondělí se ověří weby pořadatelů (`events.website_url`) u závodů v příštích 14 dnech, max. `ORGANIZER_CHECK_LIMIT` (výchozí 10) za běh, nejbližší a nejdéle neověřené první. Ručně přes `POST /admin/check-organizers`.
 
 - Stránka se stahuje stejně jako zdroje (robots.txt, User-Agent, limit na doménu). Jen HTML; PDF a jiné typy se přeskočí.
-- Model se volá jen když se text stránky od minulé kontroly změnil. Vrací pevné schéma (zmiňuje závod?, stav planned/cancelled/postponed, termín, krátká poznámka), výstup se validuje.
+- Den před závodem a v den závodu (denní běh, `LIVE_WINDOW_DAYS`) se model volá vždy, i když se stránka nezměnila, a dostane i to, co aplikace teď ukazuje (stav, jiný termín, poznámka), aby to ověřil a opravil (třeba zrušení celého závodu, když pořadatel ruší jen etapu nebo RZ). Jeden závod hned: `POST /admin/check-organizers?event=<id>`.
+- Zrušení jen části programu (etapa, den, RZ, třída) není zrušení závodu: stav zůstává planned, poznámka popíše změnu (`program_change`).
+- Jinak se model volá jen když se text stránky od minulé kontroly změnil. Vrací pevné schéma (zmiňuje závod?, stav planned/cancelled/postponed, termín, krátká poznámka), výstup se validuje.
 - Výsledek se ukládá do `organizer_checks`, ne do `events`: kalendářový import tak zrušení od pořadatele nepřepíše a změna termínu nevytvoří duplicitu. API zrušení od pořadatele promítá do stavu závodu, odklad a jiný termín ukazuje jako upozornění.
 - Neukládá se text stránky ani osobní údaje, jen hash a strukturovaný výsledek.
 
