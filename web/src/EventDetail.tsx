@@ -33,7 +33,9 @@ function OrganizerBox({ e }: { e: Detail }) {
         ? "Pořadatel uvádí, že je závod odložený"
         : c.date_from
           ? `Pořadatel uvádí jiný termín: ${formatDate(c.date_from)}${c.date_to ? ` – ${formatDate(c.date_to)}` : ""}`
-          : c.outcome === "confirmed"
+          : changed
+            ? "Pořadatel hlásí změnu programu, závod se koná"
+            : c.outcome === "confirmed"
             ? "Web pořadatele termín potvrzuje"
             : c.outcome === "not_mentioned"
               ? "Na webu pořadatele o závodu zatím nic není"

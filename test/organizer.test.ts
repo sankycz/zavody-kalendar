@@ -23,7 +23,7 @@ const item = (name: string, date_from: string, loc: string, website_url: string 
 });
 
 const ok = (c: Partial<OrganizerCheck>): OrganizerCheck => ({
-  mentions_event: true, status: "planned", date_from: null, date_to: null, notice: null, results_url: null, stream_url: null, ...c,
+  mentions_event: true, status: "planned", program_change: false, date_from: null, date_to: null, notice: null, results_url: null, stream_url: null, ...c,
 });
 
 describe("interpret", () => {
@@ -40,6 +40,13 @@ describe("interpret", () => {
     expect(interpret(e, ok({ status: "cancelled", notice: "Závod se ruší kvůli  opravě silnice." }))).toMatchObject({
       outcome: "changed", status: "cancelled", notice: "Závod se ruší kvůli opravě silnice.",
     });
+  });
+  it("one cancelled leg is a programme change, not a cancelled race", () => {
+    expect(interpret(e, ok({ program_change: true, notice: "Zrušena I. etapa v Německu, II. etapa v sobotu se jede." }))).toEqual({
+      outcome: "changed", status: "planned", date_from: null, date_to: null,
+      notice: "Zrušena I. etapa v Německu, II. etapa v sobotu se jede.", results_url: null, stream_url: null,
+    });
+    expect(interpret(e, ok({ program_change: true }))).toMatchObject({ outcome: "confirmed", notice: null });
   });
   it("different dates are reported, nonsense dates ignored", () => {
     expect(interpret(e, ok({ date_from: "2026-06-13", date_to: "2026-06-14" }))).toMatchObject({
