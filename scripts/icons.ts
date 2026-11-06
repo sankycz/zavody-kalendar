@@ -3,7 +3,9 @@
 //   and its copy apple-touch-icon-precomposed.png (iOS asks for both names at the root
 //   regardless of <link>; a missing file would get the SPA's HTML and a letter instead of the logo),
 //   icon-192/512.png, icon-maskable-512.png (drawing inside the safe circle),
-//   og-image.png (1200×630, shared link to the app).
+//   og-image.png (1200×630, shared link to the app),
+//   and the iOS app icon ios/ZavodyAut/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+//   (1024, square and opaque: iOS rounds the corners and rejects transparency).
 // Run after changing the logo: npm run icons. Needs Playwright with Chromium
 // (local or global install, e.g. npx playwright install chromium).
 import { execSync } from "node:child_process";
@@ -84,6 +86,7 @@ copyFileSync(join(OUT, "apple-touch-icon.png"), join(OUT, "apple-touch-icon-prec
 await png("icon-192.png", 192, logoSvg());
 await png("icon-512.png", 512, logoSvg());
 await png("icon-maskable-512.png", 512, logoSvg({ scale: 0.64 }));
+await png("../../ios/ZavodyAut/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png", 1024, logoSvg());
 
 await page.setViewportSize({ width: 1200, height: 630 });
 await page.setContent(OG_HTML);
@@ -91,4 +94,4 @@ await page.evaluate("document.fonts.ready");
 writeFileSync(join(OUT, "og-image.png"), await page.screenshot({ type: "png" }));
 
 await browser.close();
-console.log("icons written to web/public/");
+console.log("icons written to web/public/ and ios/");
