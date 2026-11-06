@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Discipline, level and region. Changes apply live; the list and the map share them.
+/// Discipline, level, region and the app's look. Changes apply live; the list and the map share them.
 struct FilterSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -63,6 +63,14 @@ struct FilterSheet: View {
                                 .font(.subheadline)
                             }
                         }
+                    }
+                    section("Vzhled") {
+                        Picker("Vzhled", selection: $model.theme) {
+                            ForEach(AppTheme.allCases) { theme in
+                                Text(theme.label).tag(theme)
+                            }
+                        }
+                        .pickerStyle(.segmented)
                     }
                 }
                 .padding(20)

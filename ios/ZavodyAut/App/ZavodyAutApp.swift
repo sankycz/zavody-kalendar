@@ -24,6 +24,7 @@ struct ZavodyAutApp: App {
                     .zIndex(1)
                 }
             }
+            .preferredColorScheme(model.theme.scheme)
         }
     }
 }

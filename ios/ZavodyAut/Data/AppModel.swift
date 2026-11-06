@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 /// Filters of the list and the map, remembered between launches (like prefs-v1 on the web).
 struct Filters: Codable, Equatable {
@@ -18,12 +19,37 @@ enum ListMode {
     case all, favorites
 }
 
+/// Light or dark look of the app, by default the system's (like ThemeToggle on the web).
+enum AppTheme: String, Codable, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .system: return "Podle systému"
+        case .light: return "Světlý"
+        case .dark: return "Tmavý"
+        }
+    }
+
+    var scheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 /// Settings that stay only in this phone (no accounts, nothing goes to a server).
 private struct Prefs: Codable {
     var filters = Filters()
     var homeRegion: String?
     /// Favorite race id → its last day ('YYYY-MM-DD'); forgotten 60 days after the race.
     var favorites: [String: String] = [:]
+    /// Optional: prefs saved before this field existed must still decode (favorites live here).
+    var theme: AppTheme?
 }
 
 @MainActor
@@ -39,6 +65,7 @@ final class AppModel {
 
     var filters: Filters { didSet { save() } }
     var homeRegion: String? { didSet { save() } }
+    var theme: AppTheme { didSet { save() } }
     private(set) var favorites: [String: String] {
         didSet {
             save()
@@ -54,6 +81,7 @@ final class AppModel {
             .flatMap { try? JSONDecoder().decode(Prefs.self, from: $0) } ?? Prefs()
         filters = prefs.filters
         homeRegion = prefs.homeRegion
+        theme = prefs.theme ?? .system
         favorites = Self.pruned(prefs.favorites)
     }
 
@@ -138,7 +166,7 @@ final class AppModel {
     // MARK: Persistence
 
     private func save() {
-        let prefs = Prefs(filters: filters, homeRegion: homeRegion, favorites: favorites)
+        let prefs = Prefs(filters: filters, homeRegion: homeRegion, favorites: favorites, theme: theme)
         if let data = try? JSONEncoder().encode(prefs) {
             UserDefaults.standard.set(data, forKey: Self.prefsKey)
         }
