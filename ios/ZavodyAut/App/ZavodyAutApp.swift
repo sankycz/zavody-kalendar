@@ -39,11 +39,12 @@ struct RootView: View {
     @Environment(Connectivity.self) private var connectivity
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab: AppTab = .races
+    @State private var racesPath = NavigationPath()
 
     var body: some View {
         TabView(selection: $tab) {
             Tab("Závody", systemImage: "flag.checkered", value: AppTab.races) {
-                NavigationStack { EventListView(mode: .all) }
+                NavigationStack(path: $racesPath) { EventListView(mode: .all) }
             }
             Tab("Mapa", systemImage: "map.fill", value: AppTab.map) {
                 NavigationStack { MapScreen() }
@@ -57,6 +58,10 @@ struct RootView: View {
         .tint(Theme.accent)
         .sensoryFeedback(.selection, trigger: tab)
         .task { await refresh(force: false) }
+        .onOpenURL { url in open(url) }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+            if let url = activity.webpageURL { open(url) }
+        }
         .onChange(of: scenePhase) { _, phase in
             // Back from the background: fresh data (statuses change on race day).
             if phase == .active { Task { await refresh(force: false) } }
@@ -65,6 +70,14 @@ struct RootView: View {
             // Signal is back: fresh data and the weekend's races stored again.
             if online { Task { await refresh(force: true) } }
         }
+    }
+
+    /// A race link from the web (Universal Link) or the widget: its detail on the races tab.
+    private func open(_ url: URL) {
+        guard let route = EventRoute(url: url) else { return }
+        tab = .races
+        racesPath = NavigationPath()
+        racesPath.append(route)
     }
 
     private func refresh(force: Bool) async {

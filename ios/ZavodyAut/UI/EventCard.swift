@@ -3,7 +3,25 @@ import SwiftUI
 /// Navigation to a race detail. `source` tells the zoom transition which card it grows from.
 struct EventRoute: Hashable {
     let id: String
+    /// "list", "hero", "map", or "link" (opened from a web link or the widget, no zoom source).
     var source: String = "list"
+    /// Straight to "Živě ze závodu" (/zavod/<id>/zive).
+    var live = false
+
+    /// https://www.zavody-aut.cz/zavod/<id>[/zive] (Universal Link) or zavodyaut://zavod/<id> (widget).
+    init?(url: URL) {
+        var parts = url.pathComponents.filter { $0 != "/" }
+        if url.scheme == "zavodyaut", let host = url.host() { parts.insert(host, at: 0) }
+        guard parts.count >= 2, parts[0] == "zavod", parts[1].count == 32,
+              parts[1].allSatisfy({ $0.isHexDigit }) else { return nil }
+        self.init(id: parts[1].lowercased(), source: "link", live: parts.count > 2 && parts[2] == "zive")
+    }
+
+    init(id: String, source: String = "list", live: Bool = false) {
+        self.id = id
+        self.source = source
+        self.live = live
+    }
 }
 
 struct FavoriteButton: View {

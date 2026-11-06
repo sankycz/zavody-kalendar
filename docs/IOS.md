@@ -31,6 +31,8 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 | `Model/` | modely API (`src/shared/types.ts`), české popisky a barvy disciplín, formát dat |
 | `Data/` | `API` (síť s limitem 6 s, jinak uložená kopie), `AppModel` (seznam, filtry, oblíbené, můj kraj), `OfflineStore` (závody v zařízení), `Connectivity` (signál) |
 | `UI/` | seznam, karta závodu, detail, filtry, úvod se startovními světly, pozadí, logo |
+| `Data/WidgetBridge.swift` | předává widgetu nadcházející závody a oblíbené přes App Group |
+| `../ZavodyAutWidget/` | widget „Další závod“ (WidgetKit, samostatný target `ZavodyAutWidgetExtension`) |
 | `Map/` | MapLibre mapa (`RaceMapView`), záložka Mapa, dešťový radar (`RadarMapView`) |
 
 ## Chování
@@ -41,6 +43,8 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 - **Živě ze závodu** (`UI/LiveView.swift`, `Model/Live.swift`, obdoba `web/src/LivePage.tsx`): den před závodem a během něj (ne zrušené a odložené) velké tlačítko v detailu, které vyjmenuje, co stránka má. Počasí Open-Meteo (teď a 12 h, den předem denní hodiny dne závodu, sloupce šance na déšť), dešťový radar RainViewer přes MapLibre (poslední snímek, přehrání a posuvník posledních 2 h, vrstva snímku se načte až při zobrazení), odkazy na výsledky a přenos (výsledky nestahujeme). Předpověď uložených závodů je i offline.
 - **Nejblíž mně:** ikona polohy v liště seřadí závody podle vzdálenosti vzdušnou čarou a ukáže ji na kartě. Poloha (asi na kilometr) se zjistí jen na požádání a zůstává v zařízení.
 - **Swipe mezi závody:** v detailu přejetí doleva/doprava otevře další/předchozí závod v pořadí seznamu, nad hlavičkou jsou jejich názvy.
+- **Odkazy z webu (Universal Links):** `https://www.zavody-aut.cz/zavod/<id>` a `…/zive` otevře nainstalovaná appka rovnou na detailu (případně na Živě ze závodu). Worker servíruje `/.well-known/apple-app-site-association` (`src/appLinks.ts`) na všech adresách a bez přesměrování; entitlement `applinks:` je v `ios/ZavodyAut.entitlements`. Widget otevírá appku přes `zavodyaut://zavod/<id>`.
+- **Widget „Další závod“:** nejbližší oblíbený závod (jinak nejbližší) s odpočtem dní; malý a střední na plochu, obdélníkový a řádkový na zamčenou obrazovku. Data z API, bez signálu ze snímku, který appka ukládá do App Group `group.cz.zavodyaut.app` (tam jsou i oblíbené, zůstávají v zařízení). Obnova o půlnoci a každých 6 h.
 - **Přidání do kalendáře:** systémový formulář EventKitUI s vyplněnou celodenní událostí. Nepotřebuje oprávnění ke kalendáři.
 - **Navigace:** otevře Apple Mapy s trasou k bodu trati (nebo ke středu obce, detail na to upozorní).
 - **Motion:** úvod se startovními světly a haptikou (vykreslení silnice, vlajka, pět párů světel, zhasnutí), karta se při otevření rozroste do detailu (zoom přechod), karty při scrollu jemně mizí, pohyblivé barevné pozadí (mesh gradient), pružné hvězdičky a filtry s haptikou. Vše respektuje „Omezit pohyb“.
@@ -50,7 +54,7 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 1. ✅ Kostra: seznam, hledání, filtry, detail, mapa, oblíbené, kalendář, sdílení, nový motion, iPhone + iPad + Mac.
 2. ✅ Nativní offline: automatické uložení závodů od dneška do neděle (detail, MapLibre offline balíček okolí, dokumenty pro diváky), tlačítko „Uložit offline“, mazání proběhlých.
 3. ✅ Živě ze závodu: počasí (Open-Meteo), dešťový radar (RainViewer), odkazy na výsledky a přenos. Swipe mezi závody, „Nejblíž mně“.
-4. App Store: Universal Links (`/.well-known/apple-app-site-association` z Workeru), widget „Další závod“ (WidgetKit), screenshoty, texty, App Privacy, TestFlight.
+4. ✅ App Store: Universal Links, widget „Další závod“, stránka soukromí a podpory (`/soukromi.html`), texty, App Privacy a postup vydání v `docs/APP-STORE.md`. Zbývá na Macu: screenshoty, TestFlight.
 
 ## App Store poznámky
 

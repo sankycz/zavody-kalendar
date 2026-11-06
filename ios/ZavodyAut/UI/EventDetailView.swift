@@ -5,6 +5,8 @@ import SwiftUI
 /// documents for spectators and the sources. The header shows at once from the list.
 struct EventDetailView: View {
     let id: String
+    /// Opened from a /zavod/<id>/zive link: go on to "Živě ze závodu" once loaded.
+    var openLive = false
 
     @Environment(AppModel.self) private var model
     @Environment(OfflineStore.self) private var offline
@@ -94,6 +96,9 @@ struct EventDetailView: View {
         do {
             let fetched = try await API.shared.get("/api/events/\(currentID)", as: EventDetail.self)
             guard fetched.value.id == currentID else { return }
+            if openLive, shownID == nil, fetched.value.summary.liveMode() != nil, !fetched.value.liveParts.isEmpty {
+                showLive = true
+            }
             withAnimation(Theme.spring) {
                 detail = fetched.value
                 savedAt = fetched.savedAt

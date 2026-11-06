@@ -87,8 +87,12 @@ struct EventListView: View {
                 .presentationBackground(.regularMaterial)
         }
         .navigationDestination(for: EventRoute.self) { route in
-            EventDetailView(id: route.id)
-                .navigationTransition(.zoom(sourceID: route.source == "hero" ? "hero-\(route.id)" : route.id, in: zoom))
+            if route.source == "link" {
+                EventDetailView(id: route.id, openLive: route.live)
+            } else {
+                EventDetailView(id: route.id)
+                    .navigationTransition(.zoom(sourceID: route.source == "hero" ? "hero-\(route.id)" : route.id, in: zoom))
+            }
         }
         .overlay {
             if model.events.isEmpty && model.loading {

@@ -39,7 +39,12 @@ final class AppModel {
 
     var filters: Filters { didSet { save() } }
     var homeRegion: String? { didSet { save() } }
-    private(set) var favorites: [String: String] { didSet { save() } }
+    private(set) var favorites: [String: String] {
+        didSet {
+            save()
+            WidgetBridge.publish(events: events, favorites: Set(favorites.keys))
+        }
+    }
 
     private static let prefsKey = "prefs-v1"
     private static let favoriteDays = 60
@@ -76,6 +81,7 @@ final class AppModel {
         events = fetched.value.events
         lastIngestAt = fetched.value.lastIngestAt
         offlineSince = fetched.savedAt
+        WidgetBridge.publish(events: events, favorites: Set(favorites.keys))
     }
 
     // MARK: Queries
