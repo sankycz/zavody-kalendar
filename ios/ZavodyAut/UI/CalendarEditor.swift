@@ -34,13 +34,14 @@ struct CalendarEditor: UIViewControllerRepresentable {
         let store = EKEventStore()
         let event = EKEvent(eventStore: store)
         event.title = draft.title
-        event.isAllDay = true
+        // The time zone must come before isAllDay: setting it later turns the all-day flag off.
+        event.timeZone = Fmt.prague
         event.startDate = draft.start
         event.endDate = draft.end
+        event.isAllDay = true
         event.location = draft.location
         event.url = draft.url
         event.notes = draft.notes
-        event.timeZone = Fmt.prague
 
         let controller = EKEventEditViewController()
         controller.eventStore = store

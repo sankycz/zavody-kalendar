@@ -110,7 +110,7 @@ private struct ToggleChip: View {
         } label: {
             HStack(spacing: 6) {
                 if let symbol { Image(systemName: symbol) }
-                Text(title).lineLimit(1).minimumScaleFactor(0.85)
+                Text(title).lineLimit(1).minimumScaleFactor(0.65)
                 Spacer(minLength: 0)
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .contentTransition(.symbolEffect(.replace))
