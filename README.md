@@ -5,6 +5,7 @@ Kalendář amatérských i mistrovských automobilových závodů v Česku (rall
 - Web: https://www.zavody-aut.cz (stránky ze `zavody-aut.cz` a `…workers.dev` se sem přesměrují; API a admin fungují na všech adresách)
 - Zadání: [`docs/SPEC.md`](docs/SPEC.md)
 - Pravidla pro AI asistenta: [`CLAUDE.md`](CLAUDE.md)
+- iOS / iPadOS / Mac appka (SwiftUI): [`docs/IOS.md`](docs/IOS.md)
 
 Stack: Cloudflare D1 + Workers (Cron Triggers, static assets) · Workers AI nebo Claude API pro extrakci dat · Open-Meteo Geocoding · Vite + React + TypeScript + Tailwind + MapLibre GL (OpenFreeMap).
 

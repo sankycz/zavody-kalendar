@@ -1,3 +1,4 @@
+import { APP_SITE_ASSOCIATION_PATH, appSiteAssociation } from "./appLinks.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { getEvent, handleApi, pragueHour, todayInPrague } from "./api.ts";
 import { handleDoc } from "./docs.ts";
@@ -150,6 +151,9 @@ export default {
 
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Universal Links of the iOS app: on every host, before the redirect (Apple doesn't follow it).
+    if (url.pathname === APP_SITE_ASSOCIATION_PATH) return appSiteAssociation();
 
     const canonical = canonicalUrl(url, env.CANONICAL_HOST);
     if (canonical) return Response.redirect(canonical, 301);

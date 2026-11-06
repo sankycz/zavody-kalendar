@@ -6,12 +6,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   // Web app (Vite build) served as static assets; /api and /admin go to the Worker,
-  // pages ("/", "/zavod/…") too, for the redirect to CANONICAL_HOST.
+  // pages ("/", "/zavod/…") too, for the redirect to CANONICAL_HOST, and /.well-known/
+  // for the iOS app's Universal Links (src/appLinks.ts).
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin/*", "/", "/zavod/*"]
+    "run_worker_first": ["/api/*", "/admin/*", "/", "/zavod/*", "/.well-known/*"]
   },
   // Own domain (zone zavody-aut.cz on Cloudflare). The workers.dev address must stay on
   // (admin calls, old links): with routes set, wrangler would otherwise turn it off.
