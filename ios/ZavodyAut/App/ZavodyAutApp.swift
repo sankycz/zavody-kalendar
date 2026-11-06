@@ -3,6 +3,8 @@ import SwiftUI
 @main
 struct ZavodyAutApp: App {
     @State private var model = AppModel()
+    @State private var offline = OfflineStore()
+    @State private var connectivity = Connectivity()
     @State private var intro = true
 
     var body: some Scene {
@@ -10,6 +12,8 @@ struct ZavodyAutApp: App {
             ZStack {
                 RootView()
                     .environment(model)
+                    .environment(offline)
+                    .environment(connectivity)
                 if intro {
                     IntroView {
                         withAnimation(.easeOut(duration: 0.5)) { intro = false }
@@ -18,7 +22,6 @@ struct ZavodyAutApp: App {
                     .zIndex(1)
                 }
             }
-            .task { await model.load() }
         }
     }
 }
@@ -30,6 +33,8 @@ enum AppTab: Hashable {
 /// Tabs on iPhone; on iPad and Mac the same tabs turn into a sidebar.
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(OfflineStore.self) private var offline
+    @Environment(Connectivity.self) private var connectivity
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab: AppTab = .races
 
@@ -49,9 +54,20 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tint(Theme.accent)
         .sensoryFeedback(.selection, trigger: tab)
+        .task { await refresh(force: false) }
         .onChange(of: scenePhase) { _, phase in
-            // Back from the background with signal: fresh data (statuses change on race day).
-            if phase == .active { Task { await model.load() } }
+            // Back from the background: fresh data (statuses change on race day).
+            if phase == .active { Task { await refresh(force: false) } }
         }
+        .onChange(of: connectivity.online) { _, online in
+            // Signal is back: fresh data and the weekend's races stored again.
+            if online { Task { await refresh(force: true) } }
+        }
+    }
+
+    private func refresh(force: Bool) async {
+        await model.load()
+        guard connectivity.online, model.offlineSince == nil else { return }
+        await offline.sync(from: model.events, favorites: Set(model.favorites.keys), force: force)
     }
 }

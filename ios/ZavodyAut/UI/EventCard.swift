@@ -57,6 +57,7 @@ struct DateBlock: View {
 
 struct EventCard: View {
     let event: RaceEvent
+    @Environment(OfflineStore.self) private var offline
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -84,6 +85,13 @@ struct EventCard: View {
                 HStack(spacing: 6) {
                     DisciplinePill(discipline: event.discipline)
                     LevelPill(level: event.level)
+                    if offline.isSaved(event.id) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.green)
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityLabel("Uloženo pro offline")
+                    }
                 }
                 statusLine
             }

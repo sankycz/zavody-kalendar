@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 
 /// Race detail: everything the calendar knows, where to go, closed roads and stages,
@@ -6,12 +7,15 @@ struct EventDetailView: View {
     let id: String
 
     @Environment(AppModel.self) private var model
+    @Environment(OfflineStore.self) private var offline
+    @Environment(Connectivity.self) private var connectivity
     @Environment(\.openURL) private var openURL
     @State private var detail: EventDetail?
     @State private var savedAt: Date?
     @State private var error: String?
     @State private var calendar: CalendarDraft?
     @State private var appeared = false
+    @State private var preview: URL?
 
     var body: some View {
         let summary = detail?.summary ?? model.event(id)
@@ -58,6 +62,7 @@ struct EventDetailView: View {
         }
         .task(id: id) { await load() }
         .onAppear { appeared = true }
+        .quickLookPreview($preview)
         .sheet(item: $calendar) { draft in
             CalendarEditor(draft: draft) { calendar = nil }
                 .ignoresSafeArea()
@@ -104,11 +109,12 @@ struct EventDetailView: View {
                 .reveal(3, visible: appeared)
         }
         info(e).reveal(4, visible: appeared)
+        offlineCard(e).reveal(5, visible: appeared)
         if s.warnsClosedRoads {
             closures(e).reveal(5, visible: appeared)
         }
         if let links = e.links, !links.isEmpty {
-            spectatorLinks(links).reveal(6, visible: appeared)
+            spectatorLinks(e.id, links).reveal(6, visible: appeared)
         }
         if let text = e.description, !text.isEmpty {
             Card(title: "O závodě") {
@@ -187,12 +193,21 @@ struct EventDetailView: View {
         }
     }
 
-    private func spectatorLinks(_ links: [EventLink]) -> some View {
+    /// Without signal a saved document opens from the device, with signal the organizer's web.
+    private func open(_ url: URL, event id: String, original: String) {
+        if !connectivity.online, let local = offline.localDoc(event: id, url: original) {
+            preview = local
+        } else {
+            openURL(url)
+        }
+    }
+
+    private func spectatorLinks(_ id: String, _ links: [EventLink]) -> some View {
         Card(title: "Pro diváky") {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(links.enumerated()), id: \.offset) { i, l in
                     if let url = URL(string: l.url) {
-                        Link(destination: url) {
+                        Button { open(url, event: id, original: l.url) } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: l.kind.symbol)
                                     .frame(width: 28, height: 28)
@@ -200,14 +215,70 @@ struct EventDetailView: View {
                                     .foregroundStyle(Theme.accent)
                                 Text(l.label).foregroundStyle(.primary).multilineTextAlignment(.leading)
                                 Spacer()
+                                if offline.localDoc(event: id, url: l.url) != nil {
+                                    Image(systemName: "arrow.down.circle.fill")
+                                        .foregroundStyle(.green)
+                                        .accessibilityLabel("Uloženo v zařízení")
+                                }
                                 Image(systemName: "arrow.up.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
                             }
                             .padding(.vertical, 9)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                         if i < links.count - 1 { Divider() }
                     }
                 }
             }
+        }
+    }
+
+    /// "Bez signálu": saved races work at the track without signal; others can be saved by hand.
+    @ViewBuilder private func offlineCard(_ e: EventDetail) -> some View {
+        let saved = offline.isSaved(e.id)
+        let saving = offline.saving.contains(e.id)
+        if saved || (!e.summary.isCancelled && Fmt.daysUntil(e.dateTo ?? e.dateFrom) >= 0) {
+            Card(title: "Bez signálu") {
+                VStack(alignment: .leading, spacing: 12) {
+                    if saved {
+                        Label {
+                            Text("Závod je uložený v zařízení: detail, mapa okolí a dokumenty pro diváky fungují i bez signálu.")
+                        } icon: {
+                            Image(systemName: "checkmark.icloud.fill").foregroundStyle(.green)
+                        }
+                        .font(.subheadline)
+                        if offline.isManual(e.id) {
+                            Button("Odebrat z uložených", role: .destructive) {
+                                withAnimation(Theme.spring) { offline.remove(e.id) }
+                            }
+                            .font(.subheadline)
+                        }
+                    } else if saving {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text("Ukládám závod, mapu a dokumenty…").font(.subheadline)
+                        }
+                    } else {
+                        Text("U trati často není signál. Závody nejbližšího víkendu se ukládají samy, tenhle si můžete uložit hned.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            Task { await offline.save(e.summary) }
+                        } label: {
+                            Label("Uložit offline", systemImage: "arrow.down.circle.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Theme.accent)
+                        .disabled(!connectivity.online)
+                    }
+                }
+                .animation(Theme.spring, value: saved)
+                .animation(Theme.spring, value: saving)
+            }
+            .sensoryFeedback(.success, trigger: saved)
         }
     }
 

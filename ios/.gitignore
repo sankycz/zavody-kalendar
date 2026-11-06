@@ -1,5 +1,3 @@
-# Generuje se z project.yml (xcodegen)
-ZavodyAut.xcodeproj/
 build/
 DerivedData/
 *.xcuserstate

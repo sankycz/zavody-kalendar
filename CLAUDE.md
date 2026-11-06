@@ -16,7 +16,7 @@ Kompletní zadání je v `docs/SPEC.md`. Čti ho před každou změnou.
 - D1 není veřejná: frontend jen přes read-only API, zapisuje jen ingest Worker; admin endpoint chráněný tokenem ze secrets.
 - Frontend: Vite + React + TypeScript strict + Tailwind + MapLibre GL (vektorové dlaždice OpenFreeMap, `web/src/basemap.ts`). Česky, mobile-first, světlý/tmavý režim, filtry v URL.
 - Pro každý zdroj fixture v `fixtures/` a test normalizace + deduplikace bez volání API.
-- iOS / iPadOS / Mac appka: nativní SwiftUI v `ios/` (XcodeGen `ios/project.yml`, Bundle ID `cz.zavodyaut.app`), čte jen read-only API. Viz `docs/IOS.md`. Změna tvaru odpovědi API smí jen přidávat pole (vydané verze appky). Nové animace jen v appce, web se kvůli nim nemění.
+- iOS / iPadOS / Mac appka: nativní SwiftUI v `ios/` (Xcode projekt `ios/ZavodyAut.xcodeproj` se synchronizovanou složkou `ios/ZavodyAut/`, Bundle ID `cz.zavodyaut.app`), čte jen read-only API. Viz `docs/IOS.md`. Změna tvaru odpovědi API smí jen přidávat pole (vydané verze appky). Nové animace jen v appce, web se kvůli nim nemění.
 
 ## Příkazy
 `npm test` (vitest, D1 nahrazená node:sqlite nad `migrations/`), `npm run typecheck`, `npm run build`, `npm run deploy`, `npm run fixtures:fetch`. Před commitem musí projít test i typecheck.

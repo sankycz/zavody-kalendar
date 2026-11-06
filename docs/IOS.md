@@ -7,23 +7,19 @@ Nativní appka pro iPhone, iPad a Mac (Apple Silicon, režim „Designed for iPa
 - **Název pod ikonou:** Závody aut
 - **Minimální systém:** iOS / iPadOS 18
 - **Mapa:** MapLibre Native (Swift Package `maplibre-gl-native-distribution`) s dlaždicemi OpenFreeMap, světlý styl Liberty a tmavý Dark jako na webu. MapLibre umí offline balíčky dlaždic, proto ne Apple MapKit.
-- **Projekt:** `ios/project.yml` (XcodeGen). `ZavodyAut.xcodeproj` se generuje a necommituje.
+- **Projekt:** `ios/ZavodyAut.xcodeproj`. Složka `ios/ZavodyAut/` je v Xcode synchronizovaná: nový soubor v ní Xcode zahrne sám, projekt se kvůli tomu nemění.
 
 ## Spuštění na Macu
-
-```bash
-brew install xcodegen
-```
 
 ```bash
 cd ~/zavody-kalendar && git pull
 ```
 
 ```bash
-cd ios && xcodegen && open ZavodyAut.xcodeproj
+open ios/ZavodyAut.xcodeproj
 ```
 
-V Xcode vyber simulátor (iPhone, iPad) nebo „My Mac (Designed for iPad)“ a ▶ Run. Při prvním buildu Xcode stáhne balíček MapLibre. Po přidání nebo přejmenování souboru ve `ios/ZavodyAut/` znovu spusť `xcodegen`.
+V Xcode vyber simulátor (iPhone, iPad) nebo „My Mac (Designed for iPad)“ a ▶ Run. Při prvním buildu Xcode stáhne balíček MapLibre. Na vlastním zařízení: target ZavodyAut → Signing & Capabilities → Team.
 
 Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) příkazem `npm run icons`.
 
@@ -33,14 +29,15 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 | --- | --- |
 | `App/` | vstup appky, taby (na iPadu a Macu boční panel) |
 | `Model/` | modely API (`src/shared/types.ts`), české popisky a barvy disciplín, formát dat |
-| `Data/` | `API` (síť s limitem 6 s, jinak uložená kopie), `AppModel` (seznam, filtry, oblíbené, můj kraj) |
+| `Data/` | `API` (síť s limitem 6 s, jinak uložená kopie), `AppModel` (seznam, filtry, oblíbené, můj kraj), `OfflineStore` (závody v zařízení), `Connectivity` (signál) |
 | `UI/` | seznam, karta závodu, detail, filtry, úvod se startovními světly, pozadí, logo |
 | `Map/` | MapLibre mapa (`RaceMapView`) a záložka Mapa |
 
 ## Chování
 
 - **Uložení bez účtu:** filtry, oblíbené a můj kraj jen v `UserDefaults` zařízení (klíč `prefs-v1`), na server se nic neposílá. Oblíbené se zapomenou 60 dní po závodě.
-- **Offline (krok 1):** každá úspěšná odpověď API se uloží do Application Support. Bez signálu appka ukáže uloženou kopii se štítkem „Bez signálu · uložená data z …“. Ukládání závodů nadcházejícího víkendu dopředu, mapových dlaždic a dokumentů přijde v kroku 2.
+- **Offline:** každá úspěšná odpověď API se uloží do Application Support. Bez signálu appka ukáže uloženou kopii se štítkem „Bez signálu · uložená data z …“.
+- **Závody v zařízení** (`OfflineStore`, obdoba service workeru webu): samy se ukládají závody od dneška do neděle (max. 8, oblíbené první, bez zrušených), nejvýš jednou za 6 h a vždy po návratu signálu. V detailu „Uložit offline“ pro libovolný jiný závod. U každého: detail, MapLibre offline balíček okolí (±6 km, zoom 9–14, světlý i tmavý styl), dokumenty pro diváky (harmonogram, mapa, divácká místa, propozice, plakát) přes `GET /api/events/<id>/doc?url=…`. Navíc celá ČR v zoomu 5–8. Bez signálu se dokument otevře z telefonu (Quick Look), se signálem web pořadatele. Proběhlé závody se smažou i s dlaždicemi a dokumenty. Uložené mají v seznamu zelenou ikonku.
 - **Přidání do kalendáře:** systémový formulář EventKitUI s vyplněnou celodenní událostí. Nepotřebuje oprávnění ke kalendáři.
 - **Navigace:** otevře Apple Mapy s trasou k bodu trati (nebo ke středu obce, detail na to upozorní).
 - **Motion:** úvod se startovními světly a haptikou (vykreslení silnice, vlajka, pět párů světel, zhasnutí), karta se při otevření rozroste do detailu (zoom přechod), karty při scrollu jemně mizí, pohyblivé barevné pozadí (mesh gradient), pružné hvězdičky a filtry s haptikou. Vše respektuje „Omezit pohyb“.
@@ -48,7 +45,7 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 ## Postup (kroky)
 
 1. ✅ Kostra: seznam, hledání, filtry, detail, mapa, oblíbené, kalendář, sdílení, nový motion, iPhone + iPad + Mac.
-2. Nativní offline: automatické uložení závodů od dneška do neděle (detail, MapLibre offline balíček okolí, dokumenty pro diváky do souborů), tlačítko „Uložit offline“, mazání proběhlých.
+2. ✅ Nativní offline: automatické uložení závodů od dneška do neděle (detail, MapLibre offline balíček okolí, dokumenty pro diváky), tlačítko „Uložit offline“, mazání proběhlých.
 3. Živě ze závodu: počasí (Open-Meteo), dešťový radar (RainViewer), odkazy na výsledky a přenos. Swipe mezi závody, „blízko mě“.
 4. App Store: Universal Links (`/.well-known/apple-app-site-association` z Workeru), widget „Další závod“ (WidgetKit), screenshoty, texty, App Privacy, TestFlight.
 
