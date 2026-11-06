@@ -57,6 +57,7 @@ struct DateBlock: View {
 
 struct EventCard: View {
     let event: RaceEvent
+    var distanceKm: Double?
     @Environment(OfflineStore.self) private var offline
 
     var body: some View {
@@ -76,7 +77,12 @@ struct EventCard: View {
                         .padding(.top, -10)
                         .padding(.trailing, -10)
                 }
-                if let place = event.placeLine {
+                if let km = distanceKm {
+                    Label("\(Distance.label(km)) · \(event.locationName ?? event.region ?? "")", systemImage: "location.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                        .lineLimit(1)
+                } else if let place = event.placeLine {
                     Label(place, systemImage: "mappin.and.ellipse")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

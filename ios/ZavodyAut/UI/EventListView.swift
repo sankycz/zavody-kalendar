@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 
 /// Upcoming races grouped by month. One column on iPhone, a grid on iPad and Mac.
@@ -6,7 +7,10 @@ struct EventListView: View {
     let mode: ListMode
 
     @Environment(AppModel.self) private var model
+    @Environment(LocationProvider.self) private var location
     @Namespace private var zoom
+    /// "Nejblíž mně": one list by distance instead of months.
+    @State private var nearby = false
     @State private var search = ""
     @State private var showFilters = false
     @State private var appeared = false
@@ -28,6 +32,12 @@ struct EventListView: View {
                 }
                 if events.isEmpty {
                     emptyState
+                } else if nearby, let here = location.location {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                        ForEach(Self.byDistance(events, from: here), id: \.event.id) { item in
+                            card(item.event, distanceKm: item.km)
+                        }
+                    }
                 } else {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 14, pinnedViews: [.sectionHeaders]) {
                         ForEach(Self.months(events), id: \.key) { month in
@@ -57,6 +67,19 @@ struct EventListView: View {
             if mode == .all {
                 ToolbarItem(placement: .primaryAction) { FilterButton(showFilters: $showFilters) }
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    withAnimation(Theme.spring) {
+                        nearby.toggle()
+                        if nearby { location.request() }
+                    }
+                } label: {
+                    Image(systemName: nearby ? "location.fill" : "location")
+                        .symbolEffect(.pulse, isActive: location.locating)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .accessibilityLabel(nearby ? "Řadit podle data" : "Nejblíž mně")
+            }
         }
         .sheet(isPresented: $showFilters) {
             FilterSheet()
@@ -76,9 +99,9 @@ struct EventListView: View {
         .sensoryFeedback(.selection, trigger: model.filters)
     }
 
-    private func card(_ e: RaceEvent) -> some View {
+    private func card(_ e: RaceEvent, distanceKm: Double? = nil) -> some View {
         NavigationLink(value: EventRoute(id: e.id)) {
-            EventCard(event: e)
+            EventCard(event: e, distanceKm: distanceKm)
         }
         .buttonStyle(PressStyle())
         .matchedTransitionSource(id: e.id, in: zoom)
@@ -101,13 +124,22 @@ struct EventListView: View {
     }
 
     private var heroRace: RaceEvent? {
-        guard mode == .all, search.isEmpty, model.filters.activeCount == 0, !model.filters.myRegionOnly else { return nil }
+        guard mode == .all, !nearby, search.isEmpty, model.filters.activeCount == 0, !model.filters.myRegionOnly else { return nil }
         return model.nextRace
     }
 
     @ViewBuilder private var header: some View {
         if let since = model.offlineSince {
             OfflineBadge(since: since)
+        }
+        if nearby {
+            Label(
+                location.denied ? "Poloha je vypnutá. Povolíte ji v Nastavení → Soukromí → Polohové služby."
+                    : location.location == nil ? "Zjišťuji polohu…" : "Nejblíž vám, vzdušnou čarou. Poloha zůstává jen v zařízení.",
+                systemImage: location.denied ? "location.slash" : "location.fill"
+            )
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
         }
         if mode == .all, model.homeRegion != nil || model.filters.activeCount > 0 {
             QuickChips()
@@ -153,6 +185,17 @@ struct EventListView: View {
     private struct Month {
         let key: String
         let events: [RaceEvent]
+    }
+
+    private struct Nearby {
+        let event: RaceEvent
+        let km: Double
+    }
+
+    /// Races with a point, nearest first.
+    private static func byDistance(_ events: [RaceEvent], from here: CLLocation) -> [Nearby] {
+        events.compactMap { e in e.distanceKm(from: here).map { Nearby(event: e, km: $0) } }
+            .sorted { $0.km < $1.km }
     }
 
     private static func months(_ events: [RaceEvent]) -> [Month] {

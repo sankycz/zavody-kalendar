@@ -31,13 +31,16 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 | `Model/` | modely API (`src/shared/types.ts`), české popisky a barvy disciplín, formát dat |
 | `Data/` | `API` (síť s limitem 6 s, jinak uložená kopie), `AppModel` (seznam, filtry, oblíbené, můj kraj), `OfflineStore` (závody v zařízení), `Connectivity` (signál) |
 | `UI/` | seznam, karta závodu, detail, filtry, úvod se startovními světly, pozadí, logo |
-| `Map/` | MapLibre mapa (`RaceMapView`) a záložka Mapa |
+| `Map/` | MapLibre mapa (`RaceMapView`), záložka Mapa, dešťový radar (`RadarMapView`) |
 
 ## Chování
 
 - **Uložení bez účtu:** filtry, oblíbené a můj kraj jen v `UserDefaults` zařízení (klíč `prefs-v1`), na server se nic neposílá. Oblíbené se zapomenou 60 dní po závodě.
 - **Offline:** každá úspěšná odpověď API se uloží do Application Support. Bez signálu appka ukáže uloženou kopii se štítkem „Bez signálu · uložená data z …“.
 - **Závody v zařízení** (`OfflineStore`, obdoba service workeru webu): samy se ukládají závody od dneška do neděle (max. 8, oblíbené první, bez zrušených), nejvýš jednou za 6 h a vždy po návratu signálu. V detailu „Uložit offline“ pro libovolný jiný závod. U každého: detail, MapLibre offline balíček okolí (±6 km, zoom 9–14, světlý i tmavý styl), dokumenty pro diváky (harmonogram, mapa, divácká místa, propozice, plakát) přes `GET /api/events/<id>/doc?url=…`. Navíc celá ČR v zoomu 5–8. Bez signálu se dokument otevře z telefonu (Quick Look), se signálem web pořadatele. Proběhlé závody se smažou i s dlaždicemi a dokumenty. Uložené mají v seznamu zelenou ikonku.
+- **Živě ze závodu** (`UI/LiveView.swift`, `Model/Live.swift`, obdoba `web/src/LivePage.tsx`): den před závodem a během něj (ne zrušené a odložené) velké tlačítko v detailu, které vyjmenuje, co stránka má. Počasí Open-Meteo (teď a 12 h, den předem denní hodiny dne závodu, sloupce šance na déšť), dešťový radar RainViewer přes MapLibre (poslední snímek, přehrání a posuvník posledních 2 h, vrstva snímku se načte až při zobrazení), odkazy na výsledky a přenos (výsledky nestahujeme). Předpověď uložených závodů je i offline.
+- **Nejblíž mně:** ikona polohy v liště seřadí závody podle vzdálenosti vzdušnou čarou a ukáže ji na kartě. Poloha (asi na kilometr) se zjistí jen na požádání a zůstává v zařízení.
+- **Swipe mezi závody:** v detailu přejetí doleva/doprava otevře další/předchozí závod v pořadí seznamu, nad hlavičkou jsou jejich názvy.
 - **Přidání do kalendáře:** systémový formulář EventKitUI s vyplněnou celodenní událostí. Nepotřebuje oprávnění ke kalendáři.
 - **Navigace:** otevře Apple Mapy s trasou k bodu trati (nebo ke středu obce, detail na to upozorní).
 - **Motion:** úvod se startovními světly a haptikou (vykreslení silnice, vlajka, pět párů světel, zhasnutí), karta se při otevření rozroste do detailu (zoom přechod), karty při scrollu jemně mizí, pohyblivé barevné pozadí (mesh gradient), pružné hvězdičky a filtry s haptikou. Vše respektuje „Omezit pohyb“.
@@ -46,7 +49,7 @@ Ikona appky (`AppIcon-1024.png`) se generuje z loga webu (`web/src/logo.ts`) př
 
 1. ✅ Kostra: seznam, hledání, filtry, detail, mapa, oblíbené, kalendář, sdílení, nový motion, iPhone + iPad + Mac.
 2. ✅ Nativní offline: automatické uložení závodů od dneška do neděle (detail, MapLibre offline balíček okolí, dokumenty pro diváky), tlačítko „Uložit offline“, mazání proběhlých.
-3. Živě ze závodu: počasí (Open-Meteo), dešťový radar (RainViewer), odkazy na výsledky a přenos. Swipe mezi závody, „blízko mě“.
+3. ✅ Živě ze závodu: počasí (Open-Meteo), dešťový radar (RainViewer), odkazy na výsledky a přenos. Swipe mezi závody, „Nejblíž mně“.
 4. App Store: Universal Links (`/.well-known/apple-app-site-association` z Workeru), widget „Další závod“ (WidgetKit), screenshoty, texty, App Privacy, TestFlight.
 
 ## App Store poznámky

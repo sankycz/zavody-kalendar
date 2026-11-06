@@ -16,11 +16,19 @@ struct EventDetailView: View {
     @State private var calendar: CalendarDraft?
     @State private var appeared = false
     @State private var preview: URL?
+    @State private var showLive = false
+    /// Race swiped to (prev/next in the list), nil = the one opened.
+    @State private var shownID: String?
+    @State private var swipeForward = true
+    @State private var swipes = 0
+
+    private var currentID: String { shownID ?? id }
 
     var body: some View {
-        let summary = detail?.summary ?? model.event(id)
+        let summary = detail?.summary ?? model.event(currentID)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if model.event(currentID) != nil { swipeHint }
                 if let summary {
                     DetailHero(event: summary)
                         .reveal(0, visible: appeared)
@@ -48,7 +56,14 @@ struct EventDetailView: View {
             .padding(16)
             .frame(maxWidth: 760)
             .frame(maxWidth: .infinity)
+            .id(currentID)
+            .transition(.asymmetric(
+                insertion: .move(edge: swipeForward ? .trailing : .leading).combined(with: .opacity),
+                removal: .move(edge: swipeForward ? .leading : .trailing).combined(with: .opacity)
+            ))
         }
+        .simultaneousGesture(swipe)
+        .sensoryFeedback(.impact(weight: .light), trigger: swipes)
         .background { RacingBackground() }
         .navigationTitle(summary?.name ?? "Závod")
         .navigationBarTitleDisplayMode(.inline)
@@ -60,9 +75,14 @@ struct EventDetailView: View {
                 }
             }
         }
-        .task(id: id) { await load() }
+        .task(id: currentID) { await load() }
         .onAppear { appeared = true }
         .quickLookPreview($preview)
+        .navigationDestination(isPresented: $showLive) {
+            if let detail, let mode = detail.summary.liveMode() {
+                LiveView(event: detail, mode: mode)
+            }
+        }
         .sheet(item: $calendar) { draft in
             CalendarEditor(draft: draft) { calendar = nil }
                 .ignoresSafeArea()
@@ -72,7 +92,8 @@ struct EventDetailView: View {
     private func load() async {
         error = nil
         do {
-            let fetched = try await API.shared.get("/api/events/\(id)", as: EventDetail.self)
+            let fetched = try await API.shared.get("/api/events/\(currentID)", as: EventDetail.self)
+            guard fetched.value.id == currentID else { return }
             withAnimation(Theme.spring) {
                 detail = fetched.value
                 savedAt = fetched.savedAt
@@ -80,6 +101,52 @@ struct EventDetailView: View {
         } catch {
             if detail == nil { self.error = error.localizedDescription }
         }
+    }
+
+    // MARK: Swipe between races
+
+    /// The neighbours in the list's order (all upcoming races, by date).
+    private var neighbours: (prev: RaceEvent?, next: RaceEvent?) {
+        guard let i = model.events.firstIndex(where: { $0.id == currentID }) else { return (nil, nil) }
+        return (model.events[safe: i - 1], model.events[safe: i + 1])
+    }
+
+    private var swipe: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { v in
+                let dx = v.translation.width
+                guard abs(dx) > 90, abs(dx) > abs(v.translation.height) * 1.6 else { return }
+                let n = neighbours
+                guard let target = dx < 0 ? n.next : n.prev else { return }
+                swipeForward = dx < 0
+                swipes += 1
+                withAnimation(Theme.spring) {
+                    detail = nil
+                    savedAt = nil
+                    error = nil
+                    shownID = target.id
+                }
+            }
+    }
+
+    /// "‹ previous · next ›" above the header: a hint that the detail can be swiped.
+    private var swipeHint: some View {
+        let n = neighbours
+        return HStack {
+            if let prev = n.prev {
+                Label(prev.name, systemImage: "chevron.left").lineLimit(1)
+            }
+            Spacer(minLength: 12)
+            if let next = n.next {
+                HStack(spacing: 4) {
+                    Text(next.name).lineLimit(1)
+                    Image(systemName: "chevron.right")
+                }
+            }
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
     }
 
     private func shareText(_ e: RaceEvent) -> String {
@@ -91,6 +158,13 @@ struct EventDetailView: View {
     @ViewBuilder private func content(_ e: EventDetail) -> some View {
         let s = e.summary
         warnings(e).reveal(1, visible: appeared)
+        if let mode = s.liveMode(), !e.liveParts.isEmpty {
+            Button { showLive = true } label: {
+                LiveButton(mode: mode, parts: e.liveParts)
+            }
+            .buttonStyle(PressStyle())
+            .reveal(1, visible: appeared)
+        }
         actions(e).reveal(2, visible: appeared)
         if s.hasPoint {
             RaceMapView(events: [s], interactive: false)

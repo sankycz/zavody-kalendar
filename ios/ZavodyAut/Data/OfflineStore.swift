@@ -132,6 +132,8 @@ final class OfflineStore {
 
         if let lat = e.lat, let lng = e.lng {
             await ensurePacks(key: id, bounds: Self.around(lat: lat, lng: lng), zoom: 9...14)
+            // Forecast for "Živě ze závodu" at the track without signal.
+            _ = try? await API.shared.external(Forecast.url(lat: lat, lng: lng), key: Forecast.key(id), as: Forecast.self)
         }
         for link in e.links ?? [] where Self.docKinds.contains(link.kind) && localDoc(event: id, url: link.url) == nil {
             if let name = await download(event: id, url: link.url) {

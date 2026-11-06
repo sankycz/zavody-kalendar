@@ -34,6 +34,8 @@ actor API {
     private let session: URLSession
     private let dir: URL
     private let decoder: JSONDecoder
+    /// Outside services (Open-Meteo, RainViewer) keep their own key names.
+    private let plainDecoder = JSONDecoder()
 
     init() {
         let config = URLSessionConfiguration.default
@@ -53,28 +55,38 @@ actor API {
 
     /// Network first; without signal (or on a server error) the saved copy.
     func get<T: Decodable & Sendable>(_ path: String, as type: T.Type) async throws -> Fetched<T> {
-        let file = cacheFile(path)
+        guard let url = URL(string: path, relativeTo: Self.base)?.absoluteURL else { throw APIError.notFound }
+        return try await fetch(url, key: path, as: type, plain: false)
+    }
+
+    /// An outside service (weather, radar) with the same network-first, saved-copy behaviour.
+    func external<T: Decodable & Sendable>(_ url: URL, key: String, as type: T.Type) async throws -> Fetched<T> {
+        try await fetch(url, key: key, as: type, plain: true)
+    }
+
+    private func fetch<T: Decodable & Sendable>(_ url: URL, key: String, as type: T.Type, plain: Bool) async throws -> Fetched<T> {
+        let file = cacheFile(key)
         do {
-            guard let url = URL(string: path, relativeTo: Self.base)?.absoluteURL else { throw APIError.notFound }
             let (data, response) = try await session.data(from: url)
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             if code == 404 { throw APIError.notFound }
             guard (200..<300).contains(code) else { throw APIError.http(code) }
-            let value = try decoder.decode(T.self, from: data)
+            let value = try (plain ? plainDecoder : decoder).decode(T.self, from: data)
             try? data.write(to: file, options: .atomic)
             return Fetched(value: value, savedAt: nil)
         } catch APIError.notFound {
             throw APIError.notFound
         } catch {
-            if let saved = cached(path, as: type) { return saved }
+            if let saved = cached(key, as: type, plain: plain) { return saved }
             throw error
         }
     }
 
     /// The saved copy only (instant start before the network answers).
-    func cached<T: Decodable & Sendable>(_ path: String, as type: T.Type) -> Fetched<T>? {
+    func cached<T: Decodable & Sendable>(_ path: String, as type: T.Type, plain: Bool = false) -> Fetched<T>? {
         let file = cacheFile(path)
-        guard let data = try? Data(contentsOf: file), let value = try? decoder.decode(T.self, from: data) else { return nil }
+        guard let data = try? Data(contentsOf: file),
+              let value = try? (plain ? plainDecoder : decoder).decode(T.self, from: data) else { return nil }
         let modified = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
         return Fetched(value: value, savedAt: modified ?? .now)
     }

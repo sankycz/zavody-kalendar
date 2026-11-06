@@ -5,6 +5,7 @@ struct ZavodyAutApp: App {
     @State private var model = AppModel()
     @State private var offline = OfflineStore()
     @State private var connectivity = Connectivity()
+    @State private var location = LocationProvider()
     @State private var intro = true
 
     var body: some Scene {
@@ -14,6 +15,7 @@ struct ZavodyAutApp: App {
                     .environment(model)
                     .environment(offline)
                     .environment(connectivity)
+                    .environment(location)
                 if intro {
                     IntroView {
                         withAnimation(.easeOut(duration: 0.5)) { intro = false }
