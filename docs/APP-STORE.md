@@ -31,7 +31,7 @@ EN: `rally,racing,motorsport,hill climb,autocross,circuit,slalom,drift,calendar,
 Všechny závody aut v Česku na jednom místě: rally, rallysprinty, závody do vrchu, autokros, autoslalom, okruhy, drift i historická vozidla. Od mistrovství po regionální a amatérské závody.
 
 • Kalendář nadcházejících závodů s hledáním a filtry podle disciplíny, úrovně a kraje
-• Mapa všech závodů a řazení „Nejblíž mně“
+• Mapa všech závodů s 3D pohledem na místo závodu a řazení „Nejblíž mně“
 • Detail závodu: termín, trať, pořadatel, dokumenty pro diváky (harmonogram, mapa, divácká místa, propozice)
 • Uzavřené silnice: časy rychlostních zkoušek a uzavírek podle dokumentů pořadatele
 • Funguje i bez signálu u trati: závody nejbližšího víkendu se samy uloží i s mapou okolí a dokumenty
@@ -50,7 +50,7 @@ Data pocházejí z veřejných kalendářů a webů pořadatelů, u každého z�
 Every car race in the Czech Republic in one place: rallies, rally sprints, hill climbs, autocross, slalom, circuit racing, drifting and historic cars. From national championships to regional and amateur events.
 
 • Calendar of upcoming races with search and filters by discipline, level and region
-• Map of all races and "Nearest to me" sorting
+• Map of all races with a 3D view of each venue and "Nearest to me" sorting
 • Race details: dates, track, organizer, documents for spectators (schedule, map, spectator areas, regulations)
 • Closed roads: stage and road closure times from the organizer's documents
 • Works without signal at the track: the coming weekend's races are saved with the map and documents

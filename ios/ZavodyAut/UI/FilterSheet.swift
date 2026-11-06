@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Discipline, level and region. Changes apply live; the list and the map share them.
+/// Discipline, level, region and the app's look. Changes apply live; the list and the map share them.
 struct FilterSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -64,6 +64,14 @@ struct FilterSheet: View {
                             }
                         }
                     }
+                    section("Vzhled") {
+                        Picker("Vzhled", selection: $model.theme) {
+                            ForEach(AppTheme.allCases) { theme in
+                                Text(theme.label).tag(theme)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
                 }
                 .padding(20)
             }
@@ -110,7 +118,7 @@ private struct ToggleChip: View {
         } label: {
             HStack(spacing: 6) {
                 if let symbol { Image(systemName: symbol) }
-                Text(title).lineLimit(1).minimumScaleFactor(0.85)
+                Text(title).lineLimit(1).minimumScaleFactor(0.65)
                 Spacer(minLength: 0)
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .contentTransition(.symbolEffect(.replace))
