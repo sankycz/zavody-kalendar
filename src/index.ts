@@ -13,6 +13,7 @@ import { checkStages, DEFAULT_STAGE_LIMIT } from "./pipeline/stages.ts";
 import { mergeEvents } from "./pipeline/upsert.ts";
 import { canonicalUrl } from "./canonical.ts";
 import { eventPageHtml } from "./eventMeta.ts";
+import { eventSeoHtml, homeSeoHtml, sitemapXml, type SeoListEvent } from "./seo.ts";
 
 export interface Env {
   DB: D1Database;
@@ -110,8 +111,9 @@ async function racePage(request: Request, env: Env, id: string): Promise<Respons
     const event = await getEvent(env.DB, id);
     if (!event) return app;
     const url = new URL(request.url);
-    const pageUrl = `https://${env.CANONICAL_HOST || url.host}/zavod/${id}`;
-    const html = eventPageHtml(await app.text(), event, pageUrl);
+    const origin = `https://${env.CANONICAL_HOST || url.host}`;
+    const pageUrl = `${origin}/zavod/${id}`;
+    const html = eventSeoHtml(eventPageHtml(await app.text(), event, pageUrl), event, pageUrl, origin);
     const headers = new Headers(app.headers);
     headers.delete("Content-Length");
     headers.delete("ETag");
@@ -120,6 +122,37 @@ async function racePage(request: Request, env: Env, id: string): Promise<Respons
     console.error("race page meta", err);
     return env.ASSETS.fetch(request);
   }
+}
+
+/** Home page with the upcoming races in the HTML (for search engines); the plain app when anything fails. */
+async function homePage(request: Request, env: Env): Promise<Response> {
+  const app = await env.ASSETS.fetch(request);
+  if (!app.ok || !(app.headers.get("Content-Type") ?? "").includes("text/html")) return app;
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT id, name, date_from, date_to, discipline, location_name, region, country, status
+         FROM events WHERE COALESCE(date_to, date_from) >= ? AND status != 'cancelled'
+        ORDER BY date_from, name LIMIT 100`,
+    )
+      .bind(todayInPrague())
+      .all<SeoListEvent>();
+    const origin = `https://${env.CANONICAL_HOST || new URL(request.url).host}`;
+    const headers = new Headers(app.headers);
+    headers.delete("Content-Length");
+    headers.delete("ETag");
+    return new Response(homeSeoHtml(await app.text(), results, origin), { status: app.status, headers });
+  } catch (err) {
+    console.error("home page seo", err);
+    return env.ASSETS.fetch(request);
+  }
+}
+
+async function sitemap(request: Request, env: Env): Promise<Response> {
+  const { results } = await env.DB.prepare("SELECT id, updated_at FROM events ORDER BY date_from DESC").all<{ id: string; updated_at: string }>();
+  const origin = `https://${env.CANONICAL_HOST || new URL(request.url).host}`;
+  return new Response(sitemapXml(origin, results), {
+    headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" },
+  });
 }
 
 export default {
@@ -217,6 +250,9 @@ export default {
     }
 
     if (url.pathname.startsWith("/api/")) return handleApi(request, env.DB);
+
+    if (url.pathname === "/sitemap.xml" && request.method === "GET") return sitemap(request, env);
+    if (url.pathname === "/" && request.method === "GET") return homePage(request, env);
 
     // A race page: the app with the race's name, date and place in the link preview.
     const page = /^\/zavod\/([0-9a-f]{32})(?:\/zive)?\/?$/.exec(url.pathname);
